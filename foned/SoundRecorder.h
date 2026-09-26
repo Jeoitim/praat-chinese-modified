@@ -95,7 +95,7 @@ Thing_define (SoundRecorder, Editor) {
 	integer takeIndex;
 	GuiList takeList;
 	GuiLabel durationLabel;
-	GuiButton playTakeButton, renameTakeButton, deleteTakeButton, publishSelectedButton;
+	GuiButton renameTakeButton, deleteTakeButton, publishSelectedButton;
 	bool isPlayingSound, isPausedSound;
 	double playCurrentTime, playTotalDuration, playPausedTime;
 	double playLastUiUpdate;

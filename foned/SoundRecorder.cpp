@@ -546,8 +546,6 @@ static WORKPROC_RETURN workProc (WORKPROC_ARGS) {
 				GuiThing_setSensitive (my stopButton, my recording);
 			if (my playButton)
 				GuiThing_setSensitive (my playButton, ! my recording && (hasTakes || hasNsamp));
-			if (my playTakeButton)
-				GuiThing_setSensitive (my playTakeButton, ! my recording && hasTakes);
 			if (my renameTakeButton)
 				GuiThing_setSensitive (my renameTakeButton, ! my recording && hasTakes);
 			if (my deleteTakeButton)
@@ -880,6 +878,7 @@ static void addCurrentRecordingToTakes (SoundRecorder me) {
 	my recordedSounds.addItem_move (sound.move());
 
 	if (my takeList) {
+		GuiList_deselectAllItems (my takeList);
 		GuiList_insertItem (my takeList, takeTitle, my recordedSounds.size);
 		GuiList_selectItem (my takeList, my recordedSounds.size);
 	}
@@ -1104,10 +1103,6 @@ static void gui_list_cb_takeDoubleClick (SoundRecorder me, GuiList_DoubleClickEv
 	gui_button_cb_play (me, nullptr);
 }
 
-static void gui_button_cb_takePlay (SoundRecorder me, GuiButtonEvent /* event */) {
-	gui_button_cb_play (me, nullptr);
-}
-
 static void gui_button_cb_takeRename (SoundRecorder me, GuiButtonEvent /* event */) {
 	integer index = getSelectedTakeIndex (me);
 	if (index < 1 || index > my recordedSounds.size)
@@ -1165,6 +1160,7 @@ static void gui_button_cb_takeDelete (SoundRecorder me, GuiButtonEvent /* event 
 	}
 	if (my recordedSounds.size > 0) {
 		integer newSelect = selected [1] <= my recordedSounds.size ? selected [1] : my recordedSounds.size;
+		GuiList_deselectAllItems (my takeList);
 		GuiList_selectItem (my takeList, newSelect);
 		Sound sound = my recordedSounds.at [newSelect];
 		if (sound && my soundName)
@@ -1669,14 +1665,14 @@ void structSoundRecorder :: v_createChildren ()
 	GuiList_setDoubleClickCallback (our takeList, gui_list_cb_takeDoubleClick, this);
 	GuiList_setContextMenuCallback (our takeList, gui_list_cb_takeContextMenu, this);
 
-	// 2x2 Action buttons below take list (Row 1: y = -205 ~ -180; Row 2: y = -175 ~ -150)
-	our playTakeButton = GuiButton_createShown (our windowForm, 10, 110, -205, -180,
-			U"Play", gui_button_cb_takePlay, this, 0);
-	our renameTakeButton = GuiButton_createShown (our windowForm, 120, 220, -205, -180,
+	// Action buttons below take list
+	// Row 1: Rename... (10 ~ 110) and Delete (120 ~ 220) at y = -205 ~ -180
+	our renameTakeButton = GuiButton_createShown (our windowForm, 10, 110, -205, -180,
 			U"Rename...", gui_button_cb_takeRename, this, 0);
-	our deleteTakeButton = GuiButton_createShown (our windowForm, 10, 110, -175, -150,
+	our deleteTakeButton = GuiButton_createShown (our windowForm, 120, 220, -205, -180,
 			U"Delete", gui_button_cb_takeDelete, this, 0);
-	our publishSelectedButton = GuiButton_createShown (our windowForm, 120, 220, -175, -150,
+	// Row 2: Save selected on its own line (10 ~ 220) at y = -175 ~ -150
+	our publishSelectedButton = GuiButton_createShown (our windowForm, 10, 220, -175, -150,
 			U"Save selected", gui_button_cb_publishSelected, this, 0);
 
 	/*
