@@ -235,10 +235,16 @@ void GuiButton_setText (GuiButton me, conststring32 text /* cattable */) {
 		gtk_button_set_label (GTK_BUTTON (my d_widget), Melder_peek32to8 (text));
 	#elif motif
 		my d_widget -> name = Melder_dup_f (text);
-		_GuiNativeControl_setTitle (my d_widget);
+		if (my d_widget -> window) {
+			SetWindowTextW (my d_widget -> window, Melder_peek32toW (_GuiWin_expandAmpersands (my d_widget -> name.get())));
+			InvalidateRect (my d_widget -> window, nullptr, FALSE);
+		}
 	#elif cocoa
 		[(NSButton *) my d_widget setTitle: (NSString *) Melder_peek32toCfstring (text)];
 	#endif
 }
+
+void GuiButton_setProgress (GuiButton /* me */, double /* fraction */, int /* state */) { }
+void GuiButton_setWaveform (GuiButton /* me */, const float * /* peaks */, int /* numPeaks */) { }
 
 /* End of file GuiButton.cpp */

@@ -484,6 +484,8 @@ GuiButton GuiButton_createShown (GuiForm parent,
 );
 
 void GuiButton_setText (GuiButton me, conststring32 text /* cattable */);
+void GuiButton_setProgress (GuiButton me, double fraction, int state);
+void GuiButton_setWaveform (GuiButton me, const float *peaks, int numPeaks);
 
 /********** GuiCheckButton **********/
 
@@ -707,6 +709,14 @@ typedef struct structGuiList_ScrollEvent {
 } *GuiList_ScrollEvent;
 using GuiList_ScrollCallback = MelderCallback <void, structThing /* boss */, GuiList_ScrollEvent>;
 
+typedef struct structGuiList_ContextMenuEvent {
+	GuiList list;
+	int x;
+	int y;
+	integer itemIndex;
+} *GuiList_ContextMenuEvent;
+using GuiList_ContextMenuCallback = MelderCallback <void, structThing /* boss */, GuiList_ContextMenuEvent>;
+
 Thing_define (GuiList, GuiControl) {
 	bool d_allowMultipleSelection;
 	GuiList_SelectionChangedCallback d_selectionChangedCallback;
@@ -715,6 +725,8 @@ Thing_define (GuiList, GuiControl) {
 	Thing d_doubleClickBoss;
 	GuiList_ScrollCallback d_scrollCallback;
 	Thing d_scrollBoss;
+	GuiList_ContextMenuCallback d_contextMenuCallback;
+	Thing d_contextMenuBoss;
 	#if gtk
 		GtkListStore *d_liststore;
 	#endif
@@ -751,6 +763,7 @@ void GuiList_selectItem (GuiList me, integer position);
 void GuiList_setSelectionChangedCallback (GuiList me, GuiList_SelectionChangedCallback callback, Thing boss);
 void GuiList_setDoubleClickCallback (GuiList me, GuiList_DoubleClickCallback callback, Thing boss);
 void GuiList_setScrollCallback (GuiList me, GuiList_ScrollCallback callback, Thing boss);
+void GuiList_setContextMenuCallback (GuiList me, GuiList_ContextMenuCallback callback, Thing boss);
 
 /********** GuiMenu **********/
 

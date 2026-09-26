@@ -56,6 +56,72 @@ Thing_implement (GuiList, GuiControl, 0);
 			my d_selectionChangedCallback (my d_selectionChangedBoss, & event);
 		}
 	}
+
+	static LRESULT CALLBACK _WinListSubclassProc (
+		HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+		UINT_PTR uIdSubclass, DWORD_PTR dwRefData
+	) {
+		(void) dwRefData;
+		switch (uMsg) {
+			case WM_RBUTTONDOWN: {
+				POINT pt = { GET_X_LPARAM (lParam), GET_Y_LPARAM (lParam) };
+				LRESULT itemRes = SendMessageW (hwnd, LB_ITEMFROMPOINT, 0, lParam);
+				int clickedItem = (HIWORD (itemRes) == 0) ? (int) LOWORD (itemRes) : -1;
+				if (clickedItem >= 0) {
+					LRESULT isSel = SendMessageW (hwnd, LB_GETSEL, clickedItem, 0);
+					if (! isSel) {
+						SendMessageW (hwnd, LB_SETSEL, FALSE, -1);
+						SendMessageW (hwnd, LB_SETSEL, TRUE, clickedItem);
+						SendMessageW (hwnd, LB_SETCARETINDEX, clickedItem, FALSE);
+						GuiObject widget = (GuiObject) GetWindowLongPtr (hwnd, GWLP_USERDATA);
+						if (widget)
+							_GuiWinList_handleClick (widget);
+					}
+				}
+				SetFocus (hwnd);
+				return 0;
+			}
+			case WM_CONTEXTMENU: {
+				int x = GET_X_LPARAM (lParam);
+				int y = GET_Y_LPARAM (lParam);
+				POINT pt = { x, y };
+				int clickedItem = -1;
+				if (x == -1 && y == -1) {
+					int cur = (int) SendMessageW (hwnd, LB_GETCARETINDEX, 0, 0);
+					if (cur >= 0) {
+						RECT rc;
+						if (SendMessageW (hwnd, LB_GETITEMRECT, cur, (LPARAM) & rc) != LB_ERR) {
+							pt.x = (rc.left + rc.right) / 2;
+							pt.y = (rc.top + rc.bottom) / 2;
+							ClientToScreen (hwnd, & pt);
+							clickedItem = cur;
+						}
+					}
+				} else {
+					POINT ptClient = pt;
+					ScreenToClient (hwnd, & ptClient);
+					LRESULT itemRes = SendMessageW (hwnd, LB_ITEMFROMPOINT, 0, MAKELPARAM (ptClient.x, ptClient.y));
+					clickedItem = (HIWORD (itemRes) == 0) ? (int) LOWORD (itemRes) : -1;
+				}
+				GuiObject widget = (GuiObject) GetWindowLongPtr (hwnd, GWLP_USERDATA);
+				if (widget) {
+					iam_list;
+					if (my d_contextMenuCallback) {
+						struct structGuiList_ContextMenuEvent event { me, (int) pt.x, (int) pt.y, (integer) (clickedItem >= 0 ? clickedItem + 1 : 0) };
+						my d_contextMenuCallback (my d_contextMenuBoss, & event);
+						return 0;
+					}
+				}
+				break;
+			}
+			case WM_NCDESTROY: {
+				RemoveWindowSubclass (hwnd, _WinListSubclassProc, uIdSubclass);
+				break;
+			}
+			default: break;
+		}
+		return DefSubclassProc (hwnd, uMsg, wParam, lParam);
+	}
 #elif cocoa
 	@implementation GuiCocoaList {
 		GuiList userData;
@@ -237,6 +303,7 @@ GuiList GuiList_create (GuiForm parent, int left, int right, int top, int bottom
 			my d_widget -> parent -> window, nullptr, theGui.instance, nullptr);
 		SetWindowLongPtr (my d_widget -> window, GWLP_USERDATA, (LONG_PTR) my d_widget);
 		SetWindowFont (my d_widget -> window, theWinGuiNormalLabelFont (), false);
+		SetWindowSubclass (my d_widget -> window, _WinListSubclassProc, 1, 0);
 		/*if (MEMBER (my parent, ScrolledWindow)) {
 			XtDestroyWidget (my d_widget -> parent -> motiff.scrolledWindow.horizontalBar);
 			my d_widget -> parent -> motiff.scrolledWindow.horizontalBar = nullptr;
@@ -538,6 +605,11 @@ void GuiList_setTopPosition (GuiList me, integer topPosition) {
 		(void) me;
 		// TODO: implement
 	#endif
+}
+
+void GuiList_setContextMenuCallback (GuiList me, GuiList_ContextMenuCallback callback, Thing boss) {
+	my d_contextMenuCallback = callback;
+	my d_contextMenuBoss = boss;
 }
 
 /* End of file GuiList.cpp */

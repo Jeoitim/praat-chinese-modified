@@ -146,6 +146,159 @@ void Gui_getWindowPositioningBounds (double *x, double *y, double *width, double
 			brush = CreateSolidBrush (RGB (224, 224, 224));
 		return brush;
 	}
+
+	HFONT theWinGuiIconFont (int height) {
+		static struct { int h; HFONT font; } s_cached [8];
+		for (int i = 0; i < 8; i ++) {
+			if (s_cached [i].h == height && s_cached [i].font)
+				return s_cached [i].font;
+		}
+
+		static const wchar_t *families [] = {
+			L"Segoe Fluent Icons",
+			L"Segoe MDL2 Assets",
+			L"Segoe UI Symbol"
+		};
+		HDC screenDc = GetDC (nullptr);
+		HFONT result = nullptr;
+		if (screenDc) {
+			for (const wchar_t *family : families) {
+				HFONT hf = CreateFontW (
+					height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+					DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+					ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
+					family
+				);
+				if (hf) {
+					HFONT old = (HFONT) SelectObject (screenDc, hf);
+					wchar_t actual [64] = { 0 };
+					GetTextFaceW (screenDc, 64, actual);
+					SelectObject (screenDc, old);
+					if (wcsicmp (actual, family) == 0) {
+						result = hf;
+						break;
+					}
+					DeleteObject (hf);
+				}
+			}
+			ReleaseDC (nullptr, screenDc);
+		}
+		if (! result) {
+			result = CreateFontW (
+				height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+				DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+				ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
+				L"Segoe UI Symbol"
+			);
+		}
+		for (int i = 0; i < 8; i ++) {
+			if (s_cached [i].font == nullptr) {
+				s_cached [i].h = height;
+				s_cached [i].font = result;
+				break;
+			}
+		}
+		return result;
+	}
+
+	HBITMAP _GuiWin_createMenuIcon (const wchar_t *glyph, COLORREF color) {
+		const int cx = GetSystemMetrics (SM_CXSMICON);
+		const int cy = GetSystemMetrics (SM_CYSMICON);
+		const int scale = 4;
+		const int wBig = cx * scale;
+		const int hBig = cy * scale;
+
+		HDC hdcScreen = GetDC (nullptr);
+		HDC hdcMem = CreateCompatibleDC (hdcScreen);
+
+		BITMAPINFO biDst;
+		memset (& biDst, 0, sizeof (biDst));
+		biDst.bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
+		biDst.bmiHeader.biWidth = cx;
+		biDst.bmiHeader.biHeight = cy;
+		biDst.bmiHeader.biPlanes = 1;
+		biDst.bmiHeader.biBitCount = 32;
+		biDst.bmiHeader.biCompression = BI_RGB;
+		void *pBitsDst = nullptr;
+		HBITMAP hbmpDst = CreateDIBSection (hdcMem, & biDst, DIB_RGB_COLORS, & pBitsDst, nullptr, 0);
+
+		HDC hdcBig = CreateCompatibleDC (hdcScreen);
+		BITMAPINFO biBig;
+		memset (& biBig, 0, sizeof (biBig));
+		biBig.bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
+		biBig.bmiHeader.biWidth = wBig;
+		biBig.bmiHeader.biHeight = hBig;
+		biBig.bmiHeader.biPlanes = 1;
+		biBig.bmiHeader.biBitCount = 32;
+		biBig.bmiHeader.biCompression = BI_RGB;
+		void *pBitsBig = nullptr;
+		HBITMAP hbmpBig = CreateDIBSection (hdcBig, & biBig, DIB_RGB_COLORS, & pBitsBig, nullptr, 0);
+
+		if (hdcBig && hbmpBig && pBitsBig && pBitsDst) {
+			memset (pBitsBig, 0, wBig * hBig * sizeof (DWORD));
+			HBITMAP oldBmpBig = (HBITMAP) SelectObject (hdcBig, hbmpBig);
+			int fontHeightBig = - (hBig * 4 / 5);
+			HFONT hFontBig = theWinGuiIconFont (fontHeightBig);
+			HFONT oldFontBig = (HFONT) SelectObject (hdcBig, hFontBig);
+
+			SetBkMode (hdcBig, TRANSPARENT);
+			SetTextColor (hdcBig, RGB (255, 255, 255));
+			RECT rcBig = { 0, 0, wBig, hBig };
+			DrawTextW (hdcBig, glyph, -1, & rcBig, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+			DWORD *pixelsBig = (DWORD *) pBitsBig;
+			DWORD *pixelsDst = (DWORD *) pBitsDst;
+			BYTE rTarget = GetRValue (color);
+			BYTE gTarget = GetGValue (color);
+			BYTE bTarget = GetBValue (color);
+
+			for (int y = 0; y < cy; y ++) {
+				for (int x = 0; x < cx; x ++) {
+					int sumA = 0;
+					for (int dy = 0; dy < scale; dy ++) {
+						for (int dx = 0; dx < scale; dx ++) {
+							int sy = y * scale + dy;
+							int sx = x * scale + dx;
+							DWORD px = pixelsBig [sy * wBig + sx];
+							BYTE r = (BYTE) (px & 0xFF);
+							BYTE g = (BYTE) ((px >> 8) & 0xFF);
+							BYTE b = (BYTE) ((px >> 16) & 0xFF);
+							BYTE maxVal = r > g ? (r > b ? r : b) : (g > b ? g : b);
+							sumA += maxVal;
+						}
+					}
+					int a = sumA / (scale * scale);
+					if (a > 0) {
+						BYTE pr = (BYTE) (((int) rTarget * a + 127) / 255);
+						BYTE pg = (BYTE) (((int) gTarget * a + 127) / 255);
+						BYTE pb = (BYTE) (((int) bTarget * a + 127) / 255);
+						pixelsDst [y * cx + x] = ((DWORD) a << 24) | ((DWORD) pr << 16) | ((DWORD) pg << 8) | pb;
+					} else {
+						pixelsDst [y * cx + x] = 0;
+					}
+				}
+			}
+
+			SelectObject (hdcBig, oldFontBig);
+			SelectObject (hdcBig, oldBmpBig);
+			DeleteObject (hbmpBig);
+			DeleteDC (hdcBig);
+		}
+
+		DeleteDC (hdcMem);
+		ReleaseDC (nullptr, hdcScreen);
+		return hbmpDst;
+	}
+
+	void _GuiWin_setMenuItemIcon (HMENU hMenu, UINT cmdId, HBITMAP hbmp) {
+		if (! hbmp) return;
+		MENUITEMINFOW mii;
+		memset (& mii, 0, sizeof (mii));
+		mii.cbSize = sizeof (mii);
+		mii.fMask = MIIM_BITMAP;
+		mii.hbmpItem = hbmp;
+		SetMenuItemInfoW (hMenu, cmdId, FALSE, & mii);
+	}
 #endif
 
 void Gui_copyTextToClipboard (conststring32 text) {

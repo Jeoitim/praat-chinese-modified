@@ -24,6 +24,8 @@
 #include "Sound.h"
 
 #include "SoundRecorder_enums.h"
+#include <mutex>
+#include <thread>
 
 #include "../external/portaudio/portaudio.h"
 #if defined (_WIN32)
@@ -93,7 +95,12 @@ Thing_define (SoundRecorder, Editor) {
 	integer takeIndex;
 	GuiList takeList;
 	GuiLabel durationLabel;
-	GuiButton playTakeButton, renameTakeButton, deleteTakeButton, publishAllButton;
+	GuiButton renameTakeButton, deleteTakeButton, publishSelectedButton;
+	bool isPlayingSound, isPausedSound;
+	double playCurrentTime, playTotalDuration, playPausedTime;
+	double playLastUiUpdate;
+	integer playingTakeIndex;
+	char32 playLastTextBuf [256];
 	GuiText soundName;
 	GuiButton cancelButton, applyButton, okButton;
 	GuiMenuItem meterIntensityButton, meterCentreOfGravityVersusIntensityButton;
@@ -102,6 +109,8 @@ Thing_define (SoundRecorder, Editor) {
 
 	const PaDeviceInfo *deviceInfos [1+SoundRecorder_IDEVICE_MAX];
 	PaDeviceIndex deviceIndices [1+SoundRecorder_IDEVICE_MAX];
+	std::mutex portAudioMutex;
+	std::thread portaudioInitThread;
 	PaStream *portaudioStream;
 	short monitorBuffer [2048 * 2];
 	integer monitorSamples;
