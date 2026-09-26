@@ -790,6 +790,7 @@ static void ensurePortAudioStream (SoundRecorder me) {
 }
 
 static void stopSoundRecorderPlayback (SoundRecorder me);
+static void publish (SoundRecorder me);
 
 static void startRecording (SoundRecorder me) {
 	try {
@@ -1173,30 +1174,7 @@ static void gui_button_cb_takeDelete (SoundRecorder me, GuiButtonEvent /* event 
 }
 
 static void gui_button_cb_publishSelected (SoundRecorder me, GuiButtonEvent /* event */) {
-	autoINTVEC selected = GuiList_getSelectedPositions (my takeList);
-	if (selected.size > 0) {
-		for (integer iselected = 1; iselected <= selected.size; iselected ++) {
-			integer index = selected [iselected];
-			if (index >= 1 && index <= my recordedSounds.size) {
-				Sound sound = my recordedSounds.at [index];
-				if (sound) {
-					autoSound soundCopy = Data_copy (sound);
-					Editor_broadcastPublication (me, soundCopy.move());
-				}
-			}
-		}
-		return;
-	}
-	if (my nsamp > 0) {
-		autoSound sound = createRecordedSound (me);
-		if (sound) {
-			if (my soundName) {
-				autostring32 name = GuiText_getString (my soundName);
-				Thing_setName (sound.get(), name.get());
-			}
-			Editor_broadcastPublication (me, sound.move());
-		}
-	}
+	publish (me);
 }
 
 static void gui_button_cb_publishAll (SoundRecorder me, GuiButtonEvent /* event */) {
@@ -1366,14 +1344,19 @@ static void gui_button_cb_stop (SoundRecorder me, GuiButtonEvent /* event */) {
 
 static void publish (SoundRecorder me) {
 	if (my recordedSounds.size > 0) {
-		integer sel = getSelectedTakeIndex (me);
-		if (sel >= 1 && sel <= my recordedSounds.size) {
-			Sound sound = my recordedSounds.at [sel];
-			if (sound) {
-				autoSound soundCopy = Data_copy (sound);
-				Editor_broadcastPublication (me, soundCopy.move());
-				return;
+		autoINTVEC selected = (my takeList) ? GuiList_getSelectedPositions (my takeList) : autoINTVEC ();
+		if (selected.size > 0) {
+			for (integer iselected = 1; iselected <= selected.size; iselected ++) {
+				integer index = selected [iselected];
+				if (index >= 1 && index <= my recordedSounds.size) {
+					Sound sound = my recordedSounds.at [index];
+					if (sound) {
+						autoSound soundCopy = Data_copy (sound);
+						Editor_broadcastPublication (me, soundCopy.move());
+					}
+				}
 			}
+			return;
 		} else {
 			for (integer i = 1; i <= my recordedSounds.size; i ++) {
 				Sound sound = my recordedSounds.at [i];
@@ -1409,17 +1392,7 @@ static void gui_button_cb_apply (SoundRecorder me, GuiButtonEvent /* event */) {
 
 static void gui_button_cb_ok (SoundRecorder me, GuiButtonEvent /* event */) {
 	stopRecording (me);
-	if (my recordedSounds.size > 0) {
-		for (integer i = 1; i <= my recordedSounds.size; i ++) {
-			Sound sound = my recordedSounds.at [i];
-			if (sound) {
-				autoSound soundCopy = Data_copy (sound);
-				Editor_broadcastPublication (me, soundCopy.move());
-			}
-		}
-	} else if (my nsamp > 0) {
-		publish (me);
-	}
+	publish (me);
 	forget (me);
 }
 
