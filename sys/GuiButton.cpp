@@ -231,17 +231,9 @@ Thing_implement (GuiButton, GuiControl, 0);
 				return res;
 			}
 			case BM_SETSTATE: {
-				SetPropW (hwnd, L"PraatPressed", wParam ? (HANDLE) 1 : nullptr);
+				LRESULT res = DefSubclassProc (hwnd, uMsg, wParam, lParam);
 				InvalidateRect (hwnd, nullptr, FALSE);
 				UpdateWindow (hwnd);
-				return 0;
-			}
-			case BM_GETSTATE: {
-				LRESULT res = DefSubclassProc (hwnd, uMsg, wParam, lParam);
-				if (GetPropW (hwnd, L"PraatPressed"))
-					res |= BST_PUSHED;
-				else
-					res &= ~BST_PUSHED;
 				return res;
 			}
 			case WM_TIMER:
@@ -598,7 +590,6 @@ Thing_implement (GuiButton, GuiControl, 0);
 
 			case WM_NCDESTROY: {
 				RemovePropW (hwnd, L"PraatHover");
-				RemovePropW (hwnd, L"PraatPressed");
 				RemovePropW (hwnd, L"PraatProgress");
 				RemovePropW (hwnd, L"PraatProgressState");
 				GuiButtonWaveform *wf = (GuiButtonWaveform *) RemovePropW (hwnd, L"PraatWaveform");
@@ -613,10 +604,8 @@ Thing_implement (GuiButton, GuiControl, 0);
 	}
 
 	void _GuiWin_subclassModernButton (HWND hwnd, uint32 flags) {
-		if (hwnd) {
-			SetWindowTheme (hwnd, L"", L"");
+		if (hwnd)
 			SetWindowSubclass (hwnd, _ModernButtonSubclassProc, 1, (DWORD_PTR) flags);
-		}
 	}
 #elif cocoa
 	@implementation GuiCocoaButton {
