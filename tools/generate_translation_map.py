@@ -256,6 +256,9 @@ EXACT_MAP = {
     "”, or click Cancel in that window.": "”中修改内容，或点击该窗口中的“取消”。",
     "Please change the selection in the object list, or click Cancel in the command window “": "请在对象列表中更改选择，或点击命令窗口“",
     "Save to list & Close": "保存到列表并关闭",
+    "Save selected": "保存选中项",
+    "Save this item": "保存此项",
+    "Resume": "继续播放",
     "Selection changed!\nNo object selected. Cannot rename.": "选择已更改！\n未选择任何对象。无法重命名。",
     "Selection changed!\nCannot rename more than one object at a time.": "选择已更改！\n一次无法重命名多个对象。",
 

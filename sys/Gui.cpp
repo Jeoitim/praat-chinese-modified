@@ -226,6 +226,105 @@ void Gui_getWindowPositioningBounds (double *x, double *y, double *width, double
 			brush = CreateSolidBrush (RGB (245, 246, 248));
 		return brush;
 	}
+
+	HBITMAP _GuiWin_createMenuIcon (const wchar_t *glyph, COLORREF color) {
+		const int cx = GetSystemMetrics (SM_CXSMICON);
+		const int cy = GetSystemMetrics (SM_CYSMICON);
+		const int scale = 4;
+		const int wBig = cx * scale;
+		const int hBig = cy * scale;
+
+		HDC hdcScreen = GetDC (nullptr);
+		HDC hdcMem = CreateCompatibleDC (hdcScreen);
+
+		BITMAPINFO biDst;
+		memset (& biDst, 0, sizeof (biDst));
+		biDst.bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
+		biDst.bmiHeader.biWidth = cx;
+		biDst.bmiHeader.biHeight = cy;
+		biDst.bmiHeader.biPlanes = 1;
+		biDst.bmiHeader.biBitCount = 32;
+		biDst.bmiHeader.biCompression = BI_RGB;
+		void *pBitsDst = nullptr;
+		HBITMAP hbmpDst = CreateDIBSection (hdcMem, & biDst, DIB_RGB_COLORS, & pBitsDst, nullptr, 0);
+
+		HDC hdcBig = CreateCompatibleDC (hdcScreen);
+		BITMAPINFO biBig;
+		memset (& biBig, 0, sizeof (biBig));
+		biBig.bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
+		biBig.bmiHeader.biWidth = wBig;
+		biBig.bmiHeader.biHeight = hBig;
+		biBig.bmiHeader.biPlanes = 1;
+		biBig.bmiHeader.biBitCount = 32;
+		biBig.bmiHeader.biCompression = BI_RGB;
+		void *pBitsBig = nullptr;
+		HBITMAP hbmpBig = CreateDIBSection (hdcBig, & biBig, DIB_RGB_COLORS, & pBitsBig, nullptr, 0);
+
+		if (hdcBig && hbmpBig && pBitsBig && pBitsDst) {
+			memset (pBitsBig, 0, wBig * hBig * sizeof (DWORD));
+			HBITMAP oldBmpBig = (HBITMAP) SelectObject (hdcBig, hbmpBig);
+			int fontHeightBig = - (hBig * 4 / 5);
+			HFONT hFontBig = theWinGuiIconFont (fontHeightBig);
+			HFONT oldFontBig = (HFONT) SelectObject (hdcBig, hFontBig);
+
+			SetBkMode (hdcBig, TRANSPARENT);
+			SetTextColor (hdcBig, RGB (255, 255, 255));
+			RECT rcBig = { 0, 0, wBig, hBig };
+			DrawTextW (hdcBig, glyph, -1, & rcBig, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+			DWORD *pixelsBig = (DWORD *) pBitsBig;
+			DWORD *pixelsDst = (DWORD *) pBitsDst;
+			BYTE rTarget = GetRValue (color);
+			BYTE gTarget = GetGValue (color);
+			BYTE bTarget = GetBValue (color);
+
+			for (int y = 0; y < cy; y ++) {
+				for (int x = 0; x < cx; x ++) {
+					int sumA = 0;
+					for (int dy = 0; dy < scale; dy ++) {
+						for (int dx = 0; dx < scale; dx ++) {
+							int sy = y * scale + dy;
+							int sx = x * scale + dx;
+							DWORD px = pixelsBig [sy * wBig + sx];
+							BYTE r = (BYTE) (px & 0xFF);
+							BYTE g = (BYTE) ((px >> 8) & 0xFF);
+							BYTE b = (BYTE) ((px >> 16) & 0xFF);
+							BYTE maxVal = r > g ? (r > b ? r : b) : (g > b ? g : b);
+							sumA += maxVal;
+						}
+					}
+					int a = sumA / (scale * scale);
+					if (a > 0) {
+						BYTE pr = (BYTE) (((int) rTarget * a + 127) / 255);
+						BYTE pg = (BYTE) (((int) gTarget * a + 127) / 255);
+						BYTE pb = (BYTE) (((int) bTarget * a + 127) / 255);
+						pixelsDst [y * cx + x] = ((DWORD) a << 24) | ((DWORD) pr << 16) | ((DWORD) pg << 8) | pb;
+					} else {
+						pixelsDst [y * cx + x] = 0;
+					}
+				}
+			}
+
+			SelectObject (hdcBig, oldFontBig);
+			SelectObject (hdcBig, oldBmpBig);
+			DeleteObject (hbmpBig);
+			DeleteDC (hdcBig);
+		}
+
+		DeleteDC (hdcMem);
+		ReleaseDC (nullptr, hdcScreen);
+		return hbmpDst;
+	}
+
+	void _GuiWin_setMenuItemIcon (HMENU hMenu, UINT cmdId, HBITMAP hbmp) {
+		if (! hbmp) return;
+		MENUITEMINFOW mii;
+		memset (& mii, 0, sizeof (mii));
+		mii.cbSize = sizeof (mii);
+		mii.fMask = MIIM_BITMAP;
+		mii.hbmpItem = hbmp;
+		SetMenuItemInfoW (hMenu, cmdId, FALSE, & mii);
+	}
 #endif
 
 void Gui_copyTextToClipboard (conststring32 text) {

@@ -215,6 +215,8 @@ class GuiControlBlockValueChangedCallbacks {
 	extern HFONT theWinGuiNormalLabelFont (), theWinGuiBoldLabelFont ();
 	extern HFONT theWinGuiIconFont (int height = -14);
 	extern HBRUSH theWinGuiBackgroundBrush ();
+	extern HBITMAP _GuiWin_createMenuIcon (const wchar_t *glyph, COLORREF color);
+	extern void _GuiWin_setMenuItemIcon (HMENU hMenu, UINT cmdId, HBITMAP hbmp);
 #endif
 
 /* End of file GuiP.h */

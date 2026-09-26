@@ -231,11 +231,21 @@ Thing_implement (GuiButton, GuiControl, 0);
 				return res;
 			}
 			case BM_SETSTATE: {
-				LRESULT res = DefSubclassProc (hwnd, uMsg, wParam, lParam);
+				SetPropW (hwnd, L"PraatPressed", wParam ? (HANDLE) 1 : nullptr);
 				InvalidateRect (hwnd, nullptr, FALSE);
 				UpdateWindow (hwnd);
+				return 0;
+			}
+			case BM_GETSTATE: {
+				LRESULT res = DefSubclassProc (hwnd, uMsg, wParam, lParam);
+				if (GetPropW (hwnd, L"PraatPressed"))
+					res |= BST_PUSHED;
+				else
+					res &= ~BST_PUSHED;
 				return res;
 			}
+			case WM_TIMER:
+				return 0;   // Prevent Windows default button pulse / blink animation timers
 			case WM_SETFOCUS:
 			case WM_KILLFOCUS:
 			case WM_ENABLE: {
@@ -588,6 +598,7 @@ Thing_implement (GuiButton, GuiControl, 0);
 
 			case WM_NCDESTROY: {
 				RemovePropW (hwnd, L"PraatHover");
+				RemovePropW (hwnd, L"PraatPressed");
 				RemovePropW (hwnd, L"PraatProgress");
 				RemovePropW (hwnd, L"PraatProgressState");
 				GuiButtonWaveform *wf = (GuiButtonWaveform *) RemovePropW (hwnd, L"PraatWaveform");
@@ -602,8 +613,10 @@ Thing_implement (GuiButton, GuiControl, 0);
 	}
 
 	void _GuiWin_subclassModernButton (HWND hwnd, uint32 flags) {
-		if (hwnd)
+		if (hwnd) {
+			SetWindowTheme (hwnd, L"", L"");
 			SetWindowSubclass (hwnd, _ModernButtonSubclassProc, 1, (DWORD_PTR) flags);
+		}
 	}
 #elif cocoa
 	@implementation GuiCocoaButton {
@@ -761,7 +774,10 @@ void GuiButton_setText (GuiButton me, conststring32 text /* cattable */) {
 		gtk_button_set_label (GTK_BUTTON (my d_widget), Melder_peek32to8 (text));
 	#elif motif
 		my d_widget -> name = Melder_dup_f (text);
-		_GuiNativeControl_setTitle (my d_widget);
+		if (my d_widget -> window) {
+			SetWindowTextW (my d_widget -> window, Melder_peek32toW (_GuiWin_expandAmpersands (my d_widget -> name.get())));
+			InvalidateRect (my d_widget -> window, nullptr, FALSE);
+		}
 	#elif cocoa
 		[(NSButton *) my d_widget setTitle: (NSString *) Melder_peek32toCfstring (text)];
 	#endif

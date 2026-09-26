@@ -545,15 +545,15 @@ static WORKPROC_RETURN workProc (WORKPROC_ARGS) {
 			if (my stopButton)
 				GuiThing_setSensitive (my stopButton, my recording);
 			if (my playButton)
-				GuiThing_setSensitive (my playButton, ! my recording && hasNsamp);
+				GuiThing_setSensitive (my playButton, ! my recording && (hasTakes || hasNsamp));
 			if (my playTakeButton)
 				GuiThing_setSensitive (my playTakeButton, ! my recording && hasTakes);
 			if (my renameTakeButton)
 				GuiThing_setSensitive (my renameTakeButton, ! my recording && hasTakes);
 			if (my deleteTakeButton)
 				GuiThing_setSensitive (my deleteTakeButton, ! my recording && hasTakes);
-			if (my publishAllButton)
-				GuiThing_setSensitive (my publishAllButton, ! my recording && (hasTakes || hasNsamp));
+			if (my publishSelectedButton)
+				GuiThing_setSensitive (my publishSelectedButton, ! my recording && (hasTakes || hasNsamp));
 			if (my applyButton)
 				GuiThing_setSensitive (my applyButton, ! my recording && (hasTakes || hasNsamp));
 			if (my okButton)
@@ -791,10 +791,14 @@ static void ensurePortAudioStream (SoundRecorder me) {
 		Melder_throw (U"Error starting audio input stream: ", Melder_peek8to32_u (Pa_GetErrorText (err)), U".");
 }
 
+static void stopSoundRecorderPlayback (SoundRecorder me);
+
 static void startRecording (SoundRecorder me) {
 	try {
 		if (my recording)
 			return;
+		if (my isPlayingSound || my isPausedSound)
+			stopSoundRecorderPlayback (me);
 		my nsamp = 0;
 		my lastLeftMaximum = 0;
 		my lastRightMaximum = 0;
@@ -906,12 +910,189 @@ static LRESULT CALLBACK holdRecordWndProc (HWND hwnd, UINT msg, WPARAM wParam, L
 }
 #endif
 
+static void formatSoundRecorderTime (double sec, char32 *buf, integer bufSize, bool useMinutes) {
+	if (sec < 0.0) sec = 0.0;
+	if (useMinutes) {
+		integer totalSec = Melder_iroundTowardsZero (sec);
+		integer mins = totalSec / 60;
+		integer secs = totalSec % 60;
+		Melder_sprint (buf, bufSize, mins < 10 ? U"0" : U"", mins, U":", secs < 10 ? U"0" : U"", secs);
+	} else {
+		Melder_sprint (buf, bufSize, Melder_fixed (sec, 1), U"s");
+	}
+}
+
+static void updateSoundRecorderPlayButtonUi (SoundRecorder me, double curTime, double totalDur, int state) {
+	if (! my playButton)
+		return;
+	if (state == 0) {
+		my isPlayingSound = false;
+		my isPausedSound = false;
+		my playPausedTime = 0.0;
+		my playCurrentTime = 0.0;
+		my playLastTextBuf [0] = U'\0';
+		GuiButton_setText (my playButton, praat_translate (U"Play"));
+		GuiButton_setProgress (my playButton, -1.0, 0);
+		return;
+	}
+
+	if (totalDur <= 0.0) totalDur = 0.001;
+	double elapsed = curTime;
+	if (elapsed < 0.0) elapsed = 0.0;
+	if (elapsed > totalDur) elapsed = totalDur;
+	double frac = elapsed / totalDur;
+	if (frac < 0.0) frac = 0.0;
+	if (frac > 1.0) frac = 1.0;
+
+	bool useMinutes = (totalDur >= 60.0);
+	char32 tElapsed [64], tTotal [64];
+	formatSoundRecorderTime (elapsed, tElapsed, 64, useMinutes);
+	formatSoundRecorderTime (totalDur, tTotal, 64, useMinutes);
+
+	bool isZh = (g_language_choice != 0);
+	char32 textBuf [256];
+	if (state == 1) {
+		// Playing: clicking will pause
+		if (isZh)
+			Melder_sprint (textBuf, 256, U"暂停 ", tElapsed, U" / ", tTotal);
+		else
+			Melder_sprint (textBuf, 256, U"Pause ", tElapsed, U" / ", tTotal);
+	} else {
+		// Paused: clicking will resume
+		if (isZh)
+			Melder_sprint (textBuf, 256, U"播放 ", tElapsed, U" / ", tTotal);
+		else
+			Melder_sprint (textBuf, 256, U"Play ", tElapsed, U" / ", tTotal);
+	}
+
+	if (! str32equ (my playLastTextBuf, textBuf)) {
+		str32cpy (my playLastTextBuf, textBuf);
+		GuiButton_setText (my playButton, textBuf);
+	}
+	GuiButton_setProgress (my playButton, frac, state);
+}
+
+static int soundRecorder_playCallback (Thing boss, int phase, double tmin, double tmax, double currentTime) {
+	SoundRecorder me = static_cast <SoundRecorder> (boss);
+	if (! me) return 1;
+
+	if (phase == 1) {
+		my isPlayingSound = true;
+		my isPausedSound = false;
+		my playCurrentTime = currentTime;
+		my playLastUiUpdate = Melder_clock ();
+		double totalDur = my playTotalDuration > 0.0 ? my playTotalDuration : (tmax - tmin);
+		updateSoundRecorderPlayButtonUi (me, currentTime - tmin, totalDur, 1);
+		return 1;
+	}
+
+	if (phase == 2) {
+		my playCurrentTime = currentTime;
+		double now = Melder_clock ();
+		if (now - my playLastUiUpdate >= 0.05) {   // 20 FPS throttling
+			my playLastUiUpdate = now;
+			double totalDur = my playTotalDuration > 0.0 ? my playTotalDuration : (tmax - tmin);
+			updateSoundRecorderPlayButtonUi (me, currentTime - tmin, totalDur, 1);
+		}
+		return 1;
+	}
+
+	if (phase == 3) {
+		if (MelderAudio_stopWasExplicit ()) {
+			my isPlayingSound = false;
+			my isPausedSound = true;
+			my playPausedTime = my playCurrentTime;
+			double totalDur = my playTotalDuration > 0.0 ? my playTotalDuration : (tmax - tmin);
+			updateSoundRecorderPlayButtonUi (me, my playCurrentTime - tmin, totalDur, 2);
+		} else {
+			my isPlayingSound = false;
+			my isPausedSound = false;
+			my playPausedTime = 0.0;
+			my playCurrentTime = 0.0;
+			updateSoundRecorderPlayButtonUi (me, 0.0, 0.0, 0);
+		}
+		return 1;
+	}
+	return 1;
+}
+
+static void stopSoundRecorderPlayback (SoundRecorder me) {
+	if (my isPlayingSound || MelderAudio_isPlaying) {
+		MelderAudio_stopPlaying (MelderAudio_IMPLICIT);
+	}
+	my isPlayingSound = false;
+	my isPausedSound = false;
+	my playPausedTime = 0.0;
+	my playCurrentTime = 0.0;
+	updateSoundRecorderPlayButtonUi (me, 0.0, 0.0, 0);
+}
+
+static void gui_button_cb_play (SoundRecorder me, GuiButtonEvent /* event */) {
+	if (my recording)
+		return;
+
+	if (MelderAudio_isPlaying && my isPlayingSound) {
+		// Currently playing -> pause!
+		my isPausedSound = true;
+		my isPlayingSound = false;
+		my playPausedTime = my playCurrentTime;
+		MelderAudio_stopPlaying (MelderAudio_EXPLICIT);
+		updateSoundRecorderPlayButtonUi (me, my playPausedTime, my playTotalDuration, 2);
+		return;
+	}
+
+	integer index = getSelectedTakeIndex (me);
+	Sound sound = nullptr;
+	autoSound tempSound;
+	if (index >= 1 && index <= my recordedSounds.size) {
+		sound = my recordedSounds.at [index];
+	} else if (my recordedSounds.size > 0) {
+		index = my recordedSounds.size;
+		sound = my recordedSounds.at [index];
+	} else if (my nsamp > 0) {
+		tempSound = createRecordedSound (me);
+		sound = tempSound.get();
+		index = 0;
+	}
+
+	if (! sound)
+		return;
+
+	double dur = sound -> xmax - sound -> xmin;
+	if (dur <= 0.0)
+		return;
+
+	if (my isPausedSound && my playingTakeIndex == index && my playPausedTime > sound -> xmin && my playPausedTime < sound -> xmax) {
+		// Resume from paused position!
+		double tResume = my playPausedTime;
+		my isPausedSound = false;
+		my isPlayingSound = true;
+		my playTotalDuration = dur;
+		my playCurrentTime = tResume;
+		updateSoundRecorderPlayButtonUi (me, tResume - sound -> xmin, dur, 1);
+		Sound_playPart (sound, tResume, sound -> xmax, soundRecorder_playCallback, me);
+	} else {
+		// Fresh play from start!
+		my isPausedSound = false;
+		my isPlayingSound = true;
+		my playPausedTime = 0.0;
+		my playTotalDuration = dur;
+		my playCurrentTime = sound -> xmin;
+		my playingTakeIndex = index;
+		updateSoundRecorderPlayButtonUi (me, 0.0, dur, 1);
+		Sound_playPart (sound, sound -> xmin, sound -> xmax, soundRecorder_playCallback, me);
+	}
+}
+
 static void gui_list_cb_takeSelectionChanged (SoundRecorder me, GuiList_SelectionChangedEvent /* event */) {
 	integer index = getSelectedTakeIndex (me);
 	if (index >= 1 && index <= my recordedSounds.size) {
 		Sound sound = my recordedSounds.at [index];
 		if (sound && my soundName)
 			GuiText_setString (my soundName, Thing_getName (sound));
+	}
+	if (my isPlayingSound || my isPausedSound) {
+		stopSoundRecorderPlayback (me);
 	}
 	if (! my recording && my graphics) {
 		showMeter (me, nullptr, 0);
@@ -920,21 +1101,11 @@ static void gui_list_cb_takeSelectionChanged (SoundRecorder me, GuiList_Selectio
 }
 
 static void gui_list_cb_takeDoubleClick (SoundRecorder me, GuiList_DoubleClickEvent /* event */) {
-	integer index = getSelectedTakeIndex (me);
-	if (index >= 1 && index <= my recordedSounds.size) {
-		Sound sound = my recordedSounds.at [index];
-		if (sound)
-			Sound_play (sound, nullptr, nullptr);
-	}
+	gui_button_cb_play (me, nullptr);
 }
 
 static void gui_button_cb_takePlay (SoundRecorder me, GuiButtonEvent /* event */) {
-	integer index = getSelectedTakeIndex (me);
-	if (index >= 1 && index <= my recordedSounds.size) {
-		Sound sound = my recordedSounds.at [index];
-		if (sound)
-			Sound_play (sound, nullptr, nullptr);
-	}
+	gui_button_cb_play (me, nullptr);
 }
 
 static void gui_button_cb_takeRename (SoundRecorder me, GuiButtonEvent /* event */) {
@@ -978,13 +1149,22 @@ static void gui_button_cb_takeRename (SoundRecorder me, GuiButtonEvent /* event 
 }
 
 static void gui_button_cb_takeDelete (SoundRecorder me, GuiButtonEvent /* event */) {
-	integer index = getSelectedTakeIndex (me);
-	if (index < 1 || index > my recordedSounds.size)
+	autoINTVEC selected = GuiList_getSelectedPositions (my takeList);
+	if (selected.size == 0)
 		return;
-	my recordedSounds.removeItem (index);
-	GuiList_deleteItem (my takeList, index);
+
+	if (my isPlayingSound || my isPausedSound)
+		stopSoundRecorderPlayback (me);
+
+	for (integer iselected = selected.size; iselected >= 1; iselected --) {
+		integer index = selected [iselected];
+		if (index >= 1 && index <= my recordedSounds.size) {
+			my recordedSounds.removeItem (index);
+			GuiList_deleteItem (my takeList, index);
+		}
+	}
 	if (my recordedSounds.size > 0) {
-		integer newSelect = index <= my recordedSounds.size ? index : my recordedSounds.size;
+		integer newSelect = selected [1] <= my recordedSounds.size ? selected [1] : my recordedSounds.size;
 		GuiList_selectItem (my takeList, newSelect);
 		Sound sound = my recordedSounds.at [newSelect];
 		if (sound && my soundName)
@@ -993,6 +1173,33 @@ static void gui_button_cb_takeDelete (SoundRecorder me, GuiButtonEvent /* event 
 	if (! my recording && my graphics) {
 		showMeter (me, nullptr, 0);
 		Graphics_updateWs (my graphics.get());
+	}
+}
+
+static void gui_button_cb_publishSelected (SoundRecorder me, GuiButtonEvent /* event */) {
+	autoINTVEC selected = GuiList_getSelectedPositions (my takeList);
+	if (selected.size > 0) {
+		for (integer iselected = 1; iselected <= selected.size; iselected ++) {
+			integer index = selected [iselected];
+			if (index >= 1 && index <= my recordedSounds.size) {
+				Sound sound = my recordedSounds.at [index];
+				if (sound) {
+					autoSound soundCopy = Data_copy (sound);
+					Editor_broadcastPublication (me, soundCopy.move());
+				}
+			}
+		}
+		return;
+	}
+	if (my nsamp > 0) {
+		autoSound sound = createRecordedSound (me);
+		if (sound) {
+			if (my soundName) {
+				autostring32 name = GuiText_getString (my soundName);
+				Thing_setName (sound.get(), name.get());
+			}
+			Editor_broadcastPublication (me, sound.move());
+		}
 	}
 }
 
@@ -1019,6 +1226,133 @@ static void gui_button_cb_publishAll (SoundRecorder me, GuiButtonEvent /* event 
 	}
 }
 
+static void gui_list_cb_takeContextMenu (SoundRecorder me, GuiList_ContextMenuEvent event) {
+	if (! my takeList) return;
+
+	if (event -> itemIndex >= 1 && event -> itemIndex <= my recordedSounds.size) {
+		autoINTVEC selected = GuiList_getSelectedPositions (my takeList);
+		bool alreadyInSelection = false;
+		for (integer i = 1; i <= selected.size; i ++) {
+			if (selected [i] == event -> itemIndex) {
+				alreadyInSelection = true;
+				break;
+			}
+		}
+		if (! alreadyInSelection) {
+			GuiList_deselectAllItems (my takeList);
+			GuiList_selectItem (my takeList, event -> itemIndex);
+			Sound sound = my recordedSounds.at [event -> itemIndex];
+			if (sound && my soundName)
+				GuiText_setString (my soundName, Thing_getName (sound));
+			if (my isPlayingSound || my isPausedSound)
+				stopSoundRecorderPlayback (me);
+			if (! my recording && my graphics) {
+				showMeter (me, nullptr, 0);
+				Graphics_updateWs (my graphics.get());
+			}
+		}
+	}
+
+	autoINTVEC selected = GuiList_getSelectedPositions (my takeList);
+	bool hasSelection = (selected.size > 0);
+	bool hasAnyTakes  = (my recordedSounds.size > 0);
+	bool isSingle     = (selected.size == 1);
+	bool isZh         = (g_language_choice != 0);
+
+	#if motif
+	HMENU hMenu = CreatePopupMenu ();
+	if (! hMenu) return;
+
+	enum {
+		CMD_PLAY = 1,
+		CMD_RENAME,
+		CMD_SAVE_SELECTED,
+		CMD_SAVE_ALL,
+		CMD_DELETE
+	};
+
+	// 1. Play / Pause / Resume
+	bool canPlay = ! my recording && (hasSelection || my nsamp > 0);
+	const wchar_t *labelPlay = my isPlayingSound
+		? (isZh ? L"暂停" : L"Pause")
+		: (my isPausedSound
+			? (isZh ? L"继续播放" : L"Resume")
+			: (isZh ? L"播放" : L"Play"));
+	UINT flagPlay = canPlay ? MF_STRING : (MF_STRING | MF_GRAYED | MF_DISABLED);
+	AppendMenuW (hMenu, flagPlay, CMD_PLAY, labelPlay);
+
+	// 2. Rename... (only if 1 item is selected)
+	bool canRename = ! my recording && isSingle;
+	UINT flagRename = canRename ? MF_STRING : (MF_STRING | MF_GRAYED | MF_DISABLED);
+	AppendMenuW (hMenu, flagRename, CMD_RENAME, isZh ? L"重命名..." : L"Rename...");
+
+	AppendMenuW (hMenu, MF_SEPARATOR, 0, nullptr);
+
+	// 3. Save selected (保存选中项)
+	bool canSaveSelected = ! my recording && (hasSelection || my nsamp > 0);
+	UINT flagSaveSelected = canSaveSelected ? MF_STRING : (MF_STRING | MF_GRAYED | MF_DISABLED);
+	AppendMenuW (hMenu, flagSaveSelected, CMD_SAVE_SELECTED, isZh ? L"保存选中项" : L"Save selected");
+
+	// 4. Save all (全部保存)
+	bool canSaveAll = ! my recording && (hasAnyTakes || my nsamp > 0);
+	UINT flagSaveAll = canSaveAll ? MF_STRING : (MF_STRING | MF_GRAYED | MF_DISABLED);
+	AppendMenuW (hMenu, flagSaveAll, CMD_SAVE_ALL, isZh ? L"全部保存" : L"Save all");
+
+	AppendMenuW (hMenu, MF_SEPARATOR, 0, nullptr);
+
+	// 5. Delete (删除)
+	bool canDelete = ! my recording && hasSelection;
+	UINT flagDelete = canDelete ? MF_STRING : (MF_STRING | MF_GRAYED | MF_DISABLED);
+	AppendMenuW (hMenu, flagDelete, CMD_DELETE, isZh ? L"删除" : L"Delete");
+
+	#if defined (_WIN32)
+	HBITMAP bmpPlay = canPlay ? _GuiWin_createMenuIcon (my isPlayingSound ? L"\uE769" : L"\uE768", my isPlayingSound ? RGB (16, 124, 65) : (my isPausedSound ? RGB (217, 119, 6) : RGB (16, 124, 65))) : nullptr;
+	HBITMAP bmpRename = canRename ? _GuiWin_createMenuIcon (L"\uE8EC", RGB (55, 65, 81)) : nullptr;
+	HBITMAP bmpSaveSelected = canSaveSelected ? _GuiWin_createMenuIcon (L"\uE74E", RGB (0, 103, 192)) : nullptr;
+	HBITMAP bmpSaveAll = canSaveAll ? _GuiWin_createMenuIcon (L"\uE71D", RGB (0, 103, 192)) : nullptr;
+	HBITMAP bmpDelete = canDelete ? _GuiWin_createMenuIcon (L"\uE74D", RGB (220, 38, 38)) : nullptr;
+
+	if (bmpPlay) _GuiWin_setMenuItemIcon (hMenu, CMD_PLAY, bmpPlay);
+	if (bmpRename) _GuiWin_setMenuItemIcon (hMenu, CMD_RENAME, bmpRename);
+	if (bmpSaveSelected) _GuiWin_setMenuItemIcon (hMenu, CMD_SAVE_SELECTED, bmpSaveSelected);
+	if (bmpSaveAll) _GuiWin_setMenuItemIcon (hMenu, CMD_SAVE_ALL, bmpSaveAll);
+	if (bmpDelete) _GuiWin_setMenuItemIcon (hMenu, CMD_DELETE, bmpDelete);
+	#endif
+
+	HWND hwnd = (my takeList && my takeList -> d_widget) ? my takeList -> d_widget -> window : nullptr;
+	int cmd = TrackPopupMenuEx (hMenu, TPM_RETURNCMD | TPM_RIGHTBUTTON, event -> x, event -> y, hwnd, nullptr);
+	DestroyMenu (hMenu);
+
+	#if defined (_WIN32)
+	if (bmpPlay) DeleteObject (bmpPlay);
+	if (bmpRename) DeleteObject (bmpRename);
+	if (bmpSaveSelected) DeleteObject (bmpSaveSelected);
+	if (bmpSaveAll) DeleteObject (bmpSaveAll);
+	if (bmpDelete) DeleteObject (bmpDelete);
+	#endif
+
+	switch (cmd) {
+		case CMD_PLAY:
+			gui_button_cb_play (me, nullptr);
+			break;
+		case CMD_RENAME:
+			gui_button_cb_takeRename (me, nullptr);
+			break;
+		case CMD_SAVE_SELECTED:
+			gui_button_cb_publishSelected (me, nullptr);
+			break;
+		case CMD_SAVE_ALL:
+			gui_button_cb_publishAll (me, nullptr);
+			break;
+		case CMD_DELETE:
+			gui_button_cb_takeDelete (me, nullptr);
+			break;
+		default:
+			break;
+	}
+	#endif
+}
+
 static void gui_button_cb_holdRecord (SoundRecorder /* me */, GuiButtonEvent /* event */) {
 	// Push-to-talk is handled by window subclassing
 }
@@ -1032,23 +1366,6 @@ static void gui_button_cb_stop (SoundRecorder me, GuiButtonEvent /* event */) {
 	}
 	addCurrentRecordingToTakes (me);
 	Graphics_updateWs (my graphics.get());
-}
-
-static void gui_button_cb_play (SoundRecorder me, GuiButtonEvent /* event */) {
-	if (my recording)
-		return;
-	integer index = getSelectedTakeIndex (me);
-	if (index >= 1 && index <= my recordedSounds.size) {
-		Sound sound = my recordedSounds.at [index];
-		if (sound) {
-			Sound_play (sound, nullptr, nullptr);
-			return;
-		}
-	}
-	if (my nsamp > 0) {
-		MelderAudio_play16 (my recordBuffer.asArgumentToFunctionThatExpectsZeroBasedArray(),
-				theControlPanel. sampleRate, my nsamp, my numberOfChannels, nullptr, nullptr);
-	}
 }
 
 static void publish (SoundRecorder me) {
@@ -1343,29 +1660,30 @@ void structSoundRecorder :: v_createChildren ()
 	integer y = Machine_getMenuBarBottom () + 15;
 
 	/*
-		Takes list (Left region: x: 10 ~ 280).
+		Takes list (Left region: x: 10 ~ 220).
 	*/
-	GuiLabel_createShown (our windowForm, 10, 160, y, y + Gui_LABEL_HEIGHT, U"Recorded takes:", 0);
-	our durationLabel = GuiLabel_createShown (our windowForm, 160, 280, y, y + Gui_LABEL_HEIGHT, U"", GuiLabel_RIGHT);
-	our takeList = GuiList_createShown (our windowForm, 10, 280, y + Gui_LABEL_HEIGHT + 2, -215, false, U" Takes ");
+	GuiLabel_createShown (our windowForm, 10, 120, y, y + Gui_LABEL_HEIGHT, U"Recorded takes:", 0);
+	our durationLabel = GuiLabel_createShown (our windowForm, 120, 220, y, y + Gui_LABEL_HEIGHT, U"", GuiLabel_RIGHT);
+	our takeList = GuiList_createShown (our windowForm, 10, 220, y + Gui_LABEL_HEIGHT + 2, -215, true, U" Takes ");
 	GuiList_setSelectionChangedCallback (our takeList, gui_list_cb_takeSelectionChanged, this);
 	GuiList_setDoubleClickCallback (our takeList, gui_list_cb_takeDoubleClick, this);
+	GuiList_setContextMenuCallback (our takeList, gui_list_cb_takeContextMenu, this);
 
 	// 2x2 Action buttons below take list (Row 1: y = -205 ~ -180; Row 2: y = -175 ~ -150)
-	our playTakeButton = GuiButton_createShown (our windowForm, 10, 140, -205, -180,
+	our playTakeButton = GuiButton_createShown (our windowForm, 10, 110, -205, -180,
 			U"Play", gui_button_cb_takePlay, this, 0);
-	our renameTakeButton = GuiButton_createShown (our windowForm, 150, 280, -205, -180,
+	our renameTakeButton = GuiButton_createShown (our windowForm, 120, 220, -205, -180,
 			U"Rename...", gui_button_cb_takeRename, this, 0);
-	our deleteTakeButton = GuiButton_createShown (our windowForm, 10, 140, -175, -150,
+	our deleteTakeButton = GuiButton_createShown (our windowForm, 10, 110, -175, -150,
 			U"Delete", gui_button_cb_takeDelete, this, 0);
-	our publishAllButton = GuiButton_createShown (our windowForm, 150, 280, -175, -150,
-			U"Save all", gui_button_cb_publishAll, this, 0);
+	our publishSelectedButton = GuiButton_createShown (our windowForm, 120, 220, -175, -150,
+			U"Save selected", gui_button_cb_publishSelected, this, 0);
 
 	/*
-		Meter box (Center: x: 290 ~ -170).
+		Meter box (Center: x: 230 ~ -170).
 	*/
-	GuiLabel_createShown (our windowForm, 290, -170, y, y + Gui_LABEL_HEIGHT, U"Meter", GuiLabel_CENTRE);
-	our meter = GuiDrawingArea_createShown (our windowForm, 290, -170, y + Gui_LABEL_HEIGHT + 2, -145,
+	GuiLabel_createShown (our windowForm, 230, -170, y, y + Gui_LABEL_HEIGHT, U"Meter", GuiLabel_CENTRE);
+	our meter = GuiDrawingArea_createShown (our windowForm, 230, -170, y + Gui_LABEL_HEIGHT + 2, -145,
 		gui_drawingarea_cb_expose, nullptr,
 		nullptr, gui_drawingarea_cb_resize, nullptr, this, 0
 	);
@@ -1431,11 +1749,11 @@ void structSoundRecorder :: v_createChildren ()
 		}
 	#endif
 	if (inputUsesPortAudio) {
-		our playButton = GuiButton_createShown (our windowForm, 265, 330, -y - Gui_PUSHBUTTON_HEIGHT, -y,
+		our playButton = GuiButton_createShown (our windowForm, 265, 415, -y - Gui_PUSHBUTTON_HEIGHT, -y,
 				U"Play", gui_button_cb_play, this, 0);
 	} else {
 		#if defined (_WIN32) || defined (macintosh)
-			our playButton = GuiButton_createShown (our windowForm, 265, 330, -y - Gui_PUSHBUTTON_HEIGHT, -y,
+			our playButton = GuiButton_createShown (our windowForm, 265, 415, -y - Gui_PUSHBUTTON_HEIGHT, -y,
 					U"Play", gui_button_cb_play, this, 0);
 		#endif
 	}

@@ -95,7 +95,12 @@ Thing_define (SoundRecorder, Editor) {
 	integer takeIndex;
 	GuiList takeList;
 	GuiLabel durationLabel;
-	GuiButton playTakeButton, renameTakeButton, deleteTakeButton, publishAllButton;
+	GuiButton playTakeButton, renameTakeButton, deleteTakeButton, publishSelectedButton;
+	bool isPlayingSound, isPausedSound;
+	double playCurrentTime, playTotalDuration, playPausedTime;
+	double playLastUiUpdate;
+	integer playingTakeIndex;
+	char32 playLastTextBuf [256];
 	GuiText soundName;
 	GuiButton cancelButton, applyButton, okButton;
 	GuiMenuItem meterIntensityButton, meterCentreOfGravityVersusIntensityButton;
