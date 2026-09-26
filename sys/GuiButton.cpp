@@ -90,7 +90,10 @@ Thing_implement (GuiButton, GuiControl, 0);
 		    MATCHES (L"Edit alone") || MATCHES (L"Edit...") || wcscmp (text, L"Edit") == 0 || wcscmp (text, L"编辑") == 0)
 			return L"\uE70F";   // Edit pencil
 
-		if (MATCHES (L"Play") || MATCHES (L"播放"))
+		if (MATCHES (L"Pause") || MATCHES (L"暂停"))
+			return L"\uE769";   // Pause double bars
+
+		if (MATCHES (L"Play") || MATCHES (L"播放") || MATCHES (L"Resume") || MATCHES (L"继续"))
 			return L"\uE768";   // Play triangle
 
 		if (MATCHES (L"Stop") || MATCHES (L"停止"))
@@ -135,9 +138,6 @@ Thing_implement (GuiButton, GuiControl, 0);
 		if (MATCHES (L"Apply") || MATCHES (L"应用"))
 			return L"\uE895";   // Refresh / Sync / Update (distinct from OK)
 
-		if (MATCHES (L"Pause") || MATCHES (L"暂停"))
-			return L"\uE769";   // Pause double bars
-
 		if (wcscmp (text, L"OK") == 0 || wcscmp (text, L"确定") == 0)
 			return L"\uE73E";   // OK check
 
@@ -174,6 +174,11 @@ Thing_implement (GuiButton, GuiControl, 0);
 		#undef MATCHES
 		return nullptr;
 	}
+
+	struct GuiButtonWaveform {
+		int count;
+		float peaks [160];
+	};
 
 	static LRESULT CALLBACK _ModernButtonSubclassProc (
 		HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
@@ -344,6 +349,116 @@ Thing_implement (GuiButton, GuiControl, 0);
 					Gdiplus::Pen borderPen (Gdiplus::Color (255, GetRValue (borderCol), GetGValue (borderCol), GetBValue (borderCol)), strokeW);
 
 					g.FillPath (& bgBrush, & path);
+
+					// Render waveform or visual progress bar
+					GuiButtonWaveform *wf = (GuiButtonWaveform *) GetPropW (hwnd, L"PraatWaveform");
+					HANDLE hProg = GetPropW (hwnd, L"PraatProgress");
+					float frac = 0.0f;
+					int progState = 0;
+					if (hProg) {
+						int progVal = (int)(intptr_t) hProg;
+						if (progVal > 0) {
+							frac = (float) progVal / 10000.0f;
+							if (frac > 1.0f) frac = 1.0f;
+						}
+						progState = (int)(intptr_t) GetPropW (hwnd, L"PraatProgressState");
+					}
+					bool isPausedState = (progState == 2);
+
+					if (wf && wf -> count > 0) {
+						g.SetClip (& path);
+
+						float playheadX = (float) rc.right * frac;
+
+						// 1. If actively playing or paused, draw soft background progress tint
+						if (frac > 0.0f) {
+							Gdiplus::Color tintCol = isPausedState
+								? Gdiplus::Color (22, 217, 119, 6)    // Soft amber tint
+								: Gdiplus::Color (22, 16, 124, 65);   // Soft emerald tint
+							Gdiplus::SolidBrush tintBrush (tintCol);
+							g.FillRectangle (& tintBrush, 0.0f, 0.0f, playheadX, (float) rc.bottom);
+						}
+
+						// 2. Waveform capsule bars
+						int n = wf -> count;
+						float padX = 8.0f;
+						float availW = (float) rc.right - 2.0f * padX;
+						if (availW > 10.0f && n > 0) {
+							float slotW = availW / (float) n;
+							float barW = slotW * 0.65f;
+							if (barW < 1.5f) barW = 1.5f;
+							if (barW > 3.5f) barW = 3.5f;
+							float midY = (float) rc.bottom / 2.0f + (isPressed ? 1.0f : 0.0f);
+							float maxH = (float) rc.bottom * 0.76f;
+							float minH = 2.5f;
+
+							Gdiplus::Color unplayedCol = isHovered
+								? Gdiplus::Color (120, 140, 150, 165)
+								: Gdiplus::Color (95, 156, 163, 175);
+							Gdiplus::Color playedCol = isPausedState
+								? Gdiplus::Color (190, 217, 119, 6)    // Amber orange
+								: Gdiplus::Color (190, 16, 124, 65);   // Emerald green
+
+							Gdiplus::Pen unplayedPen (unplayedCol, barW);
+							unplayedPen.SetStartCap (Gdiplus::LineCapRound);
+							unplayedPen.SetEndCap (Gdiplus::LineCapRound);
+
+							Gdiplus::Pen playedPen (playedCol, barW);
+							playedPen.SetStartCap (Gdiplus::LineCapRound);
+							playedPen.SetEndCap (Gdiplus::LineCapRound);
+
+							for (int i = 0; i < n; ++ i) {
+								float barCenterX = padX + ((float) i + 0.5f) * slotW;
+								float val = wf -> peaks [i];
+								if (val < 0.0f) val = 0.0f;
+								if (val > 1.0f) val = 1.0f;
+								float curH = minH + (maxH - minH) * val;
+								float halfH = curH / 2.0f;
+								if (halfH < barW / 2.0f) halfH = barW / 2.0f;
+
+								bool isPlayed = (frac > 0.0f && barCenterX <= playheadX);
+								Gdiplus::Pen *curPen = isPlayed ? & playedPen : & unplayedPen;
+
+								float y1 = midY - halfH + barW / 2.0f;
+								float y2 = midY + halfH - barW / 2.0f;
+								if (y2 < y1) y2 = y1;
+								g.DrawLine (curPen, barCenterX, y1, barCenterX, y2);
+							}
+						}
+
+						// 3. Playhead cursor & bottom progress line
+						if (frac > 0.0f) {
+							Gdiplus::Color cursorCol = isPausedState
+								? Gdiplus::Color (220, 217, 119, 6)
+								: Gdiplus::Color (220, 16, 124, 65);
+							Gdiplus::Pen cursorPen (cursorCol, 1.5f);
+							g.DrawLine (& cursorPen, playheadX, 2.0f, playheadX, (float) rc.bottom - 4.0f);
+
+							Gdiplus::SolidBrush barBrush (cursorCol);
+							float barH = 3.0f;
+							g.FillRectangle (& barBrush, 0.0f, (float) rc.bottom - barH, playheadX, barH);
+						}
+
+						g.ResetClip ();
+					} else if (hProg && frac > 0.0f) {
+						g.SetClip (& path);
+
+						Gdiplus::Color tintCol = isPausedState
+							? Gdiplus::Color (38, 217, 119, 6)    // Soft Amber
+							: Gdiplus::Color (38, 16, 124, 65);   // Soft Emerald
+						Gdiplus::SolidBrush tintBrush (tintCol);
+						g.FillRectangle (& tintBrush, 0.0f, 0.0f, (float) rc.right * frac, (float) rc.bottom);
+
+						Gdiplus::Color barCol = isPausedState
+							? Gdiplus::Color (235, 217, 119, 6)   // Amber accent
+							: Gdiplus::Color (235, 16, 124, 65);  // Emerald accent
+						Gdiplus::SolidBrush barBrush (barCol);
+						float barH = 3.0f;
+						g.FillRectangle (& barBrush, 0.0f, (float) rc.bottom - barH, (float) rc.right * frac, barH);
+
+						g.ResetClip ();
+					}
+
 					g.DrawPath (& borderPen, & path);
 				}
 
@@ -364,6 +479,7 @@ Thing_implement (GuiButton, GuiControl, 0);
 					if (isPressed)
 						OffsetRect (& textRc, 0, 1);
 
+					GuiButtonWaveform *wf = (GuiButtonWaveform *) GetPropW (hwnd, L"PraatWaveform");
 					const wchar_t *iconGlyph = getButtonIconGlyph (textBuf);
 					if (iconGlyph && ! (dwRefData & GuiButton_MULTILINE)) {
 						const int iconW = isCompact ? 11 : 13;
@@ -376,17 +492,79 @@ Thing_implement (GuiButton, GuiControl, 0);
 						if (startX < textRc.left + 1)
 							startX = textRc.left + 1;
 
+						// If waveform is present, draw frosted-glass capsule pill behind text & icon
+						if (wf && wf -> count > 0) {
+							float pillPadX = 10.0f;
+							float pillPadY = 4.0f;
+							float pillW = (float) totalW + pillPadX * 2.0f;
+							float pillH = (float) szText.cy + pillPadY * 2.0f;
+							float pillX = (float) startX - pillPadX;
+							if (pillX < 2.0f) pillX = 2.0f;
+							if (pillX + pillW > (float) rc.right - 2.0f) pillW = (float) rc.right - 2.0f - pillX;
+							float pillY = ((float) rc.bottom - pillH) / 2.0f + (isPressed ? 1.0f : 0.0f);
+							float pillR = pillH / 2.0f;
+							if (pillR * 2.0f > pillW) pillR = pillW / 2.0f;
+
+							Gdiplus::Graphics gPill (memDC);
+							gPill.SetSmoothingMode (Gdiplus::SmoothingModeAntiAlias);
+							Gdiplus::GraphicsPath pillPath;
+							pillPath.AddArc (pillX, pillY, pillR * 2.0f, pillR * 2.0f, 90.0f, 180.0f);
+							pillPath.AddArc (pillX + pillW - pillR * 2.0f, pillY, pillR * 2.0f, pillR * 2.0f, 270.0f, 180.0f);
+							pillPath.CloseFigure ();
+
+							Gdiplus::SolidBrush pillBg (Gdiplus::Color (225, 255, 255, 255));
+							Gdiplus::Pen pillBorder (Gdiplus::Color (140, 203, 213, 225), 1.0f);
+							gPill.FillPath (& pillBg, & pillPath);
+							gPill.DrawPath (& pillBorder, & pillPath);
+						}
+
 						// 1. Draw Icon
-						HFONT hIconFont = theWinGuiIconFont (isCompact ? -10 : -12);
+						HFONT hIconFont = theWinGuiIconFont (isCompact ? -10 : (rc.bottom >= 40 ? -13 : -12));
 						SelectObject (memDC, hIconFont);
 						RECT rcIcon = { startX, textRc.top, startX + iconW, textRc.bottom };
+						HANDLE hProgIcon = GetPropW (hwnd, L"PraatProgress");
+						if (hProgIcon) {
+							int progState = (int)(intptr_t) GetPropW (hwnd, L"PraatProgressState");
+							if (progState == 2)
+								SetTextColor (memDC, RGB (217, 119, 6)); // Amber icon for paused
+							else if (progState == 1)
+								SetTextColor (memDC, RGB (16, 124, 65));  // Emerald icon for playing
+						}
 						DrawTextW (memDC, iconGlyph, -1, & rcIcon, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+						SetTextColor (memDC, textCol);
 
 						// 2. Draw Text
 						SelectObject (memDC, hFont);
 						RECT rcLabel = { startX + iconW + gap, textRc.top, textRc.right - 1, textRc.bottom };
 						DrawTextW (memDC, textBuf, -1, & rcLabel, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 					} else {
+						if (wf && wf -> count > 0) {
+							SIZE szText;
+							GetTextExtentPoint32W (memDC, textBuf, textLen, & szText);
+							float pillPadX = 10.0f;
+							float pillPadY = 4.0f;
+							float pillW = (float) szText.cx + pillPadX * 2.0f;
+							float pillH = (float) szText.cy + pillPadY * 2.0f;
+							float pillX = ((float) rc.right - pillW) / 2.0f;
+							if (pillX < 2.0f) pillX = 2.0f;
+							if (pillX + pillW > (float) rc.right - 2.0f) pillW = (float) rc.right - 2.0f - pillX;
+							float pillY = ((float) rc.bottom - pillH) / 2.0f + (isPressed ? 1.0f : 0.0f);
+							float pillR = pillH / 2.0f;
+							if (pillR * 2.0f > pillW) pillR = pillW / 2.0f;
+
+							Gdiplus::Graphics gPill (memDC);
+							gPill.SetSmoothingMode (Gdiplus::SmoothingModeAntiAlias);
+							Gdiplus::GraphicsPath pillPath;
+							pillPath.AddArc (pillX, pillY, pillR * 2.0f, pillR * 2.0f, 90.0f, 180.0f);
+							pillPath.AddArc (pillX + pillW - pillR * 2.0f, pillY, pillR * 2.0f, pillR * 2.0f, 270.0f, 180.0f);
+							pillPath.CloseFigure ();
+
+							Gdiplus::SolidBrush pillBg (Gdiplus::Color (225, 255, 255, 255));
+							Gdiplus::Pen pillBorder (Gdiplus::Color (140, 203, 213, 225), 1.0f);
+							gPill.FillPath (& pillBg, & pillPath);
+							gPill.DrawPath (& pillBorder, & pillPath);
+						}
+
 						UINT drawFlags = DT_CENTER | DT_VCENTER;
 						if (dwRefData & GuiButton_MULTILINE)
 							drawFlags |= DT_WORDBREAK;
@@ -410,6 +588,11 @@ Thing_implement (GuiButton, GuiControl, 0);
 
 			case WM_NCDESTROY: {
 				RemovePropW (hwnd, L"PraatHover");
+				RemovePropW (hwnd, L"PraatProgress");
+				RemovePropW (hwnd, L"PraatProgressState");
+				GuiButtonWaveform *wf = (GuiButtonWaveform *) RemovePropW (hwnd, L"PraatWaveform");
+				if (wf)
+					delete wf;
 				RemoveWindowSubclass (hwnd, _ModernButtonSubclassProc, uIdSubclass);
 				break;
 			}
@@ -584,4 +767,57 @@ void GuiButton_setText (GuiButton me, conststring32 text /* cattable */) {
 	#endif
 }
 
+void GuiButton_setProgress (GuiButton me, double fraction, int state) {
+	if (! me) return;
+	#if motif
+		if (my d_widget && my d_widget -> window) {
+			HWND hwnd = my d_widget -> window;
+			if (fraction < 0.0 || state == 0) {
+				RemovePropW (hwnd, L"PraatProgress");
+				RemovePropW (hwnd, L"PraatProgressState");
+			} else {
+				int progVal = (int)(fraction * 10000.0);
+				if (progVal < 1) progVal = 1;
+				if (progVal > 10000) progVal = 10000;
+				SetPropW (hwnd, L"PraatProgress", (HANDLE)(intptr_t) progVal);
+				SetPropW (hwnd, L"PraatProgressState", (HANDLE)(intptr_t) state);
+			}
+			InvalidateRect (hwnd, nullptr, FALSE);
+			UpdateWindow (hwnd);
+		}
+	#else
+		(void) me; (void) fraction; (void) state;
+	#endif
+}
+
+void GuiButton_setWaveform (GuiButton me, const float *peaks, int numPeaks) {
+	if (! me) return;
+	#if motif
+		if (my d_widget && my d_widget -> window) {
+			HWND hwnd = my d_widget -> window;
+			GuiButtonWaveform *wf = (GuiButtonWaveform *) GetPropW (hwnd, L"PraatWaveform");
+			if (! peaks || numPeaks <= 0) {
+				if (wf) {
+					RemovePropW (hwnd, L"PraatWaveform");
+					delete wf;
+				}
+			} else {
+				if (! wf) {
+					wf = new GuiButtonWaveform ();
+					SetPropW (hwnd, L"PraatWaveform", (HANDLE) wf);
+				}
+				if (numPeaks > 160) numPeaks = 160;
+				wf -> count = numPeaks;
+				for (int i = 0; i < numPeaks; ++ i)
+					wf -> peaks [i] = peaks [i];
+			}
+			InvalidateRect (hwnd, nullptr, FALSE);
+			UpdateWindow (hwnd);
+		}
+	#else
+		(void) me; (void) peaks; (void) numPeaks;
+	#endif
+}
+
 /* End of file GuiButton.cpp */
+

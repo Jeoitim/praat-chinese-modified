@@ -152,6 +152,9 @@ integer praat_getNumberOfActions ();   // for ButtonEditor
 Praat_Command praat_getAction (integer i);   // for ButtonEditor
 bool praat_actions_canExecute (conststring32 titlePrefix);
 bool praat_actions_executeByName (conststring32 titlePrefix);
+GuiButton praat_actions_getPlayButton ();
+bool praat_sound_isPaused ();
+void praat_sound_updatePlayButtonIfActive ();
 
 /* Communication with praat_statistics.cpp: */
 void praat_statistics_prefs ();   // at init time

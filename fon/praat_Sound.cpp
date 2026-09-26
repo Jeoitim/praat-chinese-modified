@@ -39,6 +39,8 @@
 
 #include "praat_Sound.h"
 #include "melder_audio.h"
+#include "praat_translate.h"
+#include "praatP.h"
 
 /***** LONGSOUND *****/
 
@@ -1161,36 +1163,259 @@ DO
 	MODIFY_EACH_END
 }
 
-static double s_soundPausedTime = 0.0;
-static Sound s_soundPausedPtr = nullptr;
+/***** SOUND PLAYBACK / PAUSE / PROGRESS BAR CONTROLLER *****/
+
+static integer s_soundPlayId = 0;              // Praat object ID of current Sound
+static Sound s_soundPlayPtr = nullptr;         // Pointer to current Sound
+static double s_soundTotalDuration = 0.0;     // Total duration (xmax - xmin)
+static double s_soundCurrentTime = 0.0;       // Current playback time in seconds
+static double s_soundPausedTime = 0.0;        // Current paused position in seconds
+static bool s_soundIsPlaying = false;         // Actively playing audio
+static bool s_soundIsPaused = false;          // Paused
+static double s_soundLastUiUpdate = 0.0;      // Timestamp for 20 FPS throttling
+
+bool praat_sound_isPaused () {
+	return s_soundIsPaused;
+}
+
+static void formatSoundTime (double sec, char32 *buf, size_t bufSize, bool useMinutes) {
+	if (sec < 0.0) sec = 0.0;
+	if (useMinutes) {
+		integer totalSec = (integer) floor (sec);
+		integer mins = totalSec / 60;
+		integer secs = totalSec % 60;
+		Melder_sprint (buf, bufSize, mins < 10 ? U"0" : U"", mins, U":", secs < 10 ? U"0" : U"", secs);
+	} else {
+		Melder_sprint (buf, bufSize, Melder_fixed (sec, 1), U"s");
+	}
+}
+
+static void updatePlayButtonUi (double curTime, double totalDur, int state) {
+	GuiButton playBtn = praat_actions_getPlayButton ();
+	if (! playBtn)
+		return;
+
+	if (state == 0) {
+		// Stopped / Normal
+		GuiButton_setText (playBtn, praat_translate (U"Play"));
+		GuiButton_setProgress (playBtn, -1.0, 0);
+		return;
+	}
+
+	if (totalDur <= 0.0) totalDur = 0.001;
+	double elapsed = curTime;
+	if (s_soundPlayPtr)
+		elapsed = curTime - s_soundPlayPtr -> xmin;
+	if (elapsed < 0.0) elapsed = 0.0;
+	if (elapsed > totalDur) elapsed = totalDur;
+	double frac = elapsed / totalDur;
+	if (frac < 0.0) frac = 0.0;
+	if (frac > 1.0) frac = 1.0;
+
+	bool useMinutes = (totalDur >= 60.0);
+	char32 tElapsed [64], tTotal [64];
+	formatSoundTime (elapsed, tElapsed, 64, useMinutes);
+	formatSoundTime (totalDur, tTotal, 64, useMinutes);
+
+	bool isZh = (g_language_choice != 0);
+	char32 textBuf [256];
+	if (state == 1) {
+		// Playing: clicking will pause
+		if (isZh)
+			Melder_sprint (textBuf, 256, U"暂停 ", tElapsed, U" / ", tTotal);
+		else
+			Melder_sprint (textBuf, 256, U"Pause ", tElapsed, U" / ", tTotal);
+	} else {
+		// Paused: clicking will resume
+		if (isZh)
+			Melder_sprint (textBuf, 256, U"播放 ", tElapsed, U" / ", tTotal);
+		else
+			Melder_sprint (textBuf, 256, U"Play ", tElapsed, U" / ", tTotal);
+	}
+
+	GuiButton_setText (playBtn, textBuf);
+	GuiButton_setProgress (playBtn, frac, state);
+}
+
+static int praat_sound_playCallback (Thing /* boss */, int phase, double tmin, double tmax, double currentTime) {
+	if (phase == 1) {
+		s_soundIsPlaying = true;
+		s_soundIsPaused = false;
+		s_soundCurrentTime = currentTime;
+		s_soundLastUiUpdate = Melder_clock ();
+		double totalDur = s_soundTotalDuration > 0.0 ? s_soundTotalDuration : (tmax - tmin);
+		updatePlayButtonUi (currentTime, totalDur, 1);
+		return 1;
+	}
+
+	if (phase == 2) {
+		s_soundCurrentTime = currentTime;
+		double now = Melder_clock ();
+		if (now - s_soundLastUiUpdate >= 0.05) {   // 20 FPS throttling
+			s_soundLastUiUpdate = now;
+			double totalDur = s_soundTotalDuration > 0.0 ? s_soundTotalDuration : (tmax - tmin);
+			updatePlayButtonUi (currentTime, totalDur, 1);
+		}
+		return 1;
+	}
+
+	if (phase == 3) {
+		if (MelderAudio_stopWasExplicit ()) {
+			// Explicit pause by user
+			s_soundIsPlaying = false;
+			s_soundIsPaused = true;
+			s_soundPausedTime = s_soundCurrentTime;
+			double totalDur = s_soundTotalDuration > 0.0 ? s_soundTotalDuration : (tmax - tmin);
+			updatePlayButtonUi (s_soundCurrentTime, totalDur, 2);
+		} else {
+			// Natural playback finish
+			s_soundIsPlaying = false;
+			s_soundIsPaused = false;
+			s_soundPausedTime = 0.0;
+			s_soundCurrentTime = 0.0;
+			s_soundPlayPtr = nullptr;
+			s_soundPlayId = 0;
+			updatePlayButtonUi (0.0, 0.0, 0);
+		}
+		return 1;
+	}
+	return 1;
+}
+
+static void praat_sound_computeEnvelope (Sound snd, float *outPeaks, int numPoints) {
+	if (! snd || ! outPeaks || numPoints <= 0)
+		return;
+	integer nx = snd -> nx;
+	integer ny = snd -> ny;
+	if (nx <= 0 || ny <= 0 || ! snd -> z.cells) {
+		for (int i = 0; i < numPoints; ++ i)
+			outPeaks [i] = 0.0f;
+		return;
+	}
+
+	float globalMax = 0.0f;
+	for (int p = 0; p < numPoints; ++ p) {
+		integer iStart = 1 + (integer)(((double) p / (double) numPoints) * (double) nx);
+		integer iEnd = 1 + (integer)(((double)(p + 1) / (double) numPoints) * (double) nx);
+		if (iStart < 1) iStart = 1;
+		if (iEnd > nx) iEnd = nx;
+		if (iEnd < iStart) iEnd = iStart;
+
+		// Decimate bucket if there are too many samples (for fast performance on long files)
+		integer step = (iEnd - iStart > 200) ? ((iEnd - iStart) / 100) : 1;
+		if (step < 1) step = 1;
+
+		float peak = 0.0f;
+		for (integer isamp = iStart; isamp <= iEnd; isamp += step) {
+			for (integer ichan = 1; ichan <= ny; ++ ichan) {
+				float val = (float) fabs (snd -> z [ichan] [isamp]);
+				if (val > peak) peak = val;
+			}
+		}
+		outPeaks [p] = peak;
+		if (peak > globalMax) globalMax = peak;
+	}
+
+	// Non-linear amplitude compression and normalization
+	if (globalMax < 1e-6f) globalMax = 1.0f;
+	for (int p = 0; p < numPoints; ++ p) {
+		float norm = outPeaks [p] / globalMax;
+		if (norm > 1.0f) norm = 1.0f;
+		// Non-linear sqrt curve so quiet phonemes/ambient sounds are visible
+		float compressed = sqrtf (norm);
+		if (compressed < 0.06f) compressed = 0.06f; // Floor so empty dots/lines don't vanish entirely
+		outPeaks [p] = compressed;
+	}
+}
+
+void praat_sound_updatePlayButtonIfActive () {
+	GuiButton playBtn = praat_actions_getPlayButton ();
+	if (! playBtn)
+		return;
+
+	Sound snd = nullptr;
+	if (theCurrentPraatObjects && theCurrentPraatObjects -> totalSelection == 1) {
+		for (integer iobj = 1; iobj <= theCurrentPraatObjects -> n; iobj ++) {
+			if (theCurrentPraatObjects -> list [iobj]. isSelected) {
+				if (theCurrentPraatObjects -> list [iobj]. klas == classSound)
+					snd = (Sound) theCurrentPraatObjects -> list [iobj]. object;
+				break;
+			}
+		}
+	}
+
+	if (snd) {
+		float peaks [64];
+		praat_sound_computeEnvelope (snd, peaks, 64);
+		GuiButton_setWaveform (playBtn, peaks, 64);
+	} else {
+		GuiButton_setWaveform (playBtn, nullptr, 0);
+	}
+
+	if (s_soundIsPlaying || s_soundIsPaused) {
+		if (praat_numberOfSelected (classSound) == 1 && praat_idOfSelected (classSound, 1) == s_soundPlayId) {
+			updatePlayButtonUi (s_soundCurrentTime, s_soundTotalDuration, s_soundIsPlaying ? 1 : 2);
+		} else {
+			s_soundIsPaused = false;
+			s_soundIsPlaying = false;
+			s_soundPausedTime = 0.0;
+			s_soundPlayPtr = nullptr;
+			s_soundPlayId = 0;
+			updatePlayButtonUi (0.0, 0.0, 0);
+		}
+	} else {
+		if (snd) {
+			GuiButton_setText (playBtn, praat_translate (U"Play"));
+			GuiButton_setProgress (playBtn, -1.0, 0);
+		}
+	}
+}
 
 DIRECT (PLAY_EACH__Sound_play) {
 	if (MelderAudio_isPlaying) {
-		integer samplesPlayed = MelderAudio_getSamplesPlayed ();
-		FIND_ALL_LISTED (Sound, SoundList)
-		if (list -> size >= 1) {
-			Sound snd = list -> at [1];
-			s_soundPausedPtr = snd;
-			s_soundPausedTime = snd -> x1 + (samplesPlayed - 1) * snd -> dx;
-			if (s_soundPausedTime < snd -> xmin) s_soundPausedTime = snd -> xmin;
-			if (s_soundPausedTime >= snd -> xmax) {
-				s_soundPausedTime = 0.0;
-				s_soundPausedPtr = nullptr;
-			}
-		}
+		// Currently playing -> pause!
+		s_soundIsPaused = true;
+		s_soundIsPlaying = false;
+		s_soundPausedTime = s_soundCurrentTime;
 		MelderAudio_stopPlaying (MelderAudio_EXPLICIT);
+		updatePlayButtonUi (s_soundPausedTime, s_soundTotalDuration, 2);
 	} else {
 		FIND_ALL_LISTED (Sound, SoundList)
-		if (list -> size == 1 && s_soundPausedPtr == list -> at [1] && s_soundPausedTime > 0.0) {
+		if (list -> size == 1) {
 			Sound snd = list -> at [1];
-			double tResume = s_soundPausedTime;
-			s_soundPausedTime = 0.0;
-			s_soundPausedPtr = nullptr;
-			Sound_playPart (snd, tResume, snd -> xmax, nullptr, nullptr);
+			integer currentId = praat_idOfSelected (classSound, 1);
+			if (s_soundIsPaused && s_soundPlayId == currentId && s_soundPausedTime > snd -> xmin && s_soundPausedTime < snd -> xmax) {
+				// Resume from paused position!
+				double tResume = s_soundPausedTime;
+				s_soundIsPaused = false;
+				s_soundIsPlaying = true;
+				s_soundPlayPtr = snd;
+				s_soundPlayId = currentId;
+				s_soundTotalDuration = snd -> xmax - snd -> xmin;
+				s_soundCurrentTime = tResume;
+				updatePlayButtonUi (tResume, s_soundTotalDuration, 1);
+				Sound_playPart (snd, tResume, snd -> xmax, praat_sound_playCallback, nullptr);
+			} else {
+				// Fresh play from start!
+				s_soundIsPaused = false;
+				s_soundIsPlaying = true;
+				s_soundPausedTime = 0.0;
+				s_soundPlayPtr = snd;
+				s_soundPlayId = currentId;
+				s_soundTotalDuration = snd -> xmax - snd -> xmin;
+				s_soundCurrentTime = snd -> xmin;
+				updatePlayButtonUi (snd -> xmin, s_soundTotalDuration, 1);
+				Sound_playPart (snd, snd -> xmin, snd -> xmax, praat_sound_playCallback, nullptr);
+			}
 		} else {
+			// Multiple sounds selected
+			s_soundIsPaused = false;
+			s_soundIsPlaying = true;
 			s_soundPausedTime = 0.0;
-			s_soundPausedPtr = nullptr;
-			SoundList_play (list.get(), nullptr, nullptr);
+			s_soundPlayPtr = nullptr;
+			s_soundPlayId = 0;
+			s_soundTotalDuration = 0.0;
+			SoundList_play (list.get(), praat_sound_playCallback, nullptr);
 		}
 	}
 END_NO_NEW_DATA

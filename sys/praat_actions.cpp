@@ -754,12 +754,16 @@ void praat_actions_show () {
 						cb_menu, me
 					);
 				} else {
+					bool isSoundPlay = (my title && str32equ (my title.get(), U"Play")
+						&& my class1 && str32equ (my class1 -> className, U"Sound")
+						&& theCurrentPraatObjects -> totalSelection == 1);
+					int btnH = isSoundPlay ? (Gui_PUSHBUTTON_HEIGHT * 2) : Gui_PUSHBUTTON_HEIGHT;
 					my button = GuiButton_createShown (praat_form,
-						BUTTON_LEFT, BUTTON_RIGHT, y, y + Gui_PUSHBUTTON_HEIGHT,
+						BUTTON_LEFT, BUTTON_RIGHT, y, y + btnH,
 						my added ? Melder_cat (U"\u207A", my title.get()) : my title.get(), gui_button_cb_menu,
 						me, ( my executable ? 0 : GuiButton_INSENSITIVE ) | ( my attractive ? GuiButton_ATTRACTIVE : 0 )
 					);
-					y += Gui_PUSHBUTTON_HEIGHT + BUTTON_VSPACING;
+					y += btnH + BUTTON_VSPACING;
 				}
 			} else if (i == theActions.size || theActions.at [i + 1] -> depth == 0) {
 				/*
@@ -794,6 +798,7 @@ void praat_actions_show () {
 			}
 		}
 	}
+	praat_sound_updatePlayButtonIfActive ();
 }
 
 void praat_actions_createWriteMenu (GuiWindow window) {
@@ -933,6 +938,17 @@ bool praat_actions_executeByName (conststring32 titlePrefix) {
 		}
 	}
 	return false;
+}
+
+GuiButton praat_actions_getPlayButton () {
+	for (integer i = 1; i <= theActions.size; i ++) {
+		Praat_Command action = theActions.at [i];
+		if (action -> visible && action -> title && str32equ (action -> title.get(), U"Play")) {
+			if (action -> button && Thing_isa (action -> button, classGuiButton))
+				return (GuiButton) action -> button;
+		}
+	}
+	return nullptr;
 }
 
 void praat_background () {

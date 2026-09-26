@@ -511,6 +511,19 @@ void praat_updateSelection () {
 
 static void gui_cb_list_selectionChanged (Thing /* boss */, GuiList_SelectionChangedEvent event) {
 	Melder_assert (event -> list == praatList_objects);
+	autoINTVEC selected = GuiList_getSelectedPositions (praatList_objects);
+	if (selected.size == theCurrentPraatObjects -> totalSelection) {
+		bool changed = false;
+		for (integer iselected = 1; iselected <= selected.size; iselected ++) {
+			integer iobj = selected [iselected];
+			if (iobj < 1 || iobj > theCurrentPraatObjects -> n || ! theCurrentPraatObjects -> list [iobj]. isSelected) {
+				changed = true;
+				break;
+			}
+		}
+		if (! changed)
+			return;
+	}
 	integer IOBJECT;
 	bool first = true;
 	WHERE (SELECTED) {
@@ -520,7 +533,6 @@ static void gui_cb_list_selectionChanged (Thing /* boss */, GuiList_SelectionCha
 		Melder_assert (theCurrentPraatObjects -> numberOfSelected [readableClassId] >= 0);
 	}
 	theCurrentPraatObjects -> totalSelection = 0;
-	autoINTVEC selected = GuiList_getSelectedPositions (praatList_objects);
 	for (integer iselected = 1; iselected <= selected.size; iselected ++) {
 		IOBJECT = selected [iselected];
 		SELECTED = true;
@@ -739,7 +751,9 @@ static void gui_cb_list_contextMenu (Thing /* boss */, GuiList_ContextMenuEvent 
 	if (canPlay) {
 		const wchar_t* labelPlay = isCurrentlyPlaying
 			? (isEnglish ? L"Pause" : L"暂停")
-			: (isEnglish ? L"Play" : L"播放");
+			: (praat_sound_isPaused ()
+				? (isEnglish ? L"Resume" : L"继续播放")
+				: (isEnglish ? L"Play" : L"播放"));
 		AppendMenuW (hMenu, MF_STRING, CMD_PLAY, labelPlay);
 	}
 
@@ -837,7 +851,11 @@ static void gui_cb_list_contextMenu (Thing /* boss */, GuiList_ContextMenuEvent 
 
 	// Set Menu Icons
 	HBITMAP bmpViewEdit   = createMenuIcon (L"\uE70F", canViewEdit ? RGB (0, 103, 192) : RGB (156, 163, 175));
-	HBITMAP bmpPlay       = canPlay ? createMenuIcon (isCurrentlyPlaying ? L"\uE769" : L"\uE768", isCurrentlyPlaying ? RGB (217, 119, 6) : RGB (16, 124, 65)) : nullptr;
+	bool isPaused = praat_sound_isPaused ();
+	HBITMAP bmpPlay       = canPlay ? createMenuIcon (
+		isCurrentlyPlaying ? L"\uE769" : L"\uE768",
+		isCurrentlyPlaying ? RGB (16, 124, 65) : (isPaused ? RGB (217, 119, 6) : RGB (16, 124, 65))
+	) : nullptr;
 	HBITMAP bmpRename     = createMenuIcon (L"\uE8EC", canRename ? RGB (55, 65, 81) : RGB (156, 163, 175));
 	HBITMAP bmpCopy       = createMenuIcon (L"\uE8C8", canCopy ? RGB (55, 65, 81) : RGB (156, 163, 175));
 	HBITMAP bmpInfo       = createMenuIcon (L"\uE946", canInfo ? RGB (0, 103, 192) : RGB (156, 163, 175));

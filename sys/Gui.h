@@ -484,6 +484,8 @@ GuiButton GuiButton_createShown (GuiForm parent,
 );
 
 void GuiButton_setText (GuiButton me, conststring32 text /* cattable */);
+void GuiButton_setProgress (GuiButton me, double fraction, int state);
+void GuiButton_setWaveform (GuiButton me, const float *peaks, int numPeaks);
 
 /********** GuiCheckButton **********/
 
