@@ -6385,20 +6385,28 @@ DO
 	END_NO_NEW_DATA
 }
 
+static autostring32 theSpeechSynthesizer_lastText;
+
 FORM (PLAY_EACH__SpeechSynthesizer_playText, U"SpeechSynthesizer: Play text", U"SpeechSynthesizer: Play text...") {
-	TEXTFIELD (text, U"Text", U"This is some text.", 10)
+	TEXTFIELD (text, U"Text", theSpeechSynthesizer_lastText ? theSpeechSynthesizer_lastText.get() : U"This is some text.", 10)
 	OK
+		if (theSpeechSynthesizer_lastText)
+			SET_STRING (text, theSpeechSynthesizer_lastText.get())
 DO
+		theSpeechSynthesizer_lastText = Melder_dup (text);
 	PLAY_EACH (SpeechSynthesizer)
 		SpeechSynthesizer_playText (me, text);
 	PLAY_EACH_END
 }
 
 FORM (CONVERT_EACH_TO_ONE__SpeechSynthesizer_to_Sound, U"SpeechSynthesizer: To Sound", U"SpeechSynthesizer: To Sound...") {
-	TEXTFIELD (text, U"Text", U"This is some text.", 10)
+	TEXTFIELD (text, U"Text", theSpeechSynthesizer_lastText ? theSpeechSynthesizer_lastText.get() : U"This is some text.", 10)
 	BOOLEAN (wantTextGrid, U"Create TextGrid with annotations", false);
 	OK
+		if (theSpeechSynthesizer_lastText)
+			SET_STRING (text, theSpeechSynthesizer_lastText.get())
 DO
+		theSpeechSynthesizer_lastText = Melder_dup (text);
 	CONVERT_EACH_TO_MULTIPLE (SpeechSynthesizer)
 		autoTextGrid tg;
 		autoTable t;
@@ -6432,18 +6440,24 @@ DIRECT (QUERY_ONE_FOR_STRING__SpeechSynthesizer_getPhonemeSetName) {
 }
 
 FORM (QUERY_ONE_FOR_AUTOSTRING__SpeechSynthesizer_getPhonemesFromText, U"SpeechSynthesizer: Get phonemes from text", nullptr) {
-	TEXTFIELD (text, U"Text", U"This is some text.", 10)
+	TEXTFIELD (text, U"Text", theSpeechSynthesizer_lastText ? theSpeechSynthesizer_lastText.get() : U"This is some text.", 10)
 	OK
+		if (theSpeechSynthesizer_lastText)
+			SET_STRING (text, theSpeechSynthesizer_lastText.get())
 DO
+		theSpeechSynthesizer_lastText = Melder_dup (text);
 	QUERY_ONE_FOR_AUTOSTRING (SpeechSynthesizer)
 		autostring32 result = SpeechSynthesizer_getPhonemesFromText (me, text, false);
 	QUERY_ONE_FOR_AUTOSTRING_END
 }
 
 FORM (QUERY_ONE_FOR_AUTOSTRING__SpeechSynthesizer_getPhonemesFromTextSpaceSeparated, U"SpeechSynthesizer: Get phonemes from text", nullptr) {
-	TEXTFIELD (text, U"Text", U"This is some text.", 10)
+	TEXTFIELD (text, U"Text", theSpeechSynthesizer_lastText ? theSpeechSynthesizer_lastText.get() : U"This is some text.", 10)
 	OK
+		if (theSpeechSynthesizer_lastText)
+			SET_STRING (text, theSpeechSynthesizer_lastText.get())
 DO
+		theSpeechSynthesizer_lastText = Melder_dup (text);
 	QUERY_ONE_FOR_AUTOSTRING (SpeechSynthesizer)
 		autostring32 result = SpeechSynthesizer_getPhonemesFromText (me, text, true);
 	QUERY_ONE_FOR_AUTOSTRING_END

@@ -150,6 +150,10 @@ int praat_doAction (conststring32 command, integer narg, Stackel args, Interpret
 integer praat_getNumberOfActions ();   // for ButtonEditor
 Praat_Command praat_getAction (integer i);   // for ButtonEditor
 
+GuiButton praat_actions_getPlayButton ();
+void praat_sound_updatePlayButtonIfActive ();
+bool praat_sound_isPaused ();
+
 /* Communication with praat_statistics.cpp: */
 void praat_statistics_prefs ();   // at init time
 void praat_statistics_prefsChanged ();   // after reading prefs file

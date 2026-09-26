@@ -794,6 +794,7 @@ void praat_actions_show () {
 			}
 		}
 	}
+	praat_sound_updatePlayButtonIfActive ();
 }
 
 void praat_actions_createWriteMenu (GuiWindow window) {
@@ -910,6 +911,17 @@ integer praat_getNumberOfActions () { return theActions.size; }
 
 Praat_Command praat_getAction (integer i)
 	{ return i < 0 || i > theActions.size ? nullptr : theActions.at [i]; }
+
+GuiButton praat_actions_getPlayButton () {
+	for (integer i = 1; i <= theActions.size; i ++) {
+		Praat_Command action = theActions.at [i];
+		if (action -> visible && action -> title && str32equ (action -> title.get(), U"Play")) {
+			if (action -> button && Thing_isa (action -> button, classGuiButton))
+				return (GuiButton) action -> button;
+		}
+	}
+	return nullptr;
+}
 
 void praat_background () {
 	if (Melder_batch)

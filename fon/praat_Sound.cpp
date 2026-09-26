@@ -38,6 +38,9 @@
 #include "SpeechRecognizer.h"
 
 #include "praat_Sound.h"
+#include "melder_audio.h"
+#include "praat_translate.h"
+#include "praatP.h"
 
 /***** LONGSOUND *****/
 
@@ -1160,10 +1163,182 @@ DO
 	MODIFY_EACH_END
 }
 
+static Sound s_soundPlayPtr = nullptr;
+static integer s_soundPlayId = 0;
+static double s_soundTotalDuration = 0.0;     // Total duration (xmax - xmin)
+static double s_soundCurrentTime = 0.0;       // Current playback time in seconds
+static double s_soundPausedTime = 0.0;        // Current paused position in seconds
+static bool s_soundIsPlaying = false;         // Actively playing audio
+static bool s_soundIsPaused = false;          // Paused
+static double s_soundLastUiUpdate = 0.0;      // Timestamp for 20 FPS throttling
+
+bool praat_sound_isPaused () {
+	return s_soundIsPaused;
+}
+
+static void formatSoundTime (double sec, char32 *buf, size_t bufSize, bool useMinutes) {
+	if (sec < 0.0) sec = 0.0;
+	if (useMinutes) {
+		integer totalSec = (integer) floor (sec);
+		integer mins = totalSec / 60;
+		integer secs = totalSec % 60;
+		Melder_sprint (buf, bufSize, mins < 10 ? U"0" : U"", mins, U":", secs < 10 ? U"0" : U"", secs);
+	} else {
+		Melder_sprint (buf, bufSize, Melder_fixed (sec, 1), U"s");
+	}
+}
+
+static void updatePlayButtonUi (double curTime, double totalDur, int state) {
+	GuiButton playBtn = praat_actions_getPlayButton ();
+	if (! playBtn)
+		return;
+
+	if (state == 0) {
+		// Stopped / Normal
+		GuiButton_setText (playBtn, praat_translate (U"Play"));
+		return;
+	}
+
+	if (totalDur <= 0.0) totalDur = 0.001;
+	double elapsed = curTime;
+	if (s_soundPlayPtr)
+		elapsed = curTime - s_soundPlayPtr -> xmin;
+	if (elapsed < 0.0) elapsed = 0.0;
+	if (elapsed > totalDur) elapsed = totalDur;
+
+	bool useMinutes = (totalDur >= 60.0);
+	char32 tElapsed [64], tTotal [64];
+	formatSoundTime (elapsed, tElapsed, 64, useMinutes);
+	formatSoundTime (totalDur, tTotal, 64, useMinutes);
+
+	bool isZh = (g_language_choice != 0);
+	char32 textBuf [256];
+	if (state == 1) {
+		// Playing: clicking will pause
+		if (isZh)
+			Melder_sprint (textBuf, 256, U"暂停 ", tElapsed, U" / ", tTotal);
+		else
+			Melder_sprint (textBuf, 256, U"Pause ", tElapsed, U" / ", tTotal);
+	} else {
+		// Paused: clicking will resume
+		if (isZh)
+			Melder_sprint (textBuf, 256, U"播放 ", tElapsed, U" / ", tTotal);
+		else
+			Melder_sprint (textBuf, 256, U"Play ", tElapsed, U" / ", tTotal);
+	}
+
+	GuiButton_setText (playBtn, textBuf);
+}
+
+static int praat_sound_playCallback (Thing /* boss */, int phase, double tmin, double tmax, double currentTime) {
+	if (phase == 1) {
+		s_soundIsPlaying = true;
+		s_soundIsPaused = false;
+		s_soundCurrentTime = currentTime;
+		s_soundLastUiUpdate = Melder_clock ();
+		double totalDur = s_soundTotalDuration > 0.0 ? s_soundTotalDuration : (tmax - tmin);
+		updatePlayButtonUi (currentTime, totalDur, 1);
+		return 1;
+	}
+
+	if (phase == 2) {
+		s_soundCurrentTime = currentTime;
+		double now = Melder_clock ();
+		if (now - s_soundLastUiUpdate >= 0.05) {   // 20 FPS throttling
+			s_soundLastUiUpdate = now;
+			double totalDur = s_soundTotalDuration > 0.0 ? s_soundTotalDuration : (tmax - tmin);
+			updatePlayButtonUi (currentTime, totalDur, 1);
+		}
+		return 1;
+	}
+
+	if (phase == 3) {
+		if (MelderAudio_stopWasExplicit ()) {
+			// Explicit pause by user
+			s_soundIsPlaying = false;
+			s_soundIsPaused = true;
+			s_soundPausedTime = s_soundCurrentTime;
+			double totalDur = s_soundTotalDuration > 0.0 ? s_soundTotalDuration : (tmax - tmin);
+			updatePlayButtonUi (s_soundCurrentTime, totalDur, 2);
+		} else {
+			// Natural playback finish
+			s_soundIsPlaying = false;
+			s_soundIsPaused = false;
+			s_soundPausedTime = 0.0;
+			s_soundCurrentTime = 0.0;
+			s_soundPlayPtr = nullptr;
+			s_soundPlayId = 0;
+			updatePlayButtonUi (0.0, 0.0, 0);
+		}
+		return 1;
+	}
+	return 1;
+}
+
+void praat_sound_updatePlayButtonIfActive () {
+	if (s_soundIsPlaying || s_soundIsPaused) {
+		if (praat_numberOfSelected (classSound) == 1 && praat_idOfSelected (classSound, 1) == s_soundPlayId) {
+			updatePlayButtonUi (s_soundCurrentTime, s_soundTotalDuration, s_soundIsPlaying ? 1 : 2);
+		} else {
+			s_soundIsPaused = false;
+			s_soundIsPlaying = false;
+			s_soundPausedTime = 0.0;
+			s_soundPlayPtr = nullptr;
+			s_soundPlayId = 0;
+			updatePlayButtonUi (0.0, 0.0, 0);
+		}
+	}
+}
+
 DIRECT (PLAY_EACH__Sound_play) {
-	FIND_ALL_LISTED (Sound, SoundList)
-		SoundList_play (list.get(), nullptr, nullptr);
-	END_NO_NEW_DATA
+	if (MelderAudio_isPlaying) {
+		// Currently playing -> pause!
+		s_soundIsPaused = true;
+		s_soundIsPlaying = false;
+		s_soundPausedTime = s_soundCurrentTime;
+		MelderAudio_stopPlaying (MelderAudio_EXPLICIT);
+		updatePlayButtonUi (s_soundPausedTime, s_soundTotalDuration, 2);
+	} else {
+		FIND_ALL_LISTED (Sound, SoundList)
+		if (list -> size == 1) {
+			Sound snd = list -> at [1];
+			integer currentId = praat_idOfSelected (classSound, 1);
+			if (s_soundIsPaused && s_soundPlayId == currentId && s_soundPausedTime > snd -> xmin && s_soundPausedTime < snd -> xmax) {
+				// Resume from paused position!
+				double tResume = s_soundPausedTime;
+				s_soundIsPaused = false;
+				s_soundIsPlaying = true;
+				s_soundPlayPtr = snd;
+				s_soundPlayId = currentId;
+				s_soundTotalDuration = snd -> xmax - snd -> xmin;
+				s_soundCurrentTime = tResume;
+				updatePlayButtonUi (tResume, s_soundTotalDuration, 1);
+				Sound_playPart (snd, tResume, snd -> xmax, praat_sound_playCallback, nullptr);
+				return;
+			}
+			// Fresh play from start!
+			s_soundIsPaused = false;
+			s_soundIsPlaying = true;
+			s_soundPausedTime = 0.0;
+			s_soundPlayPtr = snd;
+			s_soundPlayId = currentId;
+			s_soundTotalDuration = snd -> xmax - snd -> xmin;
+			s_soundCurrentTime = snd -> xmin;
+			updatePlayButtonUi (snd -> xmin, s_soundTotalDuration, 1);
+			Sound_playPart (snd, snd -> xmin, snd -> xmax, praat_sound_playCallback, nullptr);
+			return;
+		}
+
+		// Multiple sounds selected
+		s_soundIsPaused = false;
+		s_soundIsPlaying = true;
+		s_soundPausedTime = 0.0;
+		s_soundPlayPtr = nullptr;
+		s_soundPlayId = 0;
+		s_soundTotalDuration = 0.0;
+		SoundList_play (list.get(), praat_sound_playCallback, nullptr);
+	}
+END_NO_NEW_DATA
 }
 
 FORM (MODIFY_Sound_preemphasizeInplace, U"Sound: Pre-emphasize (in-place)", U"Sound: Pre-emphasize (in-place)...") {

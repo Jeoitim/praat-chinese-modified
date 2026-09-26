@@ -68,6 +68,77 @@ static bool is_foreign_source_accessible () {
 }
 
 static GuiDialog theWhisperGuideDialog = nullptr;
+static GuiLabel theWhisperHeaderLabel = nullptr;
+static GuiLabel theWhisperDesc1 = nullptr;
+static GuiLabel theWhisperDesc2 = nullptr;
+static GuiLabel theWhisperDesc3 = nullptr;
+static GuiButton theWhisperDownloadButton = nullptr;
+
+static void updateWhisperGuideUi () {
+	if (! theWhisperGuideDialog)
+		return;
+
+	constSTRVEC modelNames = theCurrentSpeechRecognizerModelNames ();
+	bool isZh = (g_language_choice != 0);
+
+	if (modelNames.size > 0) {
+		conststring32 headerText = isZh
+			? Melder_cat (U"已就绪：检测到 ", Melder_integer (modelNames.size), U" 个可用 Whisper 模型")
+			: Melder_cat (U"Ready: ", Melder_integer (modelNames.size), U" Whisper model(s) detected");
+		GuiLabel_setText (theWhisperHeaderLabel, headerText);
+
+		MelderString listStr;
+		for (integer i = 1; i <= modelNames.size; i ++) {
+			if (i > 1)
+				MelderString_append (& listStr, U",  ");
+			MelderString_append (& listStr, modelNames [i]);
+		}
+		conststring32 desc1Text = isZh
+			? Melder_cat (U"当前就绪模型：", listStr.string)
+			: Melder_cat (U"Available models: ", listStr.string);
+		GuiLabel_setText (theWhisperDesc1, desc1Text);
+
+		GuiLabel_setText (theWhisperDesc2, isZh
+			? U"语音识别功能已就绪！您可在对象列表创建 SpeechRecognizer，或在 TextGrid 窗口直接转写。"
+			: U"Speech recognition is ready! Create a SpeechRecognizer or transcribe from TextGrid window.");
+
+		GuiLabel_setText (theWhisperDesc3, isZh
+			? U"模型存放目录：软件同级 models\\whispercpp\\ 或用户偏好目录。可通过下方按钮继续下载其他模型。"
+			: U"Models location: models\\whispercpp\\ or preferences folder. Use buttons below to manage models.");
+
+		if (theWhisperDownloadButton) {
+			bool hasBase = false;
+			for (integer i = 1; i <= modelNames.size; i ++) {
+				if (str32str (modelNames [i], U"base")) {
+					hasBase = true;
+					break;
+				}
+			}
+			GuiButton_setText (theWhisperDownloadButton, hasBase
+				? (isZh ? U"重新下载 base 模型" : U"Re-download base model")
+				: (isZh ? U"下载 base 模型" : U"Download base model"));
+		}
+	} else {
+		GuiLabel_setText (theWhisperHeaderLabel, isZh
+			? U"未检测到 Whisper 语音识别模型 (.bin)"
+			: U"No Whisper speech recognition models found (.bin)");
+		GuiLabel_setText (theWhisperDesc1, isZh
+			? U"Praat 已内置 Whisper.cpp 语音识别引擎，但需要至少一个模型权重文件以执行转写。"
+			: U"Praat includes Whisper.cpp engine, but requires at least one model weight file.");
+		GuiLabel_setText (theWhisperDesc2, isZh
+			? U"推荐模型：ggml-base.bin（约 142 MB，速度与准确率平衡，支持中文等多语言识别）。"
+			: U"Recommended model: ggml-base.bin (~142 MB, good balance of speed and accuracy).");
+		GuiLabel_setText (theWhisperDesc3, isZh
+			? U"支持便携目录：可直接放置于 Praat 程序同级的 models\\whispercpp\\ 或用户偏好目录。"
+			: U"Place models in models\\whispercpp\\ or user preferences directory.");
+		if (theWhisperDownloadButton)
+			GuiButton_setText (theWhisperDownloadButton, isZh ? U"下载 base 模型" : U"Download base model");
+	}
+}
+
+static void gui_button_cb_whisperRefresh (Thing /* boss */, GuiButtonEvent /* event */) {
+	updateWhisperGuideUi ();
+}
 
 static void gui_dialog_cb_whisperGoAway (Thing /* boss */) {
 	if (theWhisperGuideDialog)
@@ -120,72 +191,83 @@ static void gui_button_cb_whisperClose (Thing /* boss */, GuiButtonEvent /* even
 
 void SpeechRecognizer_showModelGuideDialog () {
 	if (! theWhisperGuideDialog) {
-		const int dialogWidth = 630;
+		const int dialogWidth = 640;
 		const int dialogHeight = 225;
+		bool isZh = (g_language_choice != 0);
 		theWhisperGuideDialog = GuiDialog_create (theCurrentPraatApplication -> topShell,
 			100, 70, dialogWidth, dialogHeight,
-			praat_translate (U"Whisper 模型下载与配置向导"),
+			isZh ? U"Whisper 模型下载与配置向导" : U"Whisper Model Download & Setup Guide",
 			gui_dialog_cb_whisperGoAway, nullptr,
 			GuiDialog_Modality::MODAL);
 
 		int y = Gui_TOP_DIALOG_SPACING;
-		GuiLabel_createShown (theWhisperGuideDialog,
+		theWhisperHeaderLabel = GuiLabel_createShown (theWhisperGuideDialog,
 			Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
 			y, y + Gui_LABEL_HEIGHT,
-			praat_translate (U"未检测到 Whisper 语音识别模型 (.bin)"), GuiLabel_BOLD);
+			U"", GuiLabel_BOLD);
 		y += Gui_LABEL_HEIGHT + 10;
 
-		GuiLabel_createShown (theWhisperGuideDialog,
+		theWhisperDesc1 = GuiLabel_createShown (theWhisperGuideDialog,
 			Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
 			y, y + Gui_LABEL_HEIGHT,
-			praat_translate (U"Praat 已内置 Whisper.cpp 语音识别引擎，但需要至少一个模型权重文件以执行转写。"), 0);
+			U"", 0);
 		y += Gui_LABEL_HEIGHT + 6;
 
-		GuiLabel_createShown (theWhisperGuideDialog,
+		theWhisperDesc2 = GuiLabel_createShown (theWhisperGuideDialog,
 			Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
 			y, y + Gui_LABEL_HEIGHT,
-			praat_translate (U"推荐模型：ggml-base.bin（约 142 MB，速度与准确率平衡，支持中文等多语言识别）。"), 0);
+			U"", 0);
 		y += Gui_LABEL_HEIGHT + 6;
 
-		GuiLabel_createShown (theWhisperGuideDialog,
+		theWhisperDesc3 = GuiLabel_createShown (theWhisperGuideDialog,
 			Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
 			y, y + Gui_LABEL_HEIGHT,
-			praat_translate (U"支持便携目录：可直接放置于 Praat 程序同级的 models\\whispercpp\\ 或用户偏好目录。"), 0);
+			U"", 0);
 
 		const int buttonY = dialogHeight - Gui_BOTTOM_DIALOG_SPACING - Gui_PUSHBUTTON_HEIGHT;
 
 		// Button 1: Open Folder
-		const int w1 = 135;
+		int x = Gui_LEFT_DIALOG_SPACING;
+		const int w1 = 120;
 		GuiButton_createShown (theWhisperGuideDialog,
-			Gui_LEFT_DIALOG_SPACING, Gui_LEFT_DIALOG_SPACING + w1,
+			x, x + w1,
 			buttonY, buttonY + Gui_PUSHBUTTON_HEIGHT,
-			praat_translate (U"打开模型文件夹"), gui_button_cb_whisperOpenFolder, nullptr, 0);
+			isZh ? U"打开模型文件夹" : U"Open Folder", gui_button_cb_whisperOpenFolder, nullptr, 0);
+		x += w1 + 8;
 
-		// Button 2: Download base model
-		int x2 = Gui_LEFT_DIALOG_SPACING + w1 + 10;
-		const int w2 = 175;
+		// Button 2: Refresh Status
+		const int w2 = 90;
 		GuiButton_createShown (theWhisperGuideDialog,
-			x2, x2 + w2,
+			x, x + w2,
 			buttonY, buttonY + Gui_PUSHBUTTON_HEIGHT,
-			praat_translate (U"下载 base 模型"), gui_button_cb_whisperDownloadBase, nullptr, GuiButton_DEFAULT);
+			isZh ? U"刷新状态" : U"Refresh", gui_button_cb_whisperRefresh, nullptr, 0);
+		x += w2 + 8;
 
-		// Button 3: Browse all models
-		int x3 = x2 + w2 + 10;
-		const int w3 = 145;
-		GuiButton_createShown (theWhisperGuideDialog,
-			x3, x3 + w3,
+		// Button 3: Download base model
+		const int w3 = 155;
+		theWhisperDownloadButton = GuiButton_createShown (theWhisperGuideDialog,
+			x, x + w3,
 			buttonY, buttonY + Gui_PUSHBUTTON_HEIGHT,
-			praat_translate (U"浏览所有模型..."), gui_button_cb_whisperBrowseAll, nullptr, 0);
+			isZh ? U"下载 base 模型" : U"Download base model", gui_button_cb_whisperDownloadBase, nullptr, GuiButton_DEFAULT);
+		x += w3 + 8;
 
-		// Button 4: Close
-		const int w4 = 85;
-		int x4 = dialogWidth - Gui_RIGHT_DIALOG_SPACING - w4;
+		// Button 4: Browse all models
+		const int w4 = 130;
 		GuiButton_createShown (theWhisperGuideDialog,
-			x4, x4 + w4,
+			x, x + w4,
 			buttonY, buttonY + Gui_PUSHBUTTON_HEIGHT,
-			praat_translate (U"关闭"), gui_button_cb_whisperClose, nullptr, GuiButton_CANCEL);
+			isZh ? U"浏览所有模型..." : U"All Models...", gui_button_cb_whisperBrowseAll, nullptr, 0);
+
+		// Button 5: Close
+		const int w5 = 75;
+		int x5 = dialogWidth - Gui_RIGHT_DIALOG_SPACING - w5;
+		GuiButton_createShown (theWhisperGuideDialog,
+			x5, x5 + w5,
+			buttonY, buttonY + Gui_PUSHBUTTON_HEIGHT,
+			isZh ? U"关闭" : U"Close", gui_button_cb_whisperClose, nullptr, GuiButton_CANCEL);
 	}
 
+	updateWhisperGuideUi ();
 	GuiThing_show (theWhisperGuideDialog);
 }
 
