@@ -6874,9 +6874,142 @@ static std::u32string translate_to_traditional (const std::u32string& sc_str) {
 }
 
 #include <mutex>
+#include <map>
+#include <fstream>
+#include <cstdlib>
+#include <cstring>
+#include <algorithm>
+
 static std::unordered_map<std::u32string, std::u32string> g_dynamic_cache;
 static std::unordered_map<std::u32string, std::u32string> g_reverse_translation_map;
 static std::mutex g_cache_mutex;
+
+static std::mutex g_audit_mutex;
+static std::map<std::u32string, size_t> g_audit_counts;
+
+static bool is_audit_numeric_only (const std::u32string& s) {
+	bool has_digit = false;
+	for (char32_t c : s) {
+		if (c >= U'0' && c <= U'9') {
+			has_digit = true;
+			continue;
+		}
+		if (c == U' ' || c == U'\t' || c == U'\r' || c == U'\n' ||
+		    c == U'+' || c == U'-' || c == U'.' || c == U',' ||
+		    c == U'%' || c == U'e' || c == U'E' || c == U'/' ||
+		    c == U'(' || c == U')' || c == U'=' || c == U'~' || c == U'*')
+		{
+			continue;
+		}
+		return false;
+	}
+	return has_digit;
+}
+
+static bool looks_like_path_or_identifier (const std::u32string& s) {
+	if (s.empty())
+		return false;
+	if (s[0] == U'/' || s[0] == U'\\')
+		return true;
+	if (s.length() >= 3 && ((s[0] >= U'A' && s[0] <= U'Z') || (s[0] >= U'a' && s[0] <= U'z')) && s[1] == U':' && (s[2] == U'/' || s[2] == U'\\'))
+		return true;
+	if (s.find(U"\\\\") != std::u32string::npos)
+		return true;
+	return false;
+}
+
+static bool is_audit_allowlisted (const std::u32string& s) {
+	static const std::unordered_map<std::u32string, bool> allowlist = {
+		{ U"Praat", true }, { U"praat", true },
+		{ U"TextGrid", true }, { U"Sound", true },
+		{ U"LongSound", true }, { U"PitchTier", true },
+		{ U"IntensityTier", true }, { U"DurationTier", true },
+		{ U"Spectrum", true }, { U"Spectrogram", true },
+		{ U"Pitch", true }, { U"Formant", true },
+		{ U"Intensity", true }, { U"Harmonicity", true },
+		{ U"PointProcess", true }, { U"Manipulation", true },
+		{ U"Hz", true }, { U"dB", true }, { U"Pa", true },
+		{ U"semitones", true }, { U"Bark", true }, { U"ERB", true },
+		{ U"WAV", true }, { U"AIFF", true }, { U"MP3", true }, { U"FLAC", true },
+		{ U"F1", true }, { U"F2", true }, { U"F3", true }, { U"F4", true },
+		{ U"F1 (Hz)", true }, { U"F2 (Hz)", true }, { U"F3 (Hz)", true }, { U"F4 (Hz)", true },
+		{ U"B1 (Hz)", true }, { U"B2 (Hz)", true }, { U"B3 (Hz)", true }, { U"B4 (Hz)", true },
+		{ U"Courier", true }, { U"Helvetica", true }, { U"Times", true }, { U"Palatino", true }
+	};
+	return allowlist.find(s) != allowlist.end();
+}
+
+static void append_audit_utf8 (std::string& out, char32_t cp) {
+	if (cp <= 0x7F) {
+		out.push_back(static_cast<char>(cp));
+	} else if (cp <= 0x7FF) {
+		out.push_back(static_cast<char>(0xC0 | (cp >> 6)));
+		out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+	} else if (cp <= 0xFFFF) {
+		out.push_back(static_cast<char>(0xE0 | (cp >> 12)));
+		out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+		out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+	} else {
+		out.push_back(static_cast<char>(0xF0 | (cp >> 18)));
+		out.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+		out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+		out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+	}
+}
+
+static std::string to_audit_escaped_utf8 (const std::u32string& s) {
+	std::string res;
+	for (char32_t c : s) {
+		switch (c) {
+			case U'\t': res += "\\t"; break;
+			case U'\r': res += "\\r"; break;
+			case U'\n': res += "\\n"; break;
+			case U'\\': res += "\\\\"; break;
+			default: append_audit_utf8(res, c); break;
+		}
+	}
+	return res;
+}
+
+static void audit_miss (const std::u32string& key, const char* context) {
+	const char* audit_env = std::getenv("PRAAT_ZH_AUDIT");
+	if (!audit_env || std::string(audit_env) != "1") {
+		return;
+	}
+	if (key.empty())
+		return;
+	if (strcmp(context, "manual") == 0) {
+		const char* audit_manual_env = std::getenv("PRAAT_ZH_AUDIT_MANUAL");
+		if (!audit_manual_env || std::string(audit_manual_env) != "1")
+			return;
+	}
+
+	size_t non_space = 0;
+	bool has_alpha = false;
+	for (char32_t c : key) {
+		if (c > 32) non_space++;
+		if ((c >= U'A' && c <= U'Z') || (c >= U'a' && c <= U'z'))
+			has_alpha = true;
+	}
+	if (non_space == 0 || !has_alpha)
+		return;
+	if (is_audit_numeric_only(key) || looks_like_path_or_identifier(key) || is_audit_allowlisted(key))
+		return;
+
+	const char* file_env = std::getenv("PRAAT_ZH_AUDIT_FILE");
+	std::string audit_path = (file_env && file_env[0]) ? file_env : "praat-zh-missing.tsv";
+
+	std::lock_guard<std::mutex> lock(g_audit_mutex);
+	g_audit_counts[key]++;
+
+	std::ofstream out(audit_path, std::ios::binary | std::ios::trunc);
+	if (!out)
+		return;
+	out << "context\tsource\tcount\n";
+	for (const auto& pair : g_audit_counts) {
+		out << context << "\t" << to_audit_escaped_utf8(pair.first) << "\t" << pair.second << "\n";
+	}
+}
 
 int g_language_choice = 1; // 0 = English, 1 = Chinese, 2 = Traditional Chinese
 
@@ -6889,7 +7022,7 @@ static void ensure_reverse_translation_map () {
 	}
 }
 
-const char32* praat_translate (const char32* text) {
+static const char32* praat_translate_internal (const char32* text, const char* context) {
 	if (!text) {
 		return nullptr;
 	}
@@ -6932,6 +7065,7 @@ const char32* praat_translate (const char32* text) {
 
 	if (translated.empty()) {
 		translated = key;
+		audit_miss(key, context);
 	}
 
 	if (g_language_choice == 2) {
@@ -6943,6 +7077,11 @@ const char32* praat_translate (const char32* text) {
 	return g_dynamic_cache[key].c_str();
 }
 
-const char32* praat_translate_manual (const char32* text) {
-	return praat_translate (text);
+const char32* praat_translate (const char32* text) {
+	return praat_translate_internal (text, "ui");
 }
+
+const char32* praat_translate_manual (const char32* text) {
+	return praat_translate_internal (text, "manual");
+}
+
