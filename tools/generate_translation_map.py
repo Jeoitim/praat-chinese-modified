@@ -4909,6 +4909,15 @@ def main():
     for eng, chi in EXACT_MAP.items():
         translations[eng] = chi
 
+    # 1b. Load verified audited translations
+    audited_file = TOOLS_DIR / "praat_audited_translations.json"
+    if audited_file.exists():
+        import json
+        with open(audited_file, "r", encoding="utf-8") as af:
+            audited_data = json.load(af)
+            translations.update(audited_data)
+        print(f"Loaded {len(audited_data)} audited translations from {audited_file.name}")
+
     # 2. Safely add clean candidate suggestions that do not contain dangerous or mixed-language text
     auto_added = 0
     if os.path.exists(INPUT_FILE):
