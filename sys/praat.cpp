@@ -548,26 +548,26 @@ static void gui_cb_list_selectionChanged (Thing /* boss */, GuiList_SelectionCha
 	praat_show ();
 }
 
-static HBITMAP createMenuIcon (const wchar_t *glyph, COLORREF color) {
-	return _GuiWin_createMenuIcon (glyph, color);
-}
-
-static void setMenuItemIcon (HMENU hMenu, UINT cmdId, HBITMAP hbmp) {
-	_GuiWin_setMenuItemIcon (hMenu, cmdId, hbmp);
-}
-
-static void setMenuItemIconByPos (HMENU hMenu, UINT pos, HBITMAP hbmp) {
-	if (! hbmp) return;
-	MENUITEMINFOW mii;
-	memset (& mii, 0, sizeof (mii));
-	mii.cbSize = sizeof (mii);
-	mii.fMask = MIIM_BITMAP;
-	mii.hbmpItem = hbmp;
-	SetMenuItemInfoW (hMenu, pos, TRUE, & mii);
-}
-
 static void gui_cb_list_contextMenu (Thing /* boss */, GuiList_ContextMenuEvent event) {
 #if motif
+	static auto createMenuIcon = [] (const wchar_t *glyph, COLORREF color) -> HBITMAP {
+		return _GuiWin_createMenuIcon (glyph, color);
+	};
+
+	static auto setMenuItemIcon = [] (HMENU hMenu, UINT cmdId, HBITMAP hbmp) {
+		_GuiWin_setMenuItemIcon (hMenu, cmdId, hbmp);
+	};
+
+	static auto setMenuItemIconByPos = [] (HMENU hMenu, UINT pos, HBITMAP hbmp) {
+		if (! hbmp) return;
+		MENUITEMINFOW mii;
+		memset (& mii, 0, sizeof (mii));
+		mii.cbSize = sizeof (mii);
+		mii.fMask = MIIM_BITMAP;
+		mii.hbmpItem = hbmp;
+		SetMenuItemInfoW (hMenu, pos, TRUE, & mii);
+	};
+
 	if (! praatList_objects || theCurrentPraatObjects -> n == 0)
 		return;
 
