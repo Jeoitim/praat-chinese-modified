@@ -21,6 +21,7 @@
 #include "EditorM.h"
 #include "GuiP.h"
 #include "FunctionArea.h"
+#include "SoundAnalysisArea.h"
 #include <algorithm>
 
 Thing_implement_pureVirtual (FunctionEditor, Editor, 0);
@@ -41,6 +42,9 @@ namespace {
 	constexpr int BUTTON_X = 3;
 	constexpr int BUTTON_WIDTH = 58;
 	constexpr int BUTTON_SPACING = 8;
+	constexpr int TOP_TOOLBAR_ROW_HEIGHT = 24;
+	constexpr int TOP_TOOLBAR_HEIGHT = TOP_TOOLBAR_ROW_HEIGHT + 4; // single row
+	constexpr int BOTTOM_ANALYSIS_BAR_HEIGHT = 22;
 
 	constexpr integer THE_MAXIMUM_GROUP_SIZE = 100;
 	integer theGroupSize = 0;
@@ -490,6 +494,7 @@ static void gui_drawingarea_cb_resize (FunctionEditor me, GuiDrawingArea_ResizeE
 	if (! my graphics)
 		return;   // could be the case in the very beginning
 	my updateGeometry (event -> width, event -> height);
+	my updateQuickToolbarLayout ();
 	FunctionEditor_redraw (me);
 	/*
 		Save the current shell size as the user's preference for a new FunctionEditor.
@@ -959,6 +964,249 @@ static void menu_cb_pageDown (FunctionEditor me, EDITOR_ARGS) {
 		Melder_assert (isdefined (my startSelection));   // precondition of shift_by()
 		shift_by (me, +RELATIVE_PAGE_INCREMENT * (my endWindow - my startWindow), false);
 	VOID_EDITOR_END
+}
+
+#pragma mark - FunctionEditor Quick Toolbars and Bottom Analysis Bar
+
+bool structFunctionEditor :: hasSoundAnalysisArea () const {
+	for (integer iarea = 1; iarea <= FunctionEditor_MAXIMUM_NUMBER_OF_FUNCTION_AREAS; iarea ++) {
+		if (our functionAreas [iarea] && Thing_isa (our functionAreas [iarea].get(), classSoundAnalysisArea))
+			return true;
+	}
+	return false;
+}
+
+SoundAnalysisArea structFunctionEditor :: getSoundAnalysisArea () const {
+	for (integer iarea = 1; iarea <= FunctionEditor_MAXIMUM_NUMBER_OF_FUNCTION_AREAS; iarea ++) {
+		if (our functionAreas [iarea] && Thing_isa (our functionAreas [iarea].get(), classSoundAnalysisArea))
+			return static_cast <SoundAnalysisArea> (our functionAreas [iarea].get());
+	}
+	return nullptr;
+}
+
+void structFunctionEditor :: syncBottomAnalysisChecks () {
+	SoundAnalysisArea area = getSoundAnalysisArea ();
+	if (! area)
+		return;
+	if (bottomCheck_spectrogram)
+		GuiCheckButton_setValue (bottomCheck_spectrogram, area -> instancePref_spectrogram_show ());
+	if (bottomCheck_pitch)
+		GuiCheckButton_setValue (bottomCheck_pitch, area -> instancePref_pitch_show ());
+	if (bottomCheck_intensity)
+		GuiCheckButton_setValue (bottomCheck_intensity, area -> instancePref_intensity_show ());
+	if (bottomCheck_formants)
+		GuiCheckButton_setValue (bottomCheck_formants, area -> instancePref_formant_show ());
+	if (bottomCheck_pulses)
+		GuiCheckButton_setValue (bottomCheck_pulses, area -> instancePref_pulses_show ());
+}
+
+static void gui_cb_bottomCheck_spectrogram (FunctionEditor me, GuiCheckButtonEvent /* event */) {
+	SoundAnalysisArea area = my getSoundAnalysisArea ();
+	if (area) {
+		bool show = GuiCheckButton_getValue (my bottomCheck_spectrogram);
+		area -> setInstancePref_spectrogram_show (show);
+		if (area -> spectrogramToggle)
+			GuiMenuItem_check (area -> spectrogramToggle, show);
+		FunctionEditor_redraw (me);
+	}
+}
+
+static void gui_cb_bottomCheck_pitch (FunctionEditor me, GuiCheckButtonEvent /* event */) {
+	SoundAnalysisArea area = my getSoundAnalysisArea ();
+	if (area) {
+		bool show = GuiCheckButton_getValue (my bottomCheck_pitch);
+		area -> setInstancePref_pitch_show (show);
+		if (area -> pitchToggle)
+			GuiMenuItem_check (area -> pitchToggle, show);
+		FunctionEditor_redraw (me);
+	}
+}
+
+static void gui_cb_bottomCheck_intensity (FunctionEditor me, GuiCheckButtonEvent /* event */) {
+	SoundAnalysisArea area = my getSoundAnalysisArea ();
+	if (area) {
+		bool show = GuiCheckButton_getValue (my bottomCheck_intensity);
+		area -> setInstancePref_intensity_show (show);
+		if (area -> intensityToggle)
+			GuiMenuItem_check (area -> intensityToggle, show);
+		FunctionEditor_redraw (me);
+	}
+}
+
+static void gui_cb_bottomCheck_formants (FunctionEditor me, GuiCheckButtonEvent /* event */) {
+	SoundAnalysisArea area = my getSoundAnalysisArea ();
+	if (area) {
+		bool show = GuiCheckButton_getValue (my bottomCheck_formants);
+		area -> setInstancePref_formant_show (show);
+		if (area -> formantToggle)
+			GuiMenuItem_check (area -> formantToggle, show);
+		FunctionEditor_redraw (me);
+	}
+}
+
+static void gui_cb_bottomCheck_pulses (FunctionEditor me, GuiCheckButtonEvent /* event */) {
+	SoundAnalysisArea area = my getSoundAnalysisArea ();
+	if (area) {
+		bool show = GuiCheckButton_getValue (my bottomCheck_pulses);
+		area -> setInstancePref_pulses_show (show);
+		if (area -> pulsesToggle)
+			GuiMenuItem_check (area -> pulsesToggle, show);
+		FunctionEditor_redraw (me);
+	}
+}
+
+static void gui_cb_bottomButton_spectrogramSettings (FunctionEditor me, GuiButtonEvent /* event */) {
+	try {
+		Editor_doMenuCommand (me, U"Spectrogram settings...", 0, nullptr, nullptr, nullptr);
+		my syncBottomAnalysisChecks ();
+	} catch (MelderError) {
+		Melder_flushError ();
+	}
+}
+
+static void gui_cb_bottomButton_pitchSettings (FunctionEditor me, GuiButtonEvent /* event */) {
+	try {
+		SoundAnalysisArea area = my getSoundAnalysisArea ();
+		if (area) {
+			kSoundAnalysisArea_pitch_analysisMethod method = area -> instancePref_pitch_method ();
+			if (method == kSoundAnalysisArea_pitch_analysisMethod::RAW_CROSS_CORRELATION)
+				Editor_doMenuCommand (me, U"Pitch settings (raw cross-correlation)...", 0, nullptr, nullptr, nullptr);
+			else if (method == kSoundAnalysisArea_pitch_analysisMethod::RAW_AUTOCORRELATION)
+				Editor_doMenuCommand (me, U"Pitch settings (raw autocorrelation)...", 0, nullptr, nullptr, nullptr);
+			else if (method == kSoundAnalysisArea_pitch_analysisMethod::FILTERED_CROSS_CORRELATION)
+				Editor_doMenuCommand (me, U"Pitch settings (filtered cross-correlation)...", 0, nullptr, nullptr, nullptr);
+			else
+				Editor_doMenuCommand (me, U"Pitch settings (filtered autocorrelation)...", 0, nullptr, nullptr, nullptr);
+		} else {
+			Editor_doMenuCommand (me, U"Pitch settings (filtered autocorrelation)...", 0, nullptr, nullptr, nullptr);
+		}
+		my syncBottomAnalysisChecks ();
+	} catch (MelderError) {
+		Melder_flushError ();
+	}
+}
+
+static void gui_cb_bottomButton_intensitySettings (FunctionEditor me, GuiButtonEvent /* event */) {
+	try {
+		Editor_doMenuCommand (me, U"Intensity settings...", 0, nullptr, nullptr, nullptr);
+		my syncBottomAnalysisChecks ();
+	} catch (MelderError) {
+		Melder_flushError ();
+	}
+}
+
+static void gui_cb_bottomButton_formantSettings (FunctionEditor me, GuiButtonEvent /* event */) {
+	try {
+		Editor_doMenuCommand (me, U"Formant settings...", 0, nullptr, nullptr, nullptr);
+		my syncBottomAnalysisChecks ();
+	} catch (MelderError) {
+		Melder_flushError ();
+	}
+}
+
+static void gui_cb_bottomButton_pulsesSettings (FunctionEditor me, GuiButtonEvent /* event */) {
+	try {
+		Editor_doMenuCommand (me, U"Advanced pulses settings...", 0, nullptr, nullptr, nullptr);
+		my syncBottomAnalysisChecks ();
+	} catch (MelderError) {
+		Melder_flushError ();
+	}
+}
+
+static void gui_cb_bottomButton_showAnalyses (FunctionEditor me, GuiButtonEvent /* event */) {
+	try {
+		Editor_doMenuCommand (me, U"Show analyses...", 0, nullptr, nullptr, nullptr);
+		my syncBottomAnalysisChecks ();
+	} catch (MelderError) {
+		Melder_flushError ();
+	}
+}
+
+static void gui_cb_topButton_spectralSlice (FunctionEditor me, GuiButtonEvent /* event */) {
+	try {
+		Editor_doMenuCommand (me, U"View spectral slice", 0, nullptr, nullptr, nullptr);
+	} catch (MelderError) {
+		Melder_flushError ();
+	}
+}
+
+static void gui_cb_topButton_voiceReport (FunctionEditor me, GuiButtonEvent /* event */) {
+	try {
+		Editor_doMenuCommand (me, U"Voice report", 0, nullptr, nullptr, nullptr);
+	} catch (MelderError) {
+		Melder_flushError ();
+	}
+}
+
+static void gui_cb_topButton_formantListing (FunctionEditor me, GuiButtonEvent /* event */) {
+	try {
+		Editor_doMenuCommand (me, U"Formant listing", 0, nullptr, nullptr, nullptr);
+	} catch (MelderError) {
+		Melder_flushError ();
+	}
+}
+
+static void gui_cb_topButton_getPitch (FunctionEditor me, GuiButtonEvent /* event */) {
+	try {
+		Editor_doMenuCommand (me, U"Get pitch", 0, nullptr, nullptr, nullptr);
+	} catch (MelderError) {
+		Melder_flushError ();
+	}
+}
+
+static void gui_cb_topButton_getIntensity (FunctionEditor me, GuiButtonEvent /* event */) {
+	try {
+		Editor_doMenuCommand (me, U"Get intensity", 0, nullptr, nullptr, nullptr);
+	} catch (MelderError) {
+		Melder_flushError ();
+	}
+}
+
+static void gui_cb_topButton_extractSelection (FunctionEditor me, GuiButtonEvent /* event */) {
+	try {
+		Editor_doMenuCommand (me, U"Extract selected sound (time from 0)", 0, nullptr, nullptr, nullptr);
+	} catch (MelderError) {
+		Melder_flushError ();
+	}
+}
+
+static void gui_cb_topButton_saveWav (FunctionEditor me, GuiButtonEvent /* event */) {
+	try {
+		Editor_doMenuCommand (me, U"Save selected sound as WAV file...", 0, nullptr, nullptr, nullptr);
+	} catch (MelderError) {
+		Melder_flushError ();
+	}
+}
+
+void structFunctionEditor :: updateQuickToolbarLayout () {
+	if (! hasSoundAnalysisArea () || ! topButton_spectralSlice)
+		return;
+
+	const int shellW = GuiControl_getWidth (our windowForm);
+	if (shellW <= 0)
+		return;
+
+	const int topBarY = Machine_getMenuBarBottom () + 2;
+
+	// 5 Acoustic Measurement buttons
+	int x = 4;
+	if (topButton_spectralSlice)  { GuiControl_move (topButton_spectralSlice,  x, topBarY); x += 74 + 4; }
+	if (topButton_voiceReport)    { GuiControl_move (topButton_voiceReport,    x, topBarY); x += 74 + 4; }
+	if (topButton_formantListing) { GuiControl_move (topButton_formantListing, x, topBarY); x += 82 + 4; }
+	if (topButton_getPitch)       { GuiControl_move (topButton_getPitch,       x, topBarY); x += 74 + 4; }
+	if (topButton_getIntensity)   { GuiControl_move (topButton_getIntensity,   x, topBarY); x += 74 + 4; }
+
+	// 2 Export buttons (Extract Selection, Save WAV)
+	const int exportWidth = 74 + 84 + 4;
+	int xExport = x + 16;
+	if (shellW >= 760) {
+		// Right-aligned with 8px margin
+		xExport = shellW - exportWidth - 8;
+		if (xExport < x + 16)
+			xExport = x + 16;
+	}
+	if (topButton_extractSelection) { GuiControl_move (topButton_extractSelection, xExport, topBarY); xExport += 74 + 4; }
+	if (topButton_saveWav)          { GuiControl_move (topButton_saveWav,          xExport, topBarY); }
 }
 
 
@@ -1697,6 +1945,10 @@ static void gui_drawingarea_cb_mouse (FunctionEditor me, GuiDrawingArea_MouseEve
 }
 
 void structFunctionEditor :: v_createChildren () {
+	const bool hasAnalysis = our hasSoundAnalysisArea ();
+	const int topToolbarHeight = (hasAnalysis ? TOP_TOOLBAR_HEIGHT : 0);
+	const int bottomExtraHeight = (hasAnalysis ? BOTTOM_ANALYSIS_BAR_HEIGHT + 4 : 0);
+
 	int x = BUTTON_X;
 
 	/*
@@ -1732,12 +1984,101 @@ void structFunctionEditor :: v_createChildren () {
 		U"Group", gui_checkbutton_cb_group, this, group_equalDomain (our tmin, our tmax) ? GuiCheckButton_SET : 0);
 
 	/*
+		Create Bottom Analysis Bar (Checkbox & Settings Buttons).
+	*/
+	if (hasAnalysis) {
+		const int bBottom = -4 - Gui_PUSHBUTTON_HEIGHT - 3;
+		const int bTop = bBottom - BOTTOM_ANALYSIS_BAR_HEIGHT;
+		int bx = BUTTON_X;
+		SoundAnalysisArea area = our getSoundAnalysisArea ();
+
+		// 1. Spectrogram
+		bool showSpec = (area ? area -> instancePref_spectrogram_show () : true);
+		our bottomCheck_spectrogram = GuiCheckButton_createShown (our windowForm, bx, bx + 56, bTop, bBottom,
+			U"语图", gui_cb_bottomCheck_spectrogram, this, showSpec ? GuiCheckButton_SET : 0);
+		bx += 56 + 6;
+		our bottomButton_spectrogramSettings = GuiButton_createShown (our windowForm, bx, bx + 40, bTop, bBottom,
+			U"设置", gui_cb_bottomButton_spectrogramSettings, this, 0);
+		bx += 40 + 16;
+
+		// 2. Pitch
+		bool showPitch = (area ? area -> instancePref_pitch_show () : true);
+		our bottomCheck_pitch = GuiCheckButton_createShown (our windowForm, bx, bx + 56, bTop, bBottom,
+			U"音高", gui_cb_bottomCheck_pitch, this, showPitch ? GuiCheckButton_SET : 0);
+		bx += 56 + 6;
+		our bottomButton_pitchSettings = GuiButton_createShown (our windowForm, bx, bx + 40, bTop, bBottom,
+			U"设置", gui_cb_bottomButton_pitchSettings, this, 0);
+		bx += 40 + 16;
+
+		// 3. Intensity
+		bool showIntens = (area ? area -> instancePref_intensity_show () : false);
+		our bottomCheck_intensity = GuiCheckButton_createShown (our windowForm, bx, bx + 56, bTop, bBottom,
+			U"强度", gui_cb_bottomCheck_intensity, this, showIntens ? GuiCheckButton_SET : 0);
+		bx += 56 + 6;
+		our bottomButton_intensitySettings = GuiButton_createShown (our windowForm, bx, bx + 40, bTop, bBottom,
+			U"设置", gui_cb_bottomButton_intensitySettings, this, 0);
+		bx += 40 + 16;
+
+		// 4. Formants
+		bool showForm = (area ? area -> instancePref_formant_show () : true);
+		our bottomCheck_formants = GuiCheckButton_createShown (our windowForm, bx, bx + 68, bTop, bBottom,
+			U"共振峰", gui_cb_bottomCheck_formants, this, showForm ? GuiCheckButton_SET : 0);
+		bx += 68 + 6;
+		our bottomButton_formantSettings = GuiButton_createShown (our windowForm, bx, bx + 40, bTop, bBottom,
+			U"设置", gui_cb_bottomButton_formantSettings, this, 0);
+		bx += 40 + 16;
+
+		// 5. Pulses
+		bool showPulses = (area ? area -> instancePref_pulses_show () : false);
+		our bottomCheck_pulses = GuiCheckButton_createShown (our windowForm, bx, bx + 56, bTop, bBottom,
+			U"脉冲", gui_cb_bottomCheck_pulses, this, showPulses ? GuiCheckButton_SET : 0);
+		bx += 56 + 6;
+		our bottomButton_pulsesSettings = GuiButton_createShown (our windowForm, bx, bx + 40, bTop, bBottom,
+			U"设置", gui_cb_bottomButton_pulsesSettings, this, 0);
+		bx += 40 + 16;
+
+		// 6. Show analyses...
+		our bottomButton_showAnalyses = GuiButton_createShown (our windowForm, bx, bx + 95, bTop, bBottom,
+			U"显示分析项...", gui_cb_bottomButton_showAnalyses, this, 0);
+	}
+
+	/*
+		Create Top Quick Toolbar (Single Row).
+	*/
+	if (hasAnalysis) {
+		const int topBarY = Machine_getMenuBarBottom () + 2;
+
+		int x = 4;
+		our topButton_spectralSlice   = GuiButton_createShown (our windowForm, x, x + 74, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
+			U"频谱切片", gui_cb_topButton_spectralSlice, this, 0);
+		x += 74 + 4;
+		our topButton_voiceReport     = GuiButton_createShown (our windowForm, x, x + 74, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
+			U"嗓音报告", gui_cb_topButton_voiceReport, this, 0);
+		x += 74 + 4;
+		our topButton_formantListing  = GuiButton_createShown (our windowForm, x, x + 82, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
+			U"共振峰列表", gui_cb_topButton_formantListing, this, 0);
+		x += 82 + 4;
+		our topButton_getPitch        = GuiButton_createShown (our windowForm, x, x + 74, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
+			U"获取基频", gui_cb_topButton_getPitch, this, 0);
+		x += 74 + 4;
+		our topButton_getIntensity    = GuiButton_createShown (our windowForm, x, x + 74, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
+			U"获取强度", gui_cb_topButton_getIntensity, this, 0);
+		x += 74 + 16;
+
+		our topButton_extractSelection= GuiButton_createShown (our windowForm, x, x + 74, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
+			U"提取选区", gui_cb_topButton_extractSelection, this, 0);
+		x += 74 + 4;
+		our topButton_saveWav         = GuiButton_createShown (our windowForm, x, x + 84, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
+			U"另存为 WAV", gui_cb_topButton_saveWav, this, 0);
+	}
+
+	/*
 		Create optional text field.
 	*/
 	if (our v_hasText ()) {
 		our textArea = GuiText_createShown (our windowForm, 0, 0,
-			Machine_getMenuBarBottom (),
-			Machine_getMenuBarBottom () + TEXT_HEIGHT,
+			Machine_getMenuBarBottom () + topToolbarHeight,
+			Machine_getMenuBarBottom () + topToolbarHeight + TEXT_HEIGHT,
 			GuiText_INKWRAP | GuiText_SCROLLED
 		);
 		#if gtk
@@ -1760,7 +2101,8 @@ void structFunctionEditor :: v_createChildren () {
 	#endif
 	our drawingArea = GuiDrawingArea_createShown (our windowForm,
 		0, 0,
-		Machine_getMenuBarBottom () + ( our v_hasText () ? TEXT_HEIGHT + marginBetweenTextAndDrawingAreaToEnsureCorrectUnhighlighting : 0), -8 - Gui_PUSHBUTTON_HEIGHT,
+		Machine_getMenuBarBottom () + topToolbarHeight + ( our v_hasText () ? TEXT_HEIGHT + marginBetweenTextAndDrawingAreaToEnsureCorrectUnhighlighting : 0),
+		-8 - Gui_PUSHBUTTON_HEIGHT - bottomExtraHeight,
 		gui_drawingarea_cb_expose, gui_drawingarea_cb_mouse,
 		nullptr, gui_drawingarea_cb_resize, gui_drawingarea_cb_zoom, this, 0
 	);
@@ -1768,6 +2110,7 @@ void structFunctionEditor :: v_createChildren () {
 }
 
 void structFunctionEditor :: v1_dataChanged (Editor sender) {
+	our syncBottomAnalysisChecks ();
 	Melder_assert (our function());
 	Melder_assert (Thing_isa (our function(), classFunction));
 	if (! our group) {

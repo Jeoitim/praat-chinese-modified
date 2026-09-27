@@ -28,6 +28,9 @@ struct FunctionEditor_picture {
 	bool garnish;
 };
 
+class structSoundAnalysisArea;
+typedef structSoundAnalysisArea *SoundAnalysisArea;
+
 constexpr integer FunctionEditor_MAXIMUM_NUMBER_OF_FUNCTION_AREAS = 5;
 
 Thing_define (FunctionEditor, Editor) {
@@ -134,6 +137,34 @@ Thing_define (FunctionEditor, Editor) {
 	GuiScrollBar scrollBar;
 	GuiCheckButton groupButton;
 	GuiObject bottomArea;
+
+	/* Bottom analysis bar controls: */
+	GuiCheckButton bottomCheck_spectrogram;
+	GuiButton bottomButton_spectrogramSettings;
+	GuiCheckButton bottomCheck_pitch;
+	GuiButton bottomButton_pitchSettings;
+	GuiCheckButton bottomCheck_intensity;
+	GuiButton bottomButton_intensitySettings;
+	GuiCheckButton bottomCheck_formants;
+	GuiButton bottomButton_formantSettings;
+	GuiCheckButton bottomCheck_pulses;
+	GuiButton bottomButton_pulsesSettings;
+	GuiButton bottomButton_showAnalyses;
+
+	/* Top quick toolbar controls (Single row): */
+	GuiButton topButton_spectralSlice;
+	GuiButton topButton_voiceReport;
+	GuiButton topButton_formantListing;
+	GuiButton topButton_getPitch;
+	GuiButton topButton_getIntensity;
+	GuiButton topButton_extractSelection;
+	GuiButton topButton_saveWav;
+
+	bool hasSoundAnalysisArea () const;
+	SoundAnalysisArea getSoundAnalysisArea () const;
+	void updateQuickToolbarLayout ();
+	void syncBottomAnalysisChecks ();
+
 	bool group, enableUpdates;
 	int nrect;
 	struct { double left, right, bottom, top; } rect [8];
