@@ -1455,9 +1455,88 @@ static void UiForm_moveControl (GuiControl ctrl, int left, int right, int top, i
 	#endif
 }
 
-static void UiForm_updateFieldPositions (UiForm me) {
-	if (! my scrollBar)
+static void UiForm_setControlRect (GuiControl ctrl, int left, int top, int width, int height) {
+	if (! ctrl)
 		return;
+	#if defined (_WIN32)
+		HWND hwnd = ctrl -> d_widget ? ctrl -> d_widget -> window : NULL;
+		if (hwnd) {
+			SetWindowPos (hwnd, NULL, left, top, width, height, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+		}
+	#elif defined (macintosh)
+		if (ctrl -> d_widget) {
+			NSView *widgetView = (NSView *) ctrl -> d_widget;
+			NSView *superView = [widgetView superview];
+			if (superView) {
+				NSRect parentRect = [superView frame];
+				[widgetView setFrame: NSMakeRect (left, parentRect.size.height - (top + height), width, height)];
+			}
+		}
+	#elif defined (linux)
+		if (ctrl -> d_widget) {
+			GtkWidget *wgt = GTK_WIDGET (ctrl -> d_widget);
+			GtkWidget *par = gtk_widget_get_parent (wgt);
+			if (par && GTK_IS_FIXED (par)) {
+				gtk_fixed_move (GTK_FIXED (par), wgt, left, top);
+				gtk_widget_set_size_request (wgt, width, height);
+			}
+		}
+	#else
+		(void) ctrl; (void) left; (void) top; (void) width; (void) height;
+	#endif
+}
+
+static void UiForm_positionBottomButtons (UiForm me, int currentWidth, int y) {
+	if (my helpButton) {
+		UiForm_setControlRect (my helpButton, HELP_BUTTON_X, y, HELP_BUTTON_WIDTH, Gui_PUSHBUTTON_HEIGHT);
+	}
+	if (my revertButton) {
+		if (my isPauseForm) {
+			UiForm_setControlRect (my revertButton, HELP_BUTTON_X, y, REVERT_BUTTON_WIDTH, Gui_PUSHBUTTON_HEIGHT);
+		} else {
+			UiForm_setControlRect (my revertButton,
+				HELP_BUTTON_X + HELP_BUTTON_WIDTH + Gui_HORIZONTAL_DIALOG_SPACING, y,
+				STANDARDS_BUTTON_WIDTH, Gui_PUSHBUTTON_HEIGHT);
+		}
+	}
+	if (my isPauseForm) {
+		int x = HELP_BUTTON_X + REVERT_BUTTON_WIDTH + Gui_HORIZONTAL_DIALOG_SPACING;
+		if (my cancelContinueButton == 0) {
+			if (my cancelButton)
+				UiForm_setControlRect (my cancelButton, x, y, STOP_BUTTON_WIDTH, Gui_PUSHBUTTON_HEIGHT);
+			x += STOP_BUTTON_WIDTH + 7;
+		} else {
+			x += 30;
+		}
+		int room = currentWidth - Gui_RIGHT_DIALOG_SPACING - x;
+		int roomPerContinueButton = my numberOfContinueButtons > 0 ? room / my numberOfContinueButtons : room;
+		int horizontalSpacing = (
+			my numberOfContinueButtons > 7 ?
+				Gui_HORIZONTAL_DIALOG_SPACING - 2 * (my numberOfContinueButtons - 7)
+			:
+				Gui_HORIZONTAL_DIALOG_SPACING
+		);
+		int continueButtonWidth = roomPerContinueButton - horizontalSpacing;
+		for (int i = 1; i <= my numberOfContinueButtons; i ++) {
+			x = currentWidth - Gui_RIGHT_DIALOG_SPACING - roomPerContinueButton * (my numberOfContinueButtons - i + 1) + horizontalSpacing;
+			if (my continueButtons [i])
+				UiForm_setControlRect (my continueButtons [i], x, y, continueButtonWidth, Gui_PUSHBUTTON_HEIGHT);
+		}
+	} else {
+		int x = currentWidth - Gui_RIGHT_DIALOG_SPACING - Gui_OK_BUTTON_WIDTH - 2 * Gui_HORIZONTAL_DIALOG_SPACING
+				- Gui_APPLY_BUTTON_WIDTH - Gui_CANCEL_BUTTON_WIDTH;
+		if (my cancelButton)
+			UiForm_setControlRect (my cancelButton, x, y, Gui_CANCEL_BUTTON_WIDTH, Gui_PUSHBUTTON_HEIGHT);
+		x = currentWidth - Gui_RIGHT_DIALOG_SPACING - Gui_OK_BUTTON_WIDTH - Gui_HORIZONTAL_DIALOG_SPACING - Gui_APPLY_BUTTON_WIDTH;
+		if (my applyButton)
+			UiForm_setControlRect (my applyButton, x, y, Gui_APPLY_BUTTON_WIDTH, Gui_PUSHBUTTON_HEIGHT);
+		x = currentWidth - Gui_RIGHT_DIALOG_SPACING - Gui_OK_BUTTON_WIDTH;
+		if (my okButton)
+			UiForm_setControlRect (my okButton, x, y, Gui_OK_BUTTON_WIDTH, Gui_PUSHBUTTON_HEIGHT);
+	}
+}
+
+static void UiForm_updateFieldPositions (UiForm me) {
 	int sY = my scrollY;
 	int visH = my contentVisibleHeight;
 	const int textFieldHeight = Gui_TEXTFIELD_HEIGHT;
@@ -1467,8 +1546,13 @@ static void UiForm_updateFieldPositions (UiForm me) {
 		#else
 			- 10;
 		#endif
-	int dialogWidth = 520, dialogCentre = dialogWidth / 2, fieldX = dialogCentre + Gui_LABEL_SPACING / 2;
+	int dialogWidth = my currentDialogWidth > 0 ? my currentDialogWidth : 520;
+	int dialogCentre = dialogWidth / 2, fieldX = dialogCentre + Gui_LABEL_SPACING / 2;
 	int labelWidth = fieldX - Gui_LABEL_SPACING - Gui_LEFT_DIALOG_SPACING, fieldWidth = labelWidth, halfFieldWidth = fieldWidth / 2 - 6;
+
+	const bool hasScrollBar = (my scrollBar != nullptr && my maxScrollY > 0);
+	const int rightMargin = hasScrollBar ? 26 : Gui_RIGHT_DIALOG_SPACING;
+	const int contentRight = dialogWidth - rightMargin;
 
 	for (integer ifield = 1; ifield <= my numberOfFields; ifield ++) {
 		UiField thee = my field [ifield].get();
@@ -1501,8 +1585,8 @@ static void UiForm_updateFieldPositions (UiForm me) {
 				break;
 			case _kUiField_type::TEXT_: {
 				const int yl = y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
-				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, dialogWidth, yl, yl + textFieldHeight, visH);
-				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING, y, y + multiLineTextHeight (thy numberOfLines), visH);
+				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, contentRight, yl, yl + textFieldHeight, visH);
+				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, contentRight, y, y + multiLineTextHeight (thy numberOfLines), visH);
 			} break;
 			case _kUiField_type::REALVECTOR_:
 			case _kUiField_type::NONNEGATIVEVECTOR_:
@@ -1511,43 +1595,43 @@ static void UiForm_updateFieldPositions (UiForm me) {
 			case _kUiField_type::NATURAL0VECTOR_:
 			case _kUiField_type::NATURAL1VECTOR_: {
 				const int yl = y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
-				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, dialogWidth, yl, yl + textFieldHeight, visH);
-				UiForm_moveControl (thy optionMenu, dialogWidth - Gui_LEFT_DIALOG_SPACING - 200, dialogWidth - Gui_LEFT_DIALOG_SPACING, y - Gui_OPTIONMENU_HEIGHT, y, visH);
-				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING, y, y + multiLineTextHeight (thy numberOfLines), visH);
+				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, contentRight, yl, yl + textFieldHeight, visH);
+				UiForm_moveControl (thy optionMenu, contentRight - 200, contentRight, y - Gui_OPTIONMENU_HEIGHT, y, visH);
+				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, contentRight, y, y + multiLineTextHeight (thy numberOfLines), visH);
 			} break;
 			case _kUiField_type::REALMATRIX_: {
 				const int yl = y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
-				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, dialogWidth, yl, yl + textFieldHeight, visH);
-				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING, y, y + multiLineTextHeight (thy numberOfLines), visH);
-				UiForm_moveControl (thy optionMenu, dialogWidth - Gui_LEFT_DIALOG_SPACING - 200, dialogWidth - Gui_LEFT_DIALOG_SPACING, y - Gui_OPTIONMENU_HEIGHT, y, visH);
+				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, contentRight, yl, yl + textFieldHeight, visH);
+				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, contentRight, y, y + multiLineTextHeight (thy numberOfLines), visH);
+				UiForm_moveControl (thy optionMenu, contentRight - 200, contentRight, y - Gui_OPTIONMENU_HEIGHT, y, visH);
 			} break;
 			case _kUiField_type::STRINGARRAY_: {
 				const int yl = y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
-				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, dialogWidth, yl, yl + textFieldHeight, visH);
-				UiForm_moveControl (thy optionMenu, dialogWidth - Gui_LEFT_DIALOG_SPACING - 200, dialogWidth - Gui_LEFT_DIALOG_SPACING, y - Gui_OPTIONMENU_HEIGHT, y, visH);
-				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING, y, y + multiLineTextHeight (thy numberOfLines), visH);
+				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, contentRight, yl, yl + textFieldHeight, visH);
+				UiForm_moveControl (thy optionMenu, contentRight - 200, contentRight, y - Gui_OPTIONMENU_HEIGHT, y, visH);
+				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, contentRight, y, y + multiLineTextHeight (thy numberOfLines), visH);
 			} break;
 			case _kUiField_type::INFILE_:
 			case _kUiField_type::OUTFILE_:
 			case _kUiField_type::FOLDER_: {
 				const int yl = y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
-				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, dialogWidth, yl, yl + textFieldHeight, visH);
-				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING - 100 - Gui_HORIZONTAL_DIALOG_SPACING, y, y + Gui_TEXTFIELD_HEIGHT, visH);
-				UiForm_moveControl (thy pushButton, dialogWidth - Gui_RIGHT_DIALOG_SPACING - 100, dialogWidth - Gui_RIGHT_DIALOG_SPACING, y, y + Gui_TEXTFIELD_HEIGHT, visH);
+				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, contentRight - 100 - Gui_HORIZONTAL_DIALOG_SPACING, yl, yl + textFieldHeight, visH);
+				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, contentRight - 100 - Gui_HORIZONTAL_DIALOG_SPACING, y, y + Gui_TEXTFIELD_HEIGHT, visH);
+				UiForm_moveControl (thy pushButton, contentRight - 100, contentRight, y, y + Gui_TEXTFIELD_HEIGHT, visH);
 			} break;
 			case _kUiField_type::FORMULA_: {
 				const int yl = y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
-				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, dialogWidth, yl, yl + textFieldHeight, visH);
-				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING, y, y + Gui_TEXTFIELD_HEIGHT, visH);
+				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, contentRight, yl, yl + textFieldHeight, visH);
+				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, contentRight, y, y + Gui_TEXTFIELD_HEIGHT, visH);
 			} break;
 			case _kUiField_type::HEADING_:
-				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, dialogWidth, y, y + headerLabelHeight, visH);
+				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, contentRight, y, y + headerLabelHeight, visH);
 				break;
 			case _kUiField_type::COMMENT_:
-				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, dialogWidth, y + 5, y + 5 + textFieldHeight, visH);
+				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, contentRight, y + 5, y + 5 + textFieldHeight, visH);
 				break;
 			case _kUiField_type::CAPTION_:
-				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, dialogWidth, y - 10, y - 10 + textFieldHeight, visH);
+				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, contentRight, y - 10, y - 10 + textFieldHeight, visH);
 				break;
 			case _kUiField_type::CHOICE_: {
 				#if defined (macintosh)
@@ -1557,7 +1641,7 @@ static void UiForm_updateFieldPositions (UiForm me) {
 				for (integer ibutton = 1; ibutton <= thy options.size; ibutton ++) {
 					UiOption button = thy options.at [ibutton];
 					int by = y + (ibutton - 1) * (Gui_RADIOBUTTON_HEIGHT + Gui_RADIOBUTTON_SPACING);
-					UiForm_moveControl (button -> radioButton, fieldX, dialogWidth, by, by + Gui_RADIOBUTTON_HEIGHT, visH);
+					UiForm_moveControl (button -> radioButton, fieldX, contentRight, by, by + Gui_RADIOBUTTON_HEIGHT, visH);
 				}
 			} break;
 			case _kUiField_type::OPTIONMENU_: {
@@ -1568,10 +1652,10 @@ static void UiForm_updateFieldPositions (UiForm me) {
 				UiForm_moveControl (thy optionMenu, fieldX, fieldX + fieldWidth, y, y + Gui_OPTIONMENU_HEIGHT, visH);
 			} break;
 			case _kUiField_type::BOOLEAN_:
-				UiForm_moveControl (thy checkButton, fieldX, dialogWidth, y, y + Gui_CHECKBUTTON_HEIGHT, visH);
+				UiForm_moveControl (thy checkButton, fieldX, contentRight, y, y + Gui_CHECKBUTTON_HEIGHT, visH);
 				break;
 			case _kUiField_type::LIST_: {
-				int listWidth = my numberOfFields == 1 ? dialogWidth - fieldX : fieldWidth;
+				int listWidth = my numberOfFields == 1 ? contentRight - fieldX : fieldWidth;
 				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, Gui_LEFT_DIALOG_SPACING + labelWidth, y + 1, y + 21, visH);
 				UiForm_moveControl (thy list, fieldX, fieldX + listWidth, y, y + LIST_HEIGHT, visH);
 			} break;
@@ -1600,6 +1684,84 @@ static void gui_form_cb_scroll (Thing void_me, GuiScrollBarEvent /* event */) {
 			r.bottom = my contentVisibleHeight + 5;
 			InvalidateRect (hwnd, & r, TRUE);
 			RedrawWindow (hwnd, & r, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+			if (my scrollBar && my scrollBar -> d_widget && my scrollBar -> d_widget -> window) {
+				SetWindowPos (my scrollBar -> d_widget -> window, HWND_TOP, 0, 0, 0, 0,
+					SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+			}
+		} else {
+			UiForm_updateFieldPositions (me);
+		}
+	#else
+		UiForm_updateFieldPositions (me);
+	#endif
+}
+
+static void gui_uiform_cb_resize (Thing void_me, int newWidth, int newHeight) {
+	iam (UiForm);
+	if (! my d_dialogForm)
+		return;
+	if (newWidth <= 0 || newHeight <= 0)
+		return;
+
+	my currentDialogWidth = newWidth;
+	my currentDialogHeight = newHeight;
+
+	int visH = newHeight - 2 * Gui_BOTTOM_DIALOG_SPACING - Gui_PUSHBUTTON_HEIGHT;
+	if (visH < 50) visH = 50;
+	my contentVisibleHeight = visH;
+
+	const int yButtons = newHeight - Gui_BOTTOM_DIALOG_SPACING - Gui_PUSHBUTTON_HEIGHT;
+	UiForm_positionBottomButtons (me, newWidth, yButtons);
+
+	const int textFieldHeight = Gui_TEXTFIELD_HEIGHT;
+	if (my totalDialogHeight > newHeight) {
+		my maxScrollY = my totalDialogHeight - newHeight;
+		if (my scrollY > my maxScrollY)
+			my scrollY = my maxScrollY;
+		if (my scrollY < 0)
+			my scrollY = 0;
+
+		if (my scrollBar) {
+			GuiThing_show (my scrollBar);
+			#if defined (_WIN32)
+				if (my scrollBar -> d_widget && my scrollBar -> d_widget -> window) {
+					MoveWindow (my scrollBar -> d_widget -> window,
+						newWidth - 18, Gui_TOP_DIALOG_SPACING,
+						16, my contentVisibleHeight - Gui_TOP_DIALOG_SPACING, true);
+					SetWindowPos (my scrollBar -> d_widget -> window, HWND_TOP, 0, 0, 0, 0,
+						SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+				}
+			#endif
+			GuiScrollBar_set (my scrollBar,
+				0, my maxScrollY + my contentVisibleHeight,
+				my scrollY, my contentVisibleHeight,
+				textFieldHeight, my contentVisibleHeight / 2);
+		}
+	} else {
+		my maxScrollY = 0;
+		my scrollY = 0;
+		if (my scrollBar) {
+			GuiThing_hide (my scrollBar);
+			#if defined (_WIN32)
+				if (my scrollBar -> d_widget && my scrollBar -> d_widget -> window) {
+					ShowWindow (my scrollBar -> d_widget -> window, SW_HIDE);
+				}
+			#endif
+		}
+	}
+
+	#if defined (_WIN32)
+		if (my d_dialogForm && my d_dialogForm -> d_widget && my d_dialogForm -> d_widget -> window) {
+			HWND hwnd = my d_dialogForm -> d_widget -> window;
+			SendMessage (hwnd, WM_SETREDRAW, FALSE, 0);
+			UiForm_updateFieldPositions (me);
+			SendMessage (hwnd, WM_SETREDRAW, TRUE, 0);
+			InvalidateRect (hwnd, NULL, TRUE);
+			RedrawWindow (hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+			if (my maxScrollY > 0 && my scrollBar && my scrollBar -> d_widget && my scrollBar -> d_widget -> window) {
+				SetWindowPos (my scrollBar -> d_widget -> window, HWND_TOP, 0, 0, 0, 0,
+					SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+			}
 		} else {
 			UiForm_updateFieldPositions (me);
 		}
@@ -1684,9 +1846,9 @@ void UiForm_finish (UiForm me) {
 	const int totalDialogHeight = dialogHeight + 2 * Gui_BOTTOM_DIALOG_SPACING + Gui_PUSHBUTTON_HEIGHT;
 	double screenX, screenY, screenWidth, screenHeight;
 	Gui_getWindowPositioningBounds (& screenX, & screenY, & screenWidth, & screenHeight);
-	int maxAllowedHeight = Melder_iround (screenHeight * 0.80);
-	if (maxAllowedHeight > 650)
-		maxAllowedHeight = 650;
+	int maxAllowedHeight = Melder_iround (screenHeight * 0.95);
+	if (maxAllowedHeight > 1080)
+		maxAllowedHeight = 1080;
 	if (maxAllowedHeight < 350)
 		maxAllowedHeight = 350;
 
@@ -1698,26 +1860,31 @@ void UiForm_finish (UiForm me) {
 	my d_dialogForm = GuiDialog_create (my d_dialogParent, dialogX, dialogY, dialogWidth, actualDialogHeight,
 			my name.get(), gui_dialog_cb_close, me, GuiDialog_Modality::MODELESS);
 	GuiDialog_setDefaultCallback (my d_dialogForm, gui_dialog_cb_default, me);
+	GuiDialog_setResizable (my d_dialogForm, true);
+	GuiDialog_setResizeCallback (my d_dialogForm, gui_uiform_cb_resize, me);
 
 	form = my d_dialogForm;
 
+	my totalDialogHeight = totalDialogHeight;
+	my currentDialogWidth = dialogWidth;
+	my currentDialogHeight = actualDialogHeight;
+	my contentVisibleHeight = actualDialogHeight - 2 * Gui_BOTTOM_DIALOG_SPACING - Gui_PUSHBUTTON_HEIGHT;
+	my maxScrollY = needsScroll ? (totalDialogHeight - actualDialogHeight) : 0;
+	my scrollY = 0;
+
+	my scrollBar = GuiScrollBar_create (form,
+		dialogWidth - 18, dialogWidth - 2,
+		Gui_TOP_DIALOG_SPACING, my contentVisibleHeight,
+		0, (my maxScrollY > 0 ? my maxScrollY : 1) + my contentVisibleHeight,
+		0, my contentVisibleHeight,
+		textFieldHeight, my contentVisibleHeight / 2,
+		gui_form_cb_scroll, me, 0);
 	if (needsScroll) {
-		my contentVisibleHeight = actualDialogHeight - 2 * Gui_BOTTOM_DIALOG_SPACING - Gui_PUSHBUTTON_HEIGHT;
-		my maxScrollY = totalDialogHeight - actualDialogHeight;
-		my scrollY = 0;
-		my scrollBar = GuiScrollBar_createShown (form,
-			dialogWidth - 18, dialogWidth - 2,
-			Gui_TOP_DIALOG_SPACING, my contentVisibleHeight,
-			0, my maxScrollY + my contentVisibleHeight,
-			0, my contentVisibleHeight,
-			textFieldHeight, my contentVisibleHeight / 2,
-			gui_form_cb_scroll, me, 0);
-	} else {
-		my scrollBar = nullptr;
-		my scrollY = 0;
-		my maxScrollY = 0;
-		my contentVisibleHeight = 0;
+		GuiThing_show (my scrollBar);
 	}
+
+	const int rightMargin = needsScroll ? 26 : Gui_RIGHT_DIALOG_SPACING;
+	const int contentRight = dialogWidth - rightMargin;
 
 	for (integer ifield = 1; ifield <= size; ifield ++) {
 		UiField thee = my field [ifield].get();
@@ -1766,11 +1933,11 @@ void UiForm_finish (UiForm me) {
 				appendColon ();
 				const int ylabel = thy y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
 				thy label = GuiLabel_createShown (form,
-					Gui_LEFT_DIALOG_SPACING, dialogWidth /* allow to extend into the margin */,
+					Gui_LEFT_DIALOG_SPACING, contentRight /* allow to extend into the margin */,
 					ylabel, ylabel + textFieldHeight,
 					theFinishBuffer.string, 0
 				);
-				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
+				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, contentRight,
 						thy y, thy y + multiLineTextHeight (thy numberOfLines), GuiText_INKWRAP | GuiText_SCROLLED);
 			}
 			break;
@@ -1782,18 +1949,18 @@ void UiForm_finish (UiForm me) {
 				appendColon ();
 				const int ylabel = thy y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
 				thy label = GuiLabel_createShown (form,
-					Gui_LEFT_DIALOG_SPACING, dialogWidth /* allow to extend into the margin */,
+					Gui_LEFT_DIALOG_SPACING, contentRight /* allow to extend into the margin */,
 					ylabel, ylabel + textFieldHeight,
 					theFinishBuffer.string, 0
 				);
 				thy optionMenu = GuiOptionMenu_createShown (form,
-					dialogWidth - Gui_LEFT_DIALOG_SPACING - 200, dialogWidth - Gui_LEFT_DIALOG_SPACING,
+					contentRight - 200, contentRight,
 					thy y - Gui_OPTIONMENU_HEIGHT, thy y, 0
 				);
 				for (int format = (int) kUi_realVectorFormat::MIN; format <= (int) kUi_realVectorFormat::MAX; format ++)
 					GuiOptionMenu_addOption (thy optionMenu, kUi_realVectorFormat_getText ((kUi_realVectorFormat) format));
 				//GuiOptionMenu_setValue (thy optionMenu, (int) thy realVectorDefaultFormat);   // SUPERFLUOUS
-				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
+				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, contentRight,
 						thy y, thy y + multiLineTextHeight (thy numberOfLines), GuiText_INKWRAP | GuiText_SCROLLED);
 			}
 			break;
@@ -1805,18 +1972,18 @@ void UiForm_finish (UiForm me) {
 				appendColon ();
 				const int ylabel = thy y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
 				thy label = GuiLabel_createShown (form,
-					Gui_LEFT_DIALOG_SPACING, dialogWidth /* allow to extend into the margin */,
+					Gui_LEFT_DIALOG_SPACING, contentRight /* allow to extend into the margin */,
 					ylabel, ylabel + textFieldHeight,
 					theFinishBuffer.string, 0
 				);
 				thy optionMenu = GuiOptionMenu_createShown (form,
-					dialogWidth - Gui_LEFT_DIALOG_SPACING - 200, dialogWidth - Gui_LEFT_DIALOG_SPACING,
+					contentRight - 200, contentRight,
 					thy y - Gui_OPTIONMENU_HEIGHT, thy y, 0
 				);
 				for (int format = (int) kUi_integerVectorFormat::MIN; format <= (int) kUi_integerVectorFormat::MAX; format ++)
 					GuiOptionMenu_addOption (thy optionMenu, kUi_integerVectorFormat_getText ((kUi_integerVectorFormat) format));
 				//GuiOptionMenu_setValue (thy optionMenu, (int) thy integerVectorDefaultFormat);   // SUPERFLUOUS
-				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
+				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, contentRight,
 						thy y, thy y + multiLineTextHeight (thy numberOfLines), GuiText_INKWRAP | GuiText_SCROLLED);
 			}
 			break;
@@ -1826,14 +1993,14 @@ void UiForm_finish (UiForm me) {
 				appendColon ();
 				const int ylabel = thy y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
 				thy label = GuiLabel_createShown (form,
-					Gui_LEFT_DIALOG_SPACING, dialogWidth /* allow to extend into the margin */,
+					Gui_LEFT_DIALOG_SPACING, contentRight /* allow to extend into the margin */,
 					ylabel, ylabel + textFieldHeight,
 					theFinishBuffer.string, 0
 				);
-				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
+				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, contentRight,
 						thy y, thy y + multiLineTextHeight (thy numberOfLines), GuiText_SCROLLED);
 				thy optionMenu = GuiOptionMenu_createShown (form,
-					dialogWidth - Gui_LEFT_DIALOG_SPACING - 200, dialogWidth - Gui_LEFT_DIALOG_SPACING,
+					contentRight - 200, contentRight,
 					thy y - Gui_OPTIONMENU_HEIGHT, thy y, 0
 				);
 				for (int format = (int) kUi_realMatrixFormat::MIN; format <= (int) kUi_realMatrixFormat::MAX; format ++)
@@ -1848,14 +2015,14 @@ void UiForm_finish (UiForm me) {
 				appendColon ();
 				const int ylabel = thy y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
 				thy label = GuiLabel_createShown (form,
-					Gui_LEFT_DIALOG_SPACING, dialogWidth /* allow to extend into the margin */,
+					Gui_LEFT_DIALOG_SPACING, contentRight /* allow to extend into the margin */,
 					ylabel, ylabel + textFieldHeight,
 					theFinishBuffer.string, 0
 				);
-				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
+				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, contentRight,
 						thy y, thy y + multiLineTextHeight (thy numberOfLines), GuiText_INKWRAP | GuiText_SCROLLED);
 				thy optionMenu = GuiOptionMenu_createShown (form,
-					dialogWidth - Gui_LEFT_DIALOG_SPACING - 200, dialogWidth - Gui_LEFT_DIALOG_SPACING,
+					contentRight - 200, contentRight,
 					thy y - Gui_OPTIONMENU_HEIGHT, thy y, 0
 				);
 				for (int format = (int) kUi_stringArrayFormat::MIN; format <= (int) kUi_stringArrayFormat::MAX; format ++)
@@ -1869,11 +2036,11 @@ void UiForm_finish (UiForm me) {
 				appendColon ();
 				const int ylabel = thy y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
 				thy label = GuiLabel_createShown (form,
-					Gui_LEFT_DIALOG_SPACING, dialogWidth /* allow to extend into the margin */,
+					Gui_LEFT_DIALOG_SPACING, contentRight /* allow to extend into the margin */,
 					ylabel, ylabel + textFieldHeight,
 					theFinishBuffer.string, 0
 				);
-				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
+				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, contentRight,
 						thy y, thy y + multiLineTextHeight (thy numberOfLines), GuiText_INKWRAP | GuiText_SCROLLED);
 			}
 			break;
@@ -1883,14 +2050,14 @@ void UiForm_finish (UiForm me) {
 				appendColon ();
 				const int ylabel = thy y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
 				thy label = GuiLabel_createShown (form,
-					Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_LEFT_DIALOG_SPACING - 100,
+					Gui_LEFT_DIALOG_SPACING, contentRight - 100 - Gui_HORIZONTAL_DIALOG_SPACING,
 					ylabel, ylabel + textFieldHeight,
 					theFinishBuffer.string, 0
 				);
-				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
+				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, contentRight - 100 - Gui_HORIZONTAL_DIALOG_SPACING,
 						thy y, thy y + multiLineTextHeight (thy numberOfLines), GuiText_CHARWRAP | GuiText_SCROLLED);
 				thy pushButton = GuiButton_createShown (form,
-					dialogWidth - Gui_LEFT_DIALOG_SPACING - 100, dialogWidth - Gui_LEFT_DIALOG_SPACING,
+					contentRight - 100, contentRight,
 					thy y - 3 - Gui_PUSHBUTTON_HEIGHT, thy y - 3, U"Browse...", gui_button_cb_browseInfile, thee, 0
 				);
 			}
@@ -1901,14 +2068,14 @@ void UiForm_finish (UiForm me) {
 				appendColon ();
 				const int ylabel = thy y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
 				thy label = GuiLabel_createShown (form,
-					Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_LEFT_DIALOG_SPACING - 100,
+					Gui_LEFT_DIALOG_SPACING, contentRight - 100 - Gui_HORIZONTAL_DIALOG_SPACING,
 					ylabel, ylabel + textFieldHeight,
 					theFinishBuffer.string, 0
 				);
-				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
+				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, contentRight - 100 - Gui_HORIZONTAL_DIALOG_SPACING,
 						thy y, thy y + multiLineTextHeight (thy numberOfLines), GuiText_CHARWRAP | GuiText_SCROLLED);
 				thy pushButton = GuiButton_createShown (form,
-					dialogWidth - Gui_LEFT_DIALOG_SPACING - 100, dialogWidth - Gui_LEFT_DIALOG_SPACING,
+					contentRight - 100, contentRight,
 					thy y - 3 - Gui_PUSHBUTTON_HEIGHT, thy y - 3, U"Browse...", gui_button_cb_browseOutfile, thee, 0
 				);
 			}
@@ -1919,14 +2086,14 @@ void UiForm_finish (UiForm me) {
 				appendColon ();
 				const int ylabel = thy y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
 				thy label = GuiLabel_createShown (form,
-					Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_LEFT_DIALOG_SPACING - 100,
+					Gui_LEFT_DIALOG_SPACING, contentRight - 100 - Gui_HORIZONTAL_DIALOG_SPACING,
 					ylabel, ylabel + textFieldHeight,
 					theFinishBuffer.string, 0
 				);
-				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
+				thy text = GuiText_createShown (form, Gui_LEFT_DIALOG_SPACING, contentRight - 100 - Gui_HORIZONTAL_DIALOG_SPACING,
 						thy y, thy y + multiLineTextHeight (thy numberOfLines), GuiText_CHARWRAP | GuiText_SCROLLED);
 				thy pushButton = GuiButton_createShown (form,
-					dialogWidth - Gui_LEFT_DIALOG_SPACING - 100, dialogWidth - Gui_LEFT_DIALOG_SPACING,
+					contentRight - 100, contentRight,
 					thy y - 3 - Gui_PUSHBUTTON_HEIGHT, thy y - 3, U"Browse...", gui_button_cb_browseFolder, thee, 0
 				);
 			}
@@ -1939,7 +2106,7 @@ void UiForm_finish (UiForm me) {
 				#endif
 				MelderString_copy (& theFinishBuffer, thy stringValue.get());
 				thy label = GuiLabel_createShown (form,
-					Gui_LEFT_DIALOG_SPACING, dialogWidth /* allow to extend into the margin */,
+					Gui_LEFT_DIALOG_SPACING, contentRight /* allow to extend into the margin */,
 					ylabel + 5, ylabel + 5 + textFieldHeight,
 					theFinishBuffer.string, GuiLabel_BOLD
 				);
@@ -1953,7 +2120,7 @@ void UiForm_finish (UiForm me) {
 				#endif
 				MelderString_copy (& theFinishBuffer, thy stringValue.get());
 				thy label = GuiLabel_createShown (form,
-					Gui_LEFT_DIALOG_SPACING, dialogWidth /* allow to extend into the margin */,
+					Gui_LEFT_DIALOG_SPACING, contentRight /* allow to extend into the margin */,
 					ylabel + 5, ylabel + 5 + textFieldHeight,
 					theFinishBuffer.string, 0
 				);
@@ -1967,7 +2134,7 @@ void UiForm_finish (UiForm me) {
 				#endif
 				MelderString_copy (& theFinishBuffer, thy stringValue.get());
 				thy label = GuiLabel_createShown (form,
-					Gui_LEFT_DIALOG_SPACING, dialogWidth /* allow to extend into the margin */,
+					Gui_LEFT_DIALOG_SPACING, contentRight /* allow to extend into the margin */,
 					ylabel - 10, ylabel - 10 + textFieldHeight,
 					theFinishBuffer.string, GuiLabel_RIGHT
 				);
@@ -1988,7 +2155,7 @@ void UiForm_finish (UiForm me) {
 					UiOption button = thy options.at [ibutton];
 					MelderString_copy (& theFinishBuffer, praat_translate (button -> name.get()));
 					button -> radioButton = GuiRadioButton_createShown (form,
-						fieldX, dialogWidth /* allow to extend into the margin */,
+						fieldX, contentRight /* allow to extend into the margin */,
 						thy y + (ibutton - 1) * (Gui_RADIOBUTTON_HEIGHT + Gui_RADIOBUTTON_SPACING),
 						thy y + (ibutton - 1) * (Gui_RADIOBUTTON_HEIGHT + Gui_RADIOBUTTON_SPACING) + Gui_RADIOBUTTON_HEIGHT,
 						theFinishBuffer.string, nullptr, nullptr, 0
@@ -2021,14 +2188,14 @@ void UiForm_finish (UiForm me) {
 				/*field -> label = GuiLabel_createShown (form, x, x + labelWidth, thy y, thy y + Gui_CHECKBUTTON_HEIGHT,
 						theFinishBuffer.string, GuiLabel_RIGHT); */
 				thy checkButton = GuiCheckButton_createShown (form,
-					fieldX, dialogWidth /* allow to extend into the margin */, thy y, thy y + Gui_CHECKBUTTON_HEIGHT,
+					fieldX, contentRight /* allow to extend into the margin */, thy y, thy y + Gui_CHECKBUTTON_HEIGHT,
 					theFinishBuffer.string, nullptr, nullptr, 0
 				);
 			}
 			break;
 			case _kUiField_type::LIST_:
 			{
-				int listWidth = my numberOfFields == 1 ? dialogWidth - fieldX : fieldWidth;
+				int listWidth = my numberOfFields == 1 ? contentRight - fieldX : fieldWidth;
 				MelderString_copy (& theFinishBuffer, thy labelText.get());
 				appendColon ();
 				thy label = GuiLabel_createShown (form, Gui_LEFT_DIALOG_SPACING, Gui_LEFT_DIALOG_SPACING + labelWidth, thy y + 1, thy y + 21,
@@ -2109,6 +2276,7 @@ void UiForm_finish (UiForm me) {
 		my okButton = GuiButton_createShown (form, x, x + Gui_OK_BUTTON_WIDTH, y, y + Gui_PUSHBUTTON_HEIGHT,
 				my isPauseForm ? U"Continue" : U"OK", gui_button_cb_ok, me, okButtonIsDefault ? GuiButton_DEFAULT : 0);
 	}
+	UiForm_positionBottomButtons (me, dialogWidth, y);
 	if (my scrollBar)
 		UiForm_updateFieldPositions (me);
 	/*GuiObject_show (separator);*/
@@ -2127,19 +2295,28 @@ void UiForm_do (UiForm me, bool modified) {
 		#if defined (_WIN32)
 			HWND shellHwnd = my d_dialogForm -> d_xmShell -> window;
 			HWND formHwnd = my d_dialogForm -> d_widget -> window;
-			my d_dialogForm -> d_xmShell -> width = my d_dialogForm -> d_widget -> width;
-			my d_dialogForm -> d_xmShell -> height = my d_dialogForm -> d_widget -> height;
-			const int cxFixedFrame = GetSystemMetrics (SM_CXFIXEDFRAME);
-			const int cyFixedFrame = GetSystemMetrics (SM_CYFIXEDFRAME);
-			RECT r;
-			GetWindowRect (shellHwnd, & r);
-			MoveWindow (shellHwnd, r.left, r.top,
-				my d_dialogForm -> d_widget -> width + 2 * cxFixedFrame,
-				my d_dialogForm -> d_widget -> height + 2 * cyFixedFrame + GetSystemMetrics (SM_CYCAPTION),
-				true);
-			MoveWindow (formHwnd, 0, 0, my d_dialogForm -> d_widget -> width, my d_dialogForm -> d_widget -> height, true);
+			DWORD style = (DWORD) GetWindowLongPtr (shellHwnd, GWL_STYLE);
+			DWORD exStyle = (DWORD) GetWindowLongPtr (shellHwnd, GWL_EXSTYLE);
+			RECT wr = { 0, 0, my d_dialogForm -> d_widget -> width, my d_dialogForm -> d_widget -> height };
+			AdjustWindowRectEx (& wr, style, FALSE, exStyle);
+			RECT curRect;
+			GetWindowRect (shellHwnd, & curRect);
+			MoveWindow (shellHwnd, curRect.left, curRect.top, wr.right - wr.left, wr.bottom - wr.top, TRUE);
+			RECT clientRect;
+			GetClientRect (shellHwnd, & clientRect);
+			int targetW = clientRect.right - clientRect.left;
+			int targetH = clientRect.bottom - clientRect.top;
+			if (targetW <= 0) targetW = my d_dialogForm -> d_widget -> width;
+			if (targetH <= 0) targetH = my d_dialogForm -> d_widget -> height;
+			my d_dialogForm -> d_xmShell -> width = targetW;
+			my d_dialogForm -> d_xmShell -> height = targetH;
+			my d_dialogForm -> d_widget -> width = targetW;
+			my d_dialogForm -> d_widget -> height = targetH;
+			MoveWindow (formHwnd, 0, 0, targetW, targetH, TRUE);
+			gui_uiform_cb_resize (me, targetW, targetH);
+		#else
+			UiForm_updateFieldPositions (me);
 		#endif
-		UiForm_updateFieldPositions (me);
 	}
 	if (modified)
 		UiForm_okOrApply (me, nullptr, true);

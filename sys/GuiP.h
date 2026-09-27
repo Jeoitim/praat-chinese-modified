@@ -167,6 +167,9 @@ class GuiControlBlockValueChangedCallbacks {
 	void _GuiWinDrawingArea_shellResize (GuiObject widget);
 	void _GuiWinDrawingArea_handleZoom (GuiObject widget, double delta);
 
+	/********** GuiDialog.cpp **********/
+	void _GuiWinDialog_handleResize (GuiDialog me, int width, int height);
+
 	/********** GuiLabel.cpp **********/
 	void _GuiWinLabel_destroy (GuiObject widget);
 

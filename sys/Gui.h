@@ -524,10 +524,13 @@ void GuiCheckButton_setValue (GuiCheckButton me, bool value);
 /********** GuiDialog **********/
 
 using GuiDialog_DefaultCallback = MelderCallback <void, structThing /* boss */>;
+using GuiDialog_ResizeCallback = MelderCallback <void, structThing /* boss */, int /* width */, int /* height */>;
 
 Thing_define (GuiDialog, GuiShell) {
 	GuiDialog_DefaultCallback d_defaultCallback;
 	Thing d_defaultBoss;
+	GuiDialog_ResizeCallback d_resizeCallback;
+	Thing d_resizeBoss;
 	integer latestCreatedButtonId, clickedButtonId, defaultButtonId;   // especially if the dialog is blocking
 	GuiButton defaultButton;
 };
@@ -542,6 +545,8 @@ GuiDialog GuiDialog_create (GuiWindow parent,
 );
 
 void GuiDialog_setDefaultCallback (GuiDialog me, GuiDialog_DefaultCallback callback, Thing boss);
+void GuiDialog_setResizable (GuiDialog me, bool resizable);
+void GuiDialog_setResizeCallback (GuiDialog me, GuiDialog_ResizeCallback callback, Thing boss);
 
 integer GuiDialog_run (GuiDialog me);
 /*

@@ -29,6 +29,13 @@ Thing_implement (GuiDialog, GuiShell, 0);
 		trace (U"destroying dialog ", Melder_pointer (me));
 		forget (me);   // BUG: if not forget, then potential memory leak
 	}
+	static void _GuiGtkDialog_resizeCallback (GuiObject widget, GtkAllocation *allocation, gpointer void_me) {
+		(void) widget;
+		iam (GuiDialog);
+		if (my d_resizeCallback) {
+			my d_resizeCallback (my d_resizeBoss, allocation -> width, allocation -> height);
+		}
+	}
 	static gboolean _GuiGtkDialog_goAwayCallback (GuiObject widget, GdkEvent *event, gpointer void_me) {
 		(void) widget;
 		(void) event;
@@ -102,6 +109,7 @@ GuiDialog GuiDialog_create (GuiWindow parent, int x, int y, int width, int heigh
 		gtk_container_add (GTK_CONTAINER (vbox /*my d_gtkWindow*/), GTK_WIDGET (my d_widget));
 		gtk_widget_show (GTK_WIDGET (my d_widget));
 		g_signal_connect (G_OBJECT (my d_widget), "destroy", G_CALLBACK (_GuiGtkDialog_destroyCallback), me.get());
+		g_signal_connect (G_OBJECT (my d_widget), "size-allocate", G_CALLBACK (_GuiGtkDialog_resizeCallback), me.get());
 		#if defined (chrome)
 			my chrome_surrogateShellTitleLabelWidget = gtk_label_new (Melder_peek32to8 (translatedTitle));
 			gtk_widget_set_size_request (GTK_WIDGET (my chrome_surrogateShellTitleLabelWidget), width, 31 /*Machine_getTextHeight()*/);
@@ -121,7 +129,8 @@ GuiDialog GuiDialog_create (GuiWindow parent, int x, int y, int width, int heigh
 		XtVaSetValues (my d_widget, XmNwidth, (Dimension) width, XmNheight, (Dimension) height, nullptr);
 		_GuiObject_setUserData (my d_widget, me.get());
 		XtAddCallback (my d_widget, XmNdestroyCallback, _GuiMotifDialog_destroyCallback, me.get());
-		XtVaSetValues (my d_widget, XmNdialogStyle,
+		XtVaSetValues (my d_widget,
+			XmNdialogStyle,
 			modality >= GuiDialog_Modality::MODAL ? XmDIALOG_FULL_APPLICATION_MODAL : XmDIALOG_MODELESS,
 			XmNautoUnmanage, False, nullptr
 		);
@@ -151,6 +160,48 @@ void GuiDialog_setDefaultCallback (GuiDialog me, GuiDialog_DefaultCallback callb
 	my d_defaultCallback = callback;
 	my d_defaultBoss = boss;
 }
+
+void GuiDialog_setResizable (GuiDialog me, bool resizable) {
+	#if gtk
+		gtk_window_set_resizable (GTK_WINDOW (my d_gtkWindow), resizable);
+	#elif motif
+		#if defined (_WIN32)
+			if (my d_xmShell && my d_xmShell -> window) {
+				HWND hwnd = my d_xmShell -> window;
+				LONG_PTR style = GetWindowLongPtr (hwnd, GWL_STYLE);
+				LONG_PTR exStyle = GetWindowLongPtr (hwnd, GWL_EXSTYLE);
+				if (resizable) {
+					style |= (WS_THICKFRAME | WS_MAXIMIZEBOX);
+					exStyle &= ~WS_EX_DLGMODALFRAME;
+				} else {
+					style &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
+					exStyle |= WS_EX_DLGMODALFRAME;
+				}
+				SetWindowLongPtr (hwnd, GWL_STYLE, style);
+				SetWindowLongPtr (hwnd, GWL_EXSTYLE, exStyle);
+				SetWindowPos (hwnd, NULL, 0, 0, 0, 0,
+					SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+			}
+		#endif
+	#elif cocoa
+		if (resizable) {
+			[my d_cocoaShell setStyleMask: [my d_cocoaShell styleMask] | NSResizableWindowMask];
+		}
+	#endif
+}
+
+void GuiDialog_setResizeCallback (GuiDialog me, GuiDialog_ResizeCallback callback, Thing boss) {
+	my d_resizeCallback = callback;
+	my d_resizeBoss = boss;
+}
+
+#if motif
+void _GuiWinDialog_handleResize (GuiDialog me, int width, int height) {
+	if (my d_resizeCallback) {
+		my d_resizeCallback (my d_resizeBoss, width, height);
+	}
+}
+#endif
 
 static void gui_blocking_dialog_cb_default (GuiDialog me) {
 	my clickedButtonId = my defaultButtonId;

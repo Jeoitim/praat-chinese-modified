@@ -2246,6 +2246,7 @@ void XtUnmanageChildren (GuiObjectList children, Cardinal num_children) {
 }
 
 static LRESULT CALLBACK windowProc (HWND window, UINT message, WPARAM wParam, LPARAM lParam);
+static bool on_mouseWheel (HWND window, int xPos, int yPos, int zDelta, int fwKeys);
 
 void * GuiWin_initialize1 (conststring32 name)
 {
@@ -2988,6 +2989,46 @@ modifiers & _motif_SHIFT_MASK ? " shift" : "", message -> message == WM_KEYDOWN 
 				TPM_LEFTALIGN | TPM_TOPALIGN, rect.left, rect.bottom - 3, 0, my parent -> window, NULL);
 			return;
 		}
+	} else if (message -> message == WM_MOUSEWHEEL) {
+		POINT pt = { GET_X_LPARAM (message -> lParam), GET_Y_LPARAM (message -> lParam) };
+		HWND targetWnd = WindowFromPoint (pt);
+		if (! targetWnd)
+			targetWnd = message -> hwnd;
+
+		DWORD targetPid = 0;
+		GetWindowThreadProcessId (targetWnd, & targetPid);
+		if (targetPid == GetCurrentProcessId ()) {
+			GuiObject me = nullptr;
+			for (HWND h = targetWnd; h; h = GetParent (h)) {
+				me = (GuiObject) GetWindowLongPtr (h, GWLP_USERDATA);
+				if (me)
+					break;
+			}
+			if (me) {
+				if (MEMBER (me, Text) &&
+				    (GetWindowLong (my window, GWL_STYLE) & ES_MULTILINE) &&
+				    (GetWindowLong (my window, GWL_STYLE) & WS_VSCROLL))
+				{
+					TranslateMessage (xevent);
+					DispatchMessage (xevent);
+					return;
+				}
+				if (MEMBER (me, List)) {
+					TranslateMessage (xevent);
+					DispatchMessage (xevent);
+					return;
+				}
+				if (MEMBER (me, DrawingArea)) {
+					TranslateMessage (xevent);
+					DispatchMessage (xevent);
+					return;
+				}
+				short zDelta = (short) HIWORD (message -> wParam);
+				short fwKeys = (short) LOWORD (message -> wParam);
+				if (on_mouseWheel (my window ? my window : targetWnd, pt.x, pt.y, zDelta, fwKeys))
+					return;
+			}
+		}
 	}
 	TranslateMessage (xevent);   // Generate WM_CHAR messages.
 	DispatchMessage (xevent);
@@ -3268,7 +3309,52 @@ static void on_vscroll (HWND window, HWND controlWindow, UINT code, int pos) {
 	(void)(fn)((hwnd),WM_MOUSEWHEEL,MAKEWPARAM((fwKeys),(zDelta)),MAKELPARAM((xPos),(yPos)))
 //#define HANDLE_WM_MOUSEWHEEL(hwnd,wParam,lParam,fn) \
 	((fn)((hwnd),(int)(short)LOWORD(lParam),(int)(short)HIWORD(lParam),(int)(short)HIWORD(wParam),(UINT)(short)LOWORD(wParam)),(LRESULT)0)
-static void on_mouseWheel (HWND window, int xPos, int yPos, int zDelta, int fwKeys) {
+#ifndef WHEEL_DELTA
+	#define WHEEL_DELTA 120
+#endif
+#ifndef WHEEL_PAGESCROLL
+	#define WHEEL_PAGESCROLL ((UINT) -1)
+#endif
+#ifndef SPI_GETWHEELSCROLLLINES
+	#define SPI_GETWHEELSCROLLLINES 0x0068
+#endif
+
+static GuiObject _motif_findScrollBarInTree (GuiObject root, int orientation) {
+	if (! root)
+		return nullptr;
+	if (root -> widgetClass == xmScrollBarWidgetClass &&
+	    root -> orientation == orientation &&
+	    root -> window && IsWindowVisible (root -> window))
+	{
+		return root;
+	}
+	if (root -> widgetClass == xmScrolledWindowWidgetClass) {
+		GuiObject sb = (orientation == XmHORIZONTAL ?
+			root -> motiff.scrolledWindow.horizontalBar :
+			root -> motiff.scrolledWindow.verticalBar);
+		if (sb && sb -> window && IsWindowVisible (sb -> window))
+			return sb;
+	}
+	for (GuiObject child = root -> firstChild; child; child = child -> nextSibling) {
+		if (child -> widgetClass != xmScrollBarWidgetClass) {
+			GuiObject found = _motif_findScrollBarInTree (child, orientation);
+			if (found)
+				return found;
+		}
+	}
+	return nullptr;
+}
+
+static GuiObject _motif_findScrollBar (GuiObject me, int orientation) {
+	for (GuiObject curr = me; curr; curr = curr -> parent) {
+		GuiObject sb = _motif_findScrollBarInTree (curr, orientation);
+		if (sb)
+			return sb;
+	}
+	return nullptr;
+}
+
+static bool on_mouseWheel (HWND window, int xPos, int yPos, int zDelta, int fwKeys) {
 	GuiObject me = (GuiObject) GetWindowLongPtr (window, GWLP_USERDATA);
 	if (me) {
 		const bool isHorizontal = ( fwKeys & MK_SHIFT );
@@ -3276,24 +3362,36 @@ static void on_mouseWheel (HWND window, int xPos, int yPos, int zDelta, int fwKe
 		const bool controlKeyPressed = ( fwKeys & MK_CONTROL );
 		if (my widgetClass == xmDrawingAreaWidgetClass && controlKeyPressed) {
 			_GuiWinDrawingArea_handleZoom (me, double (zDelta) / 10.0);
-			return;
+			return true;
 		}
-		if (my widgetClass == xmDrawingAreaWidgetClass && my parent -> widgetClass == xmScrolledWindowWidgetClass) {
-			on_scroll (isHorizontal ? my parent -> motiff.scrolledWindow.horizontalBar : my parent -> motiff.scrolledWindow.verticalBar, direction, 0);
-			return;
-		}
-		GuiObject searchIn = (MEMBER (me, Shell) ? me : my parent);
-		while (searchIn) {
-			for (GuiObject child = searchIn -> firstChild; child; child = child -> nextSibling) {
-				if (child -> widgetClass == xmScrollBarWidgetClass && child -> orientation == (isHorizontal ? XmHORIZONTAL : XmVERTICAL)) {
-					on_scroll (child, direction, 0);
-					return;
-				}
+		if (my widgetClass == xmDrawingAreaWidgetClass && my parent && my parent -> widgetClass == xmScrolledWindowWidgetClass) {
+			GuiObject sb = (isHorizontal ? my parent -> motiff.scrolledWindow.horizontalBar : my parent -> motiff.scrolledWindow.verticalBar);
+			if (sb) {
+				on_scroll (sb, direction, 0);
+				return true;
 			}
-			searchIn = searchIn -> parent;
+		}
+		GuiObject sb = _motif_findScrollBar (me, isHorizontal ? XmHORIZONTAL : XmVERTICAL);
+		if (sb) {
+			UINT linesToScroll = 3;
+			SystemParametersInfo (SPI_GETWHEELSCROLLLINES, 0, & linesToScroll, 0);
+			if (linesToScroll == WHEEL_PAGESCROLL) {
+				on_scroll (sb, isHorizontal ? (zDelta < 0 ? SB_PAGERIGHT : SB_PAGELEFT) : (zDelta < 0 ? SB_PAGEDOWN : SB_PAGEUP), 0);
+			} else {
+				int numSteps = Melder_iround ((double) abs (zDelta) / (double) WHEEL_DELTA * (double) linesToScroll);
+				if (numSteps < 1) numSteps = 1;
+				if (numSteps > 20) numSteps = 20;
+				for (int step = 0; step < numSteps; ++ step)
+					on_scroll (sb, direction, 0);
+			}
+			return true;
 		}
 		FORWARD_WM_MOUSEWHEEL (window, xPos, yPos, zDelta, fwKeys, DefWindowProc);
-	} else FORWARD_WM_MOUSEWHEEL (window, xPos, yPos, zDelta, fwKeys, DefWindowProc);
+		return false;
+	} else {
+		FORWARD_WM_MOUSEWHEEL (window, xPos, yPos, zDelta, fwKeys, DefWindowProc);
+		return false;
+	}
 }
 static void on_size (HWND window, UINT state, int cx, int cy) {
 	GuiObject me = (GuiObject) GetWindowLongPtr (window, GWLP_USERDATA);
@@ -3309,6 +3407,14 @@ static void on_size (HWND window, UINT state, int cx, int cy) {
 			my nat.shell.duringMoveWindow = False;
 		else if (newWidth != oldWidth || newHeight != oldHeight) {
 			shellResizeWidget (me, 0, 0, newWidth - oldWidth, newHeight - oldHeight);
+			if (my motiff.shell.isDialog) {
+				for (GuiObject child = my firstChild; child; child = child -> nextSibling) {
+					GuiThing thing = (GuiThing) _GuiObject_getUserData (child);
+					if (thing && Thing_isa (thing, classGuiDialog)) {
+						_GuiWinDialog_handleResize ((GuiDialog) thing, newWidth, newHeight);
+					}
+				}
+			}
 		}
 	} else FORWARD_WM_SIZE (window, state, cx, cy, DefWindowProc);
 }
@@ -3501,6 +3607,23 @@ static LRESULT CALLBACK windowProc (HWND window, UINT message, WPARAM wParam, LP
 		HANDLE_MSG (window, WM_VSCROLL, on_vscroll);
 		HANDLE_MSG (window, WM_MOUSEWHEEL, on_mouseWheel);
 		HANDLE_MSG (window, WM_SIZE, on_size);
+		case WM_GETMINMAXINFO: {
+			MINMAXINFO *mmi = (MINMAXINFO *) lParam;
+			if (mmi) {
+				GuiObject me = (GuiObject) GetWindowLongPtr (window, GWLP_USERDATA);
+				if (me && MEMBER (me, Shell) && my motiff.shell.isDialog) {
+					LONG_PTR style = GetWindowLongPtr (window, GWL_STYLE);
+					if (style & WS_THICKFRAME) {
+						int minW = (my width < 480 && my width > 0) ? my width : 480;
+						int minH = (my height < 280 && my height > 0) ? my height : 280;
+						mmi -> ptMinTrackSize.x = minW;
+						mmi -> ptMinTrackSize.y = minH;
+						return 0;
+					}
+				}
+			}
+			break;
+		}
 		HANDLE_MSG (window, WM_KEYDOWN, on_key);
 		HANDLE_MSG (window, WM_CHAR, on_char);
 		HANDLE_MSG (window, WM_MOVE, on_move);
