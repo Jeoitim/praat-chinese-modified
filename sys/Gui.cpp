@@ -59,6 +59,11 @@ int Gui_getResolution (GuiObject widget) {
 	}
 #endif
 
+#if defined (macintosh)
+void Gui_setQuitApplicationCallback (int (* /*quitApplicationCallback*/) (void)) {
+}
+#endif
+
 void Gui_getWindowPositioningBounds (double *x, double *y, double *width, double *height) {
 	#if gtk
 		GuiGtk_initialize ();
