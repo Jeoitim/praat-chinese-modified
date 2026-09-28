@@ -1686,17 +1686,6 @@ GuiMenu praat_picture_resolveMenu (conststring32 menu) {
 		editMenu;   // default
 }
 
-void praat_picture_languageChanged () {
-	if (fileMenu)    GuiMenu_setTitle (fileMenu,    U"File");
-	if (editMenu)    GuiMenu_setTitle (editMenu,    U"Edit");
-	if (marginsMenu) GuiMenu_setTitle (marginsMenu, U"Margins");
-	if (worldMenu)   GuiMenu_setTitle (worldMenu,   U"World");
-	if (selectMenu)  GuiMenu_setTitle (selectMenu,  U"Select");
-	if (fontMenu)    GuiMenu_setTitle (fontMenu,    U"Font");
-	if (penMenu)     GuiMenu_setTitle (penMenu,     U"Pen");
-	if (helpMenu)    GuiMenu_setTitle (helpMenu,    U"Help");
-}
-
 void praat_picture_exit () {
 	praat_picture. reset();
 }
@@ -1754,11 +1743,6 @@ Graphics praat_picture_datagui_open (bool eraseFirst) {
 
 void praat_picture_datagui_close () {
 	praat_picture_close ();
-}
-
-DIRECT (menu_cb_quit) {
-	Gui_runQuitApplicationCallback ();
-	END_NO_NEW_DATA
 }
 
 static autoDaata pictureRecognizer (integer nread, const char *header, MelderFile file) {
@@ -1867,11 +1851,6 @@ void praat_picture_init (bool showPictureWindowAtStartUp) {
 				nullptr, GuiMenu_NO_API, GRAPHICS_Page_setup);
 	#endif
 	praat_addMenuCommand (U"Picture", U"File", U"Print...", nullptr, 'P' | GuiMenu_NO_API, GRAPHICS_Print);
-	#ifndef macintosh
-		praat_addMenuCommand (U"Picture", U"File", U"-- close --", nullptr, 0, nullptr);
-		//praat_addMenuCommand (U"Picture", U"File", U"Close", nullptr, 'W', menu_cb_close);
-		praat_addMenuCommand (U"Picture", U"File", Melder_cat (U"Quit ", Melder_upperCaseAppName (), U" || Quit"), nullptr, 'Q', menu_cb_quit);
-	#endif
 
 	praat_addMenuCommand (U"Picture", U"Edit", U"Undo", nullptr, 'Z' | GuiMenu_NO_API, GRAPHICS_Undo);
 	#if defined (macintosh) || defined (_WIN32)

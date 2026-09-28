@@ -1,6 +1,8 @@
 # Makefile of the library "sys"
 # Paul Boersma, 23 May 2026
 
+include ../makefile.defs
+
 # -I ../sys is there because e.g. Graphics.cpp include fon/Function.h, which again includes something from sys
 CPPFLAGS += -I ../kar -I ../melder -I ../sys -I ../dwsys -I ../stat -I ../fon
 

@@ -148,4 +148,39 @@ void Gui_getWindowPositioningBounds (double *x, double *y, double *width, double
 	}
 #endif
 
+#if defined (_WIN32)
+	#include <shellapi.h>
+#endif
+
+void Gui_copyTextToClipboard (conststring32 text) {
+	if (! text || text [0] == U'\0') return;
+	#if defined (_WIN32)
+		conststringW textW = Melder_peek32toW (text);
+		if (! textW || textW [0] == L'\0') return;
+		int lenW = wcslen (textW) + 1;
+		if (! OpenClipboard (nullptr)) return;
+		EmptyClipboard ();
+		HGLOBAL hMem = GlobalAlloc (GMEM_MOVEABLE, lenW * sizeof (wchar_t));
+		if (hMem) {
+			wchar_t *pMem = (wchar_t *) GlobalLock (hMem);
+			if (pMem) {
+				memcpy (pMem, textW, lenW * sizeof (wchar_t));
+				GlobalUnlock (hMem);
+				SetClipboardData (CF_UNICODETEXT, hMem);
+			}
+		}
+		CloseClipboard ();
+	#endif
+}
+
+void Gui_openUrl (conststring32 url) {
+	if (! url || url [0] == U'\0') return;
+	#if defined (_WIN32)
+		conststringW urlW = Melder_peek32toW (url);
+		if (urlW && urlW [0] != L'\0') {
+			ShellExecuteW (nullptr, L"open", urlW, nullptr, nullptr, SW_SHOWNORMAL);
+		}
+	#endif
+}
+
 /* End of file Gui.cpp */

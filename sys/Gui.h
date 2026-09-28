@@ -81,6 +81,7 @@ constexpr bool theCommandKeyIsToTheLeftOfTheOptionKey =
 #endif
 
 #include "machine.h"
+#include "praat_translate.h"
 
 #define Gui_LEFT_DIALOG_SPACING  20
 #define Gui_RIGHT_DIALOG_SPACING  20
@@ -780,6 +781,7 @@ GuiMenu GuiMenu_createInMenu (GuiMenu supermenu, conststring32 title, uint32 fla
 GuiMenu GuiMenu_createInForm (GuiForm form, int left, int right, int top, int bottom, conststring32 title, uint32 flags);
 
 void GuiMenu_empty (GuiMenu me);
+void GuiMenu_setTitle (GuiMenu me, conststring32 title /* cattable */);
 
 /********** GuiMenuItem **********/
 
@@ -956,6 +958,8 @@ Thing_define (GuiOptionMenu, GuiControl) {
 	#endif
 
 	void v_show ()
+		override;
+	void v_hide ()
 		override;
 };
 
@@ -1207,6 +1211,9 @@ extern uinteger theGuiTopLowAccelerators [8];
 	'parent' is the top-level widget.
 */
 void Gui_injectMessageProcs (GuiWindow parent);
+
+void Gui_copyTextToClipboard (conststring32 text);
+void Gui_openUrl (conststring32 url);
 
 /* End of file Gui.h */
 #endif

@@ -56,12 +56,14 @@ int64 Melder_length_utf16 (conststring32 string, bool nativizeNewlines);
 
 void MelderString_8to32 (MelderString *me, conststring8 textA);
 extern "C" conststring32 Melder_peek8to32 (conststring8 string);
+inline conststring32 Melder_peek8to32_u (conststring8 string) { return Melder_peek8to32 (string); }
 void Melder_8to32_inplace (conststring8 source, mutablestring32 target, kMelder_textInputEncoding inputEncoding);
 	// errors: Text is not valid UTF-8.
 autostring32 Melder_8to32 (conststring8 string, kMelder_textInputEncoding inputEncoding);
 	// errors: Out of memory; Text is not valid UTF-8.
 autostring32 Melder_8to32 (conststring8 string);
 	// errors: Out of memory; Text is not valid UTF-8.
+inline autostring32 Melder_8to32_e (conststring8 string) { return Melder_8to32 (string); }
 
 conststring32 Melder_peek16to32 (conststring16 text);
 autostring32 Melder_16to32 (conststring16 text);
