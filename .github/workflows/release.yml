@@ -1,48 +1,16 @@
 name: Build and release
 
 on:
+  push:
+    branches:
+      - v6.4.62-zh
   workflow_dispatch:
     inputs:
-      tag_name:
-        description: "Release tag, e.g. v6.4.62-zh.1"
+      target_tag:
+        description: "Target release tag to append to"
         required: true
-        default: "v6.4.62-zh.1"
+        default: "v7.0-zh.4"
         type: string
-      release_name:
-        description: "Release title"
-        required: false
-        default: "Praat 6.4.62 轻量中文版 (v6.4.62-zh.1)"
-        type: string
-      release_notes:
-        description: "Release notes / description"
-        required: false
-        default: ""
-        type: string
-      praat_upstream_tag:
-        description: "Upstream Praat tag used for the Xcode project, e.g. v6.4.62"
-        required: false
-        default: "v6.4.62"
-        type: string
-      praat_version_digits:
-        description: "Praat version digits used in upstream asset names, e.g. 6462"
-        required: false
-        default: "6462"
-        type: string
-      xcodeproj_url:
-        description: "Optional direct URL to praatXXXX_xcodeproj.zip; leave blank to use upstream tag/version"
-        required: false
-        default: ""
-        type: string
-      draft:
-        description: "Create as draft release"
-        required: false
-        default: false
-        type: boolean
-      prerelease:
-        description: "Mark as prerelease"
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: write
@@ -63,32 +31,31 @@ jobs:
       - name: Set up MSYS2
         uses: msys2/setup-msys2@v2
         with:
-          msystem: CLANG64
+          msystem: UCRT64
           update: true
           install: >-
             make
             zip
-            mingw-w64-clang-x86_64-clang
-            mingw-w64-clang-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-gcc
 
       - name: Build Praat
-        run: make PRAAT_ARCH=x64v3 -j2
+        run: |
+          cp makefiles/makefile.defs.msys-gcc makefile.defs
+          make -j$(nproc)
+          strip -s Praat.exe
 
       - name: Prepare release package
-        env:
-          PACKAGE_NAME: Praat-${{ inputs.tag_name }}-Windows-x64.zip
         run: |
           mkdir -p dist
-          cp Praat.exe dist/Praat.exe
-          cp README.txt dist/README.txt
+          cp Praat.exe "dist/praat v6.4.62-zh.exe"
           cd dist
-          zip -9 "$PACKAGE_NAME" Praat.exe README.txt
+          zip -9 "Praat-v6.4.62-zh-Windows-x64.zip" "praat v6.4.62-zh.exe"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Praat-${{ inputs.tag_name }}-Windows-x64
-          path: dist/Praat-${{ inputs.tag_name }}-Windows-x64.zip
+          name: Praat-v6.4.62-zh-Windows-x64
+          path: dist/Praat-v6.4.62-zh-Windows-x64.zip
 
   build-macos:
     name: Build macOS universal
@@ -112,19 +79,15 @@ jobs:
       - name: Prepare Xcode project
         shell: bash
         env:
-          XCODEPROJ_URL: ${{ inputs.xcodeproj_url }}
-          PRAAT_UPSTREAM_TAG: ${{ inputs.praat_upstream_tag }}
-          PRAAT_VERSION_DIGITS: ${{ inputs.praat_version_digits }}
+          PRAAT_UPSTREAM_TAG: "v6.4.62"
+          PRAAT_VERSION_DIGITS: "6462"
         run: |
           set -euo pipefail
 
           if [ -d praat.xcodeproj ]; then
             echo "Using praat.xcodeproj from repository."
           else
-            if [ -z "$XCODEPROJ_URL" ]; then
-              XCODEPROJ_URL="https://github.com/praat/praat/releases/download/${PRAAT_UPSTREAM_TAG}/praat${PRAAT_VERSION_DIGITS}_xcodeproj.zip"
-            fi
-
+            XCODEPROJ_URL="https://github.com/praat/praat/releases/download/${PRAAT_UPSTREAM_TAG}/praat${PRAAT_VERSION_DIGITS}_xcodeproj.zip"
             echo "Downloading Xcode project from $XCODEPROJ_URL"
             curl -fL "$XCODEPROJ_URL" -o praat_xcodeproj.zip
             python3 -c "import zipfile; zipfile.ZipFile('praat_xcodeproj.zip').extractall('.')"
@@ -234,8 +197,6 @@ jobs:
 
       - name: Prepare release package
         shell: bash
-        env:
-          PACKAGE_NAME: Praat-${{ inputs.tag_name }}-macOS-universal.dmg
         run: |
           set -euo pipefail
 
@@ -247,18 +208,19 @@ jobs:
             exit 1
           fi
 
-          hdiutil create -fs HFS+ -ov -srcfolder "$APP_PATH" -volname "Praat ${{ inputs.tag_name }}" "dist/${PACKAGE_NAME%.dmg}.tmp.dmg"
+          PACKAGE_NAME="Praat-v6.4.62-zh-macOS-universal.dmg"
+          hdiutil create -fs HFS+ -ov -srcfolder "$APP_PATH" -volname "Praat v6.4.62-zh" "dist/${PACKAGE_NAME%.dmg}.tmp.dmg"
           hdiutil convert -ov -format UDZO -o "dist/$PACKAGE_NAME" "dist/${PACKAGE_NAME%.dmg}.tmp.dmg"
           rm "dist/${PACKAGE_NAME%.dmg}.tmp.dmg"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Praat-${{ inputs.tag_name }}-macOS-universal
-          path: dist/Praat-${{ inputs.tag_name }}-macOS-universal.dmg
+          name: Praat-v6.4.62-zh-macOS-universal
+          path: dist/Praat-v6.4.62-zh-macOS-universal.dmg
 
-  create-release:
-    name: Create GitHub release
+  append-release:
+    name: Append assets to release
     runs-on: ubuntu-latest
     needs:
       - build-windows-x64
@@ -274,43 +236,41 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Create or update GitHub release
+      - name: Append to GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG_NAME: ${{ inputs.tag_name }}
-          RELEASE_NAME: ${{ inputs.release_name }}
-          RELEASE_NOTES: ${{ inputs.release_notes }}
-          DRAFT: ${{ inputs.draft }}
-          PRERELEASE: ${{ inputs.prerelease }}
+          TARGET_TAG: ${{ inputs.target_tag || 'v7.0-zh.4' }}
         run: |
           set -euo pipefail
 
-          NOTES="$RELEASE_NOTES"
-          if [ -z "$NOTES" ]; then
-            NOTES="基于 Praat 7.0 的非官方中文本地化版本。包含 Windows x64 与 macOS universal 构建产物。"
+          echo "Listing artifacts in dist:"
+          ls -lh dist/
+
+          # Verify that the target release exists
+          if ! gh release view "$TARGET_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "Error: Target release $TARGET_TAG does not exist on $GH_REPO."
+            exit 1
           fi
 
-          if gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
-            echo "Release $TAG_NAME exists, uploading artifacts..."
-            gh release upload "$TAG_NAME" dist/* --repo "$GH_REPO" --clobber
-            gh release edit "$TAG_NAME" --repo "$GH_REPO" --title "$RELEASE_NAME" --notes "$NOTES"
+          # Upload only the new v6.4.62 assets (Praat-v6.4.62-zh-*) without overwriting or deleting v7.0 assets
+          gh release upload "$TARGET_TAG" dist/Praat-v6.4.62-zh-* --repo "$GH_REPO" --clobber
+
+          # Fetch current release notes and append v6.4.62 section if not already present
+          CURRENT_NOTES="$(gh release view "$TARGET_TAG" --repo "$GH_REPO" --json body -q .body)"
+
+          if [[ "$CURRENT_NOTES" != *"Praat 6.4.62"* ]]; then
+            NEW_NOTES="${CURRENT_NOTES}
+
+---
+
+### Praat 6.4.62 经典轻量中文版
+追求原生极致轻量（单文件自包含经典 Motif 界面，无需外部 Whisper 模型，压缩包仅 23MB）：
+- **Windows x64**: \`Praat-v6.4.62-zh-Windows-x64.zip\`
+- **macOS Universal**: \`Praat-v6.4.62-zh-macOS-universal.dmg\`"
+
+            gh release edit "$TARGET_TAG" --repo "$GH_REPO" --notes "$NEW_NOTES"
+            echo "Release notes updated with Praat 6.4.62 section."
           else
-            args=(
-              release create "$TAG_NAME"
-              dist/*
-              --repo "$GH_REPO"
-              --target "${{ github.sha }}"
-              --title "$RELEASE_NAME"
-              --notes "$NOTES"
-            )
-
-            if [ "$DRAFT" = "true" ]; then
-              args+=(--draft)
-            fi
-            if [ "$PRERELEASE" = "true" ]; then
-              args+=(--prerelease)
-            fi
-
-            gh "${args[@]}"
+            echo "Release notes already contain Praat 6.4.62 section."
           fi
