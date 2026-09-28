@@ -242,35 +242,42 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TARGET_TAG: ${{ inputs.target_tag || 'v7.0-zh.4' }}
         run: |
-          set -euo pipefail
+          python3 - <<'PY'
+          import os, glob, subprocess
 
-          echo "Listing artifacts in dist:"
-          ls -lh dist/
+          gh_repo = os.environ["GH_REPO"]
+          target_tag = os.environ.get("TARGET_TAG", "v7.0-zh.4")
 
-          # Verify that the target release exists
-          if ! gh release view "$TARGET_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
-            echo "Error: Target release $TARGET_TAG does not exist on $GH_REPO."
-            exit 1
-          fi
+          # 1. Verify release exists
+          view_res = subprocess.run(["gh", "release", "view", target_tag, "--repo", gh_repo, "--json", "body", "-q", ".body"], capture_output=True, text=True)
+          if view_res.returncode != 0:
+              print(f"Error: Target release {target_tag} does not exist.")
+              exit(1)
 
-          # Upload only the new v6.4.62 assets (Praat-v6.4.62-zh-*) without overwriting or deleting v7.0 assets
-          gh release upload "$TARGET_TAG" dist/Praat-v6.4.62-zh-* --repo "$GH_REPO" --clobber
+          current_notes = view_res.stdout
 
-          # Fetch current release notes and append v6.4.62 section if not already present
-          CURRENT_NOTES="$(gh release view "$TARGET_TAG" --repo "$GH_REPO" --json body -q .body)"
+          # 2. Upload only the new v6.4.62 assets without touching v7.0 assets
+          files = sorted(glob.glob("dist/Praat-v6.4.62-zh-*"))
+          print("Files to upload:", files)
+          if not files:
+              print("Error: No v6.4.62 build artifacts found to upload.")
+              exit(1)
 
-          if [[ "$CURRENT_NOTES" != *"Praat 6.4.62"* ]]; then
-            NEW_NOTES="${CURRENT_NOTES}
+          subprocess.run(["gh", "release", "upload", target_tag, *files, "--repo", gh_repo, "--clobber"], check=True)
+          print("Assets uploaded successfully.")
 
----
-
-### Praat 6.4.62 经典轻量中文版
-追求原生极致轻量（单文件自包含经典 Motif 界面，无需外部 Whisper 模型，压缩包仅 23MB）：
-- **Windows x64**: \`Praat-v6.4.62-zh-Windows-x64.zip\`
-- **macOS Universal**: \`Praat-v6.4.62-zh-macOS-universal.dmg\`"
-
-            gh release edit "$TARGET_TAG" --repo "$GH_REPO" --notes "$NEW_NOTES"
-            echo "Release notes updated with Praat 6.4.62 section."
-          else
-            echo "Release notes already contain Praat 6.4.62 section."
-          fi
+          # 3. Append v6.4.62 section to release notes if not already present
+          if "Praat 6.4.62" not in current_notes:
+              extra_notes = (
+                  "\n\n---\n\n"
+                  "### Praat 6.4.62 经典轻量中文版\n"
+                  "追求原生极致轻量（单文件自包含经典 Motif 界面，无需外部 Whisper 模型，压缩包仅 23MB）：\n"
+                  "- **Windows x64**: `Praat-v6.4.62-zh-Windows-x64.zip`\n"
+                  "- **macOS Universal**: `Praat-v6.4.62-zh-macOS-universal.dmg`\n"
+              )
+              new_notes = current_notes.strip() + extra_notes
+              subprocess.run(["gh", "release", "edit", target_tag, "--repo", gh_repo, "--notes", new_notes], check=True)
+              print("Release notes appended successfully.")
+          else:
+              print("Praat 6.4.62 section already present in release notes.")
+          PY
