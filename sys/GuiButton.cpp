@@ -1,11 +1,11 @@
 /* GuiButton.cpp
  *
- * Copyright (C) 1993-2008,2010-2020,2024 Paul Boersma,
+ * Copyright (C) 1993-2008,2010-2020,2024,2026 Paul Boersma,
  *               2007-2008 Stefan de Konink, 2010 Franz Brausse, 2013 Tom Naughton
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
+ * the Free Software Foundation; either version 3 of the License, or (at
  * your option) any later version.
  *
  * This code is distributed in the hope that it will be useful, but
@@ -42,7 +42,7 @@ Thing_implement (GuiButton, GuiControl, 0);
 			try {
 				my d_activateCallback (my d_activateBoss, & event);
 			} catch (MelderError) {
-				Melder_flushError (U"Your click on button \"", Melder_peek8to32 (gtk_widget_get_name (GTK_WIDGET (widget))), U"\" was not completely handled.");
+				Melder_flushError (U"Your click on button \"", Melder_peek8to32_u (gtk_widget_get_name (GTK_WIDGET (widget))), U"\" was not completely handled.");
 			}
 		}
 	}
@@ -123,6 +123,7 @@ static void gui_blocking_dialog_cb_ok (GuiDialog me, GuiButtonEvent event) {
 GuiButton GuiButton_create (GuiForm parent, int left, int right, int top, int bottom,
 	conststring32 buttonText, GuiButton_ActivateCallback activateCallback, Thing activateBoss, uint32 flags)
 {
+	conststring32 translatedText = praat_translate (buttonText);
 	autoGuiButton me = Thing_new (GuiButton);
 	my d_shell = parent -> d_shell;
 	my d_parent = parent;
@@ -143,7 +144,7 @@ GuiButton GuiButton_create (GuiForm parent, int left, int right, int top, int bo
 		}
 	}
 	#if gtk
-		my d_widget = gtk_button_new_with_label (Melder_peek32to8 (buttonText));
+		my d_widget = gtk_button_new_with_label (Melder_peek32to8 (translatedText));
 		gtk_button_set_relief (GTK_BUTTON (my d_widget), GTK_RELIEF_NORMAL);
 		_GuiObject_setUserData (my d_widget, me.get());
 		my v_positionInForm (my d_widget, left, right, top, bottom, parent);
@@ -165,7 +166,7 @@ GuiButton GuiButton_create (GuiForm parent, int left, int right, int top, int bo
 //			parent -> shell -> cancelButton = parent -> cancelButton = my widget;
 //		}
 	#elif motif
-		my d_widget = _Gui_initializeWidget (xmPushButtonWidgetClass, parent -> d_widget, buttonText);
+		my d_widget = _Gui_initializeWidget (xmPushButtonWidgetClass, parent -> d_widget, translatedText);
 		_GuiObject_setUserData (my d_widget, me.get());
 		my d_widget -> window = CreateWindow (L"button", Melder_peek32toW (_GuiWin_expandAmpersands (my d_widget -> name.get())),
 			WS_CHILD
@@ -184,7 +185,7 @@ GuiButton GuiButton_create (GuiForm parent, int left, int right, int top, int bo
 			parent -> d_widget -> shell -> cancelButton = parent -> d_widget -> cancelButton = my d_widget;
 	#elif cocoa
 		GuiCocoaButton *button = [[GuiCocoaButton alloc] init];
-		my name = Melder_dup_f (buttonText);
+		my name = Melder_dup_f (translatedText);
 		my d_widget = (GuiObject) button;
 		my v_positionInForm (my d_widget, left, right, top, bottom, parent);
 		[button setUserData: me.get()];
@@ -199,7 +200,7 @@ GuiButton GuiButton_create (GuiForm parent, int left, int right, int top, int bo
 		if (! theButtonFont)
 			theButtonFont = [NSFont systemFontOfSize: 13.0];
 		[button setFont: theButtonFont];
-		[button setTitle: (NSString *) Melder_peek32toCfstring (buttonText)];
+		[button setTitle: (NSString *) Melder_peek32toCfstring (translatedText)];
 		[button setTarget: (id) my d_widget];
 		[button setAction: @selector (_guiCocoaButton_activateCallback:)];
 		//[button setAutoresizingMask: NSViewNotSizable];
@@ -234,10 +235,16 @@ void GuiButton_setText (GuiButton me, conststring32 text /* cattable */) {
 		gtk_button_set_label (GTK_BUTTON (my d_widget), Melder_peek32to8 (text));
 	#elif motif
 		my d_widget -> name = Melder_dup_f (text);
-		_GuiNativeControl_setTitle (my d_widget);
+		if (my d_widget -> window) {
+			SetWindowTextW (my d_widget -> window, Melder_peek32toW (_GuiWin_expandAmpersands (my d_widget -> name.get())));
+			InvalidateRect (my d_widget -> window, nullptr, FALSE);
+		}
 	#elif cocoa
 		[(NSButton *) my d_widget setTitle: (NSString *) Melder_peek32toCfstring (text)];
 	#endif
 }
+
+void GuiButton_setProgress (GuiButton /* me */, double /* fraction */, int /* state */) { }
+void GuiButton_setWaveform (GuiButton /* me */, const float * /* peaks */, int /* numPeaks */) { }
 
 /* End of file GuiButton.cpp */

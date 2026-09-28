@@ -1,10 +1,10 @@
 /* ManPages.cpp
  *
- * Copyright (C) 1996-2025 Paul Boersma
+ * Copyright (C) 1996-2026 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
+ * the Free Software Foundation; either version 3 of the License, or (at
  * your option) any later version.
  *
  * This code is distributed in the hope that it will be useful, but
@@ -934,7 +934,7 @@ void ManPages_addPage (ManPages me, conststring32 title, conststring32 signature
 	my pages. addItem_move (page.move());
 }
 void ManPages_addPagesFromNotebookText (ManPages me, conststring8 multiplePagesText) {
-	autoMelderReadText multiplePagesReader = MelderReadText_createFromText (Melder_8to32 (multiplePagesText));
+	autoMelderReadText multiplePagesReader = MelderReadText_createFromText (Melder_8to32_e (multiplePagesText));
 	autoMelderString pageText;
 	for (;;) {
 		mutablestring32 line = MelderReadText_readLine (multiplePagesReader.get());
@@ -1136,6 +1136,174 @@ constSTRVEC ManPages_getTitles (ManPages me) {
 		}
 	}
 	return my titles.get();
+}
+
+static void appendCleanText (MelderString *out, const char32 *raw) {
+	if (! raw) return;
+	const char32 *p = raw;
+	while (*p) {
+		if (*p == U'@') {
+			if (*(p + 1) == U'@') {
+				p += 2;
+				const char32 *pipe = nullptr;
+				const char32 *start = p;
+				while (*p && *p != U'@') {
+					if (*p == U'|' && ! pipe) pipe = p;
+					p ++;
+				}
+				if (pipe) {
+					for (const char32 *t = pipe + 1; t < p; t ++)
+						MelderString_appendCharacter (out, *t);
+				} else {
+					for (const char32 *t = start; t < p; t ++)
+						MelderString_appendCharacter (out, *t);
+				}
+				if (*p == U'@') p ++;
+			} else {
+				p ++;
+				while (*p && (Melder_isWordCharacter (*p) || *p == U'_' || *p == U'-' || *p == U'+')) {
+					MelderString_appendCharacter (out, *p);
+					p ++;
+				}
+			}
+		} else if (*p == U'%' || *p == U'#' || *p == U'^') {
+			p ++;
+		} else {
+			MelderString_appendCharacter (out, *p);
+			p ++;
+		}
+	}
+}
+
+autostring32 ManPage_toCleanPlainText (ManPage me, ManPages manPages, integer pageNumber) {
+	if (! me) return autostring32 ();
+
+	autoMelderString out;
+	if (me -> title && me -> title [0] != U'\0') {
+		MelderString_append (& out, me -> title.get(), U"\n");
+		for (integer i = 0; i < Melder_length (me -> title.get()); i ++)
+			MelderString_appendCharacter (& out, U'=');
+		MelderString_append (& out, U"\n\n");
+	}
+
+	for (integer ipar = 1; ipar <= me -> paragraphs.size; ipar ++) {
+		ManPage_Paragraph paragraph = & me -> paragraphs [ipar];
+		if (! paragraph -> text) continue;
+
+		switch (paragraph -> type) {
+			case kManPage_type::ENTRY:
+			case kManPage_type::SUBHEADER:
+				MelderString_append (& out, U"\n=== ");
+				appendCleanText (& out, paragraph -> text);
+				MelderString_append (& out, U" ===\n\n");
+				break;
+
+			case kManPage_type::INTRO:
+			case kManPage_type::NORMAL:
+				appendCleanText (& out, paragraph -> text);
+				MelderString_append (& out, U"\n\n");
+				break;
+
+			case kManPage_type::LIST_ITEM:
+			case kManPage_type::LIST_ITEM1:
+			case kManPage_type::LIST_ITEM2:
+			case kManPage_type::LIST_ITEM3:
+				MelderString_append (& out, U"  • ");
+				appendCleanText (& out, paragraph -> text);
+				MelderString_append (& out, U"\n");
+				break;
+
+			case kManPage_type::TERM:
+			case kManPage_type::TERM1:
+			case kManPage_type::TERM2:
+			case kManPage_type::TERM3:
+				MelderString_append (& out, U"\n");
+				appendCleanText (& out, paragraph -> text);
+				MelderString_append (& out, U":\n");
+				break;
+
+			case kManPage_type::DEFINITION:
+			case kManPage_type::DEFINITION1:
+			case kManPage_type::DEFINITION2:
+			case kManPage_type::DEFINITION3:
+				MelderString_append (& out, U"    ");
+				appendCleanText (& out, paragraph -> text);
+				MelderString_append (& out, U"\n");
+				break;
+
+			case kManPage_type::CODE:
+			case kManPage_type::CODE1:
+			case kManPage_type::CODE2:
+			case kManPage_type::CODE3:
+			case kManPage_type::CODE4:
+			case kManPage_type::CODE5:
+			case kManPage_type::SCRIPT:
+				MelderString_append (& out, U"    ");
+				MelderString_append (& out, paragraph -> text);
+				MelderString_append (& out, U"\n");
+				break;
+
+			case kManPage_type::EQUATION:
+				MelderString_append (& out, U"    ");
+				appendCleanText (& out, paragraph -> text);
+				MelderString_append (& out, U"\n");
+				break;
+
+			case kManPage_type::CAPTION:
+			case kManPage_type::QUOTE:
+			case kManPage_type::QUOTE1:
+			case kManPage_type::QUOTE2:
+			case kManPage_type::QUOTE3:
+				MelderString_append (& out, U"    \"");
+				appendCleanText (& out, paragraph -> text);
+				MelderString_append (& out, U"\"\n\n");
+				break;
+
+			default:
+				appendCleanText (& out, paragraph -> text);
+				MelderString_append (& out, U"\n");
+				break;
+		}
+	}
+
+	if (manPages && pageNumber > 0 && ManPages_uniqueLinksHither (manPages, pageNumber)) {
+		MelderString_append (& out, U"\n========================================\n");
+		MelderString_append (& out, U"Links to this page:\n");
+		for (integer ilink = 1; ilink <= me -> linksHither.size; ilink ++) {
+			integer jlink = me -> linksHither [ilink];
+			ManPage linkPage = manPages -> pages.at [jlink];
+			MelderString_append (& out, U"  • ", linkPage -> title.get(), U"\n");
+		}
+	}
+
+	return Melder_dup (out.string);
+}
+
+autostring32 ManPage_getOfficialUrl (ManPage me) {
+	if (! me || ! me -> title)
+		return Melder_dup (U"https://www.fon.hum.uva.nl/praat/manual/");
+
+	autoMelderString url;
+	MelderString_append (& url, U"https://www.fon.hum.uva.nl/praat/manual/");
+	const char32 *title = me -> title.get();
+	const char32 *q = title;
+	while (*q && q - title < 55) {
+		if (isAllowedFileNameCharacter (*q))
+			MelderString_appendCharacter (& url, *q);
+		else if (*q == U'#')
+			MelderString_append (& url, U"-H");
+		else if (*q == U'$')
+			MelderString_append (& url, U"-S");
+		else if (*q == U'@')
+			MelderString_append (& url, U"-C");
+		else
+			MelderString_appendCharacter (& url, U'_');
+		q ++;
+	}
+	if (title [0] == U'\0')
+		MelderString_appendCharacter (& url, U'_');
+	MelderString_append (& url, U".html");
+	return Melder_dup (url.string);
 }
 
 /* End of file ManPages.cpp */

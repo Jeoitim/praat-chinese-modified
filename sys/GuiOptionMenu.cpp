@@ -56,9 +56,29 @@ void structGuiOptionMenu :: v_show () {
 	#if gtk
 		GuiOptionMenu_Parent :: v_show ();
 	#elif motif
-		XtManageChild (d_xmMenuBar);
+		if (d_xmMenuBar) {
+			XtManageChild (d_xmMenuBar);
+			if (d_xmCascadeButton) {
+				XtManageChild (d_xmCascadeButton);
+			}
+		}
 	#elif cocoa
-		//NSLog(@"cocoa structGuiOptionMenu :: v_show"); // ?
+		GuiOptionMenu_Parent :: v_show ();
+	#endif
+}
+
+void structGuiOptionMenu :: v_hide () {
+	#if gtk
+		GuiOptionMenu_Parent :: v_hide ();
+	#elif motif
+		if (d_xmMenuBar) {
+			if (d_xmCascadeButton) {
+				XtUnmanageChild (d_xmCascadeButton);
+			}
+			XtUnmanageChild (d_xmMenuBar);
+		}
+	#elif cocoa
+		GuiOptionMenu_Parent :: v_hide ();
 	#endif
 }
 
@@ -131,6 +151,7 @@ GuiOptionMenu GuiOptionMenu_createShown (GuiForm parent, int left, int right, in
 #endif
 
 void GuiOptionMenu_addOption (GuiOptionMenu me, conststring32 text) {
+	text = praat_translate (text);
 	#if gtk
 		gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (my d_widget), Melder_peek32to8 (text));
 	#elif motif

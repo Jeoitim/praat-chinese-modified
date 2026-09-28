@@ -32,9 +32,33 @@ makefile.defs
 praat
 Praat
 Praat.exe
+Praat*.exe
+Praat_zh.exe
+*.exe
+!docs/**/*.exe
+!test/**/*.exe
 Praat.app
 
 # files created by R scripts in the test folders
 .Rdata
 .Rhistory
 .Rproj.user
+
+# Python cache
+__pycache__/
+
+# Local zip packages/releases
+*.zip
+dist/
+
+# Translation temporary/intermediate log and candidate files
+debug_translations.txt
+gui_candidates.txt
+translation_candidates.txt
+translation_check_report.md
+praat-zh-missing.tsv
+*-missing.tsv
+scratch/
+
+# Whisper models
+models/**/*.bin

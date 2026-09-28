@@ -1,10 +1,8 @@
 # Makefile of the library "sys"
-# Paul Boersma, 5 December 2024
-
-include ../makefile.defs
+# Paul Boersma, 23 May 2026
 
 # -I ../sys is there because e.g. Graphics.cpp include fon/Function.h, which again includes something from sys
-CPPFLAGS = -I ../kar -I ../melder -I ../sys -I ../dwsys
+CPPFLAGS += -I ../kar -I ../melder -I ../sys -I ../dwsys -I ../stat -I ../fon
 
 OBJECTS = Thing.o Data.o Simple.o Collection.o Strings.o \
    Graphics.o Graphics_linesAndAreas.o Graphics_text.o Graphics_colour.o \
@@ -23,7 +21,8 @@ OBJECTS = Thing.o Data.o Simple.o Collection.o Strings.o \
    motifEmulator.o GuiText.o GuiWindow.o Gui.o GuiObject.o GuiDrawingArea.o \
    GuiMenu.o GuiMenuItem.o GuiButton.o GuiLabel.o GuiCheckButton.o GuiRadioButton.o \
    GuiDialog.o GuiList.o GuiTrust.o GuiFileSelect.o GuiScale.o GuiScrollBar.o GuiScrolledWindow.o \
-   GuiControl.o GuiForm.o GuiOptionMenu.o GuiProgressBar.o GuiShell.o GuiThing.o Gui_messages.o
+   GuiControl.o GuiForm.o GuiOptionMenu.o GuiProgressBar.o GuiShell.o GuiThing.o Gui_messages.o \
+   praat_translate.o
 
 .PHONY: all clean
 

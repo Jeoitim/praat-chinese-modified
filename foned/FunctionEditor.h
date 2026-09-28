@@ -2,7 +2,7 @@
 #define _FunctionEditor_h_
 /* FunctionEditor.h
  *
- * Copyright (C) 1992-2023,2025 Paul Boersma
+ * Copyright (C) 1992-2023,2025,2026 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -116,6 +116,12 @@ Thing_define (FunctionEditor, Editor) {
 		);
 		Graphics_setWindow (our graphics.get(), 0.0, 1.0, 0.0, 1.0);
 	}
+	double functionViewerLeft_WC () const {
+		return our startWindow - our MARGIN * (our endWindow - our startWindow) / (our dataRight_pxlt() - our dataLeft_pxlt());
+	}
+	double functionViewerRight_WC () const {
+		return our endWindow + our MARGIN * (our endWindow - our startWindow) / (our dataRight_pxlt() - our dataLeft_pxlt());
+	}
 
 	GuiText textArea;   // optional text at top
 	bool clickWasModifiedByShiftKey, clickWasModifiedByOptionKey, clickWasModifiedByCommandKey;   // information for drag-and-drop and for start of play
@@ -182,11 +188,11 @@ Thing_define (FunctionEditor, Editor) {
 	virtual conststring32 v_format_domain () { return U"Time"; }
 	virtual const char *v_format_short () { return u8"%.3f"; }
 	virtual const char *v_format_long () { return u8"%f"; }
-	virtual conststring32 v_format_units_long () { return U"seconds"; }
-	virtual conststring32 v_format_units_short () { return U"s"; }
-	virtual const char *v_format_totalDuration () { return u8"Total duration %f seconds"; }
-	virtual const char *v_format_window () { return u8"Visible part %f seconds"; }
-	virtual const char *v_format_selection () { return u8"%f (%.3f / s)"; }
+	virtual conststring32 v_format_units_long () { return U"秒"; }
+	virtual conststring32 v_format_units_short () { return U"秒"; }
+	virtual const char *v_format_totalDuration () { return u8"总时长 %f 秒"; }
+	virtual const char *v_format_window () { return u8"可见部分 %f 秒"; }
+	virtual const char *v_format_selection () { return u8"%f (%.3f / 秒)"; }
 	virtual int v_fixedPrecision_long () { return 6; }
 	virtual bool v_hasText () { return false; }
 	virtual void v_play (double /* startTime */, double /* endTime */) { }

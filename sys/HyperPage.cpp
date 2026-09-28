@@ -17,6 +17,7 @@
  */
 
 #include "HyperPage.h"
+#include "praat_translate.h"
 #include "Printer.h"
 #include "machine.h"
 #include "GuiP.h"
@@ -141,6 +142,7 @@ static void updateVerticalScrollBar (HyperPage me);
 void HyperPage_any (HyperPage me, conststring32 text, kGraphics_font font, double size, int style, double minFooterDistance,
 	double x, double secondIndent, double topSpacing, double bottomSpacing, uint32 method)
 {
+	text = praat_translate_manual (text);
 	if (my rightMargin == 0.0)
 		return;   // no infinite heights please
 	const double heightGuess = size * (1.2/72) * ((integer) size * Melder_length (text) / (int) (my rightMargin * 150));
@@ -653,6 +655,28 @@ static void gui_drawingarea_cb_expose (HyperPage me, GuiDrawingArea_ExposeEvent 
 	trace (U"going to draw");
 	Graphics_clearWs (my graphics.get());
 	my v_draw ();
+
+	if (my verticalScrollBar) {
+		double content_height = (PAGE_HEIGHT + my top / 5.0) - my d_y;
+		double viewport_height = GuiControl_getHeight (my drawingArea) / resolution;
+		
+		my d_verticalScrollBarMaximum = content_height * 5.0;
+		my d_verticalScrollBarSliderSize = viewport_height * 5.0;
+		
+		if (my d_verticalScrollBarMaximum < my d_verticalScrollBarSliderSize) {
+			my d_verticalScrollBarMaximum = my d_verticalScrollBarSliderSize;
+		}
+		
+		double page_inc = my d_verticalScrollBarSliderSize - 1.0;
+		if (page_inc < 1.0) page_inc = 1.0;
+		
+		if (my top > my d_verticalScrollBarMaximum - my d_verticalScrollBarSliderSize) {
+			my top = my d_verticalScrollBarMaximum - my d_verticalScrollBarSliderSize;
+			if (my top < 0.0) my top = 0.0;
+		}
+		
+		GuiScrollBar_set (my verticalScrollBar, 0.0, my d_verticalScrollBarMaximum, my top, my d_verticalScrollBarSliderSize, 1.0, page_inc);
+	}
 }
 
 static void gui_drawingarea_cb_mouse (HyperPage me, GuiDrawingArea_MouseEvent event) {
@@ -806,15 +830,17 @@ static void updateVerticalScrollBar (HyperPage me)
 /* This has to be called after changing `my top`. */
 {
 	trace (U"updateVerticalScrollBar");
-	const int sliderSize = 25;
-	GuiScrollBar_set (my verticalScrollBar, undefined, undefined, my top, sliderSize, 1, sliderSize - 1);
+	double sliderSize = my d_verticalScrollBarSliderSize > 0.0 ? my d_verticalScrollBarSliderSize : 25.0;
+	double maximum = my d_verticalScrollBarMaximum > 0.0 ? my d_verticalScrollBarMaximum : PAGE_HEIGHT * 5.0;
+	GuiScrollBar_set (my verticalScrollBar, undefined, maximum, my top, sliderSize, 1.0, sliderSize - 1.0);
 	my history [my historyPointer]. top = 0/*my top*/;
 }
 
 static void menu_cb_pageUp (HyperPage me, EDITOR_ARGS) {
 	if (! my verticalScrollBar)
 		return;
-	const double value = Melder_clippedLeft (0.0, GuiScrollBar_getValue (my verticalScrollBar) - 24.0);
+	double sliderSize = my d_verticalScrollBarSliderSize > 0.0 ? my d_verticalScrollBarSliderSize : 25.0;
+	const double value = Melder_clippedLeft (0.0, GuiScrollBar_getValue (my verticalScrollBar) - (sliderSize - 1.0));
 	if (value != my top) {
 		my top = value;
 		updateVerticalScrollBar (me);
@@ -825,7 +851,10 @@ static void menu_cb_pageUp (HyperPage me, EDITOR_ARGS) {
 static void menu_cb_pageDown (HyperPage me, EDITOR_ARGS) {
 	if (! my verticalScrollBar)
 		return;
-	const double value = Melder_clippedRight (GuiScrollBar_getValue (my verticalScrollBar) + 24.0, (PAGE_HEIGHT * 5.0) - 25.0);
+	double sliderSize = my d_verticalScrollBarSliderSize > 0.0 ? my d_verticalScrollBarSliderSize : 25.0;
+	double maximum = my d_verticalScrollBarMaximum > 0.0 ? my d_verticalScrollBarMaximum : PAGE_HEIGHT * 5.0;
+	const double value = Melder_clippedRight (GuiScrollBar_getValue (my verticalScrollBar) + (sliderSize - 1.0),
+			maximum - sliderSize);
 	if (value != my top) {
 		my top = value;
 		updateVerticalScrollBar (me);

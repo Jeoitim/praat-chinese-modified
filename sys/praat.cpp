@@ -45,6 +45,7 @@
 #include "Strings_.h"
 #include "../kar/UnicodeData.h"
 #include "InfoEditor.h"
+#include "praat_translate.h"
 extern "C" char *sendpraat (void *display, const char *programName, long timeOut, const char *text);
 
 Thing_implement (Praat_Command, Thing, 0);
@@ -1060,6 +1061,7 @@ static void installPraatShellPreferences () {
 	Melder_textEncoding_prefs ();
 	Printer_prefs ();   // paper size, printer command...
 	structTextEditor :: f_preferences ();   // font size...
+	Preferences_addInt (U"Praat.languageChoice", & g_language_choice, 1);
 }
 
 extern "C" void praatlib_init () {
@@ -1857,6 +1859,9 @@ void praat_init (conststring32 title,
 	Melder_rememberShellDirectory ();
 
 	installPraatShellPreferences ();
+	if (! praatP.ignorePreferenceFiles) {
+		Preferences_read (& prefsFile);
+	}
 
 	theCurrentPraatApplication -> batch = Melder_batch;
 
@@ -1932,11 +1937,15 @@ void praat_init (conststring32 title,
 		trace (U"creating and installing the Objects window");
 		char32 objectWindowTitle [100];
 		Melder_sprint (objectWindowTitle,100, Melder_upperCaseAppName(), U" Objects");
-		double x, y;
+		double screenX, screenY, screenWidth, screenHeight;
 		trace (U"locale ", Melder_peek8to32 (setlocale (LC_ALL, nullptr)));
-		Gui_getWindowPositioningBounds (& x, & y, nullptr, nullptr);
+		Gui_getWindowPositioningBounds (& screenX, & screenY, & screenWidth, & screenHeight);
 		trace (U"locale ", Melder_peek8to32 (setlocale (LC_ALL, nullptr)));
-		theCurrentPraatApplication -> topShell = raam = GuiWindow_create (x + 10, y, WINDOW_WIDTH, WINDOW_HEIGHT, 450, 250,
+		double x = screenX + (screenWidth - WINDOW_WIDTH) / 2.0;
+		double y = screenY + (screenHeight - WINDOW_HEIGHT) / 2.0;
+		if (x < screenX) x = screenX;
+		if (y < screenY) y = screenY;
+		theCurrentPraatApplication -> topShell = raam = GuiWindow_create (x, y, WINDOW_WIDTH, WINDOW_HEIGHT, 450, 250,
 				objectWindowTitle, gui_cb_quit, nullptr, 0);
 		trace (U"locale ", Melder_peek8to32 (setlocale (LC_ALL, nullptr)));
 		#if motif
@@ -1992,7 +2001,7 @@ void praat_init (conststring32 title,
 	trace (U"creating the Picture window");
 	trace (U"before picture window shows: locale is ", Melder_peek8to32 (setlocale (LC_ALL, nullptr)));
 	if (! praatP.dontUsePictureWindow)
-		praat_picture_init (! praatP.commandLineOptions.hidePicture);
+		praat_picture_init (false);
 	trace (U"after picture window shows: locale is ", Melder_peek8to32 (setlocale (LC_ALL, nullptr)));
 }
 

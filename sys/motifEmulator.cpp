@@ -25,16 +25,30 @@
 #include "melder.h"
 #include "GuiP.h"
 #include "machine.h"
+#if defined (_WIN32)
+	#include <shellapi.h>   /* for DragAcceptFiles, DragQueryFileW, DragFinish */
+#endif
 
-#if defined (macintosh)
+static void (*theQuitApplicationCallback) ();
 
-static int (*theQuitApplicationCallback) ();
-
-void Gui_setQuitApplicationCallback (int (*quitApplicationCallback) (void)) {
+void Gui_setQuitApplicationCallback (void (*quitApplicationCallback) ()) {
 	theQuitApplicationCallback = quitApplicationCallback;
 }
+void Gui_runQuitApplicationCallback () {
+	theQuitApplicationCallback ();
+}
 
-#endif // defined (macintosh)
+#if ! cocoa
+	static void (*theOpenDocumentCallback) (MelderFile file);
+	static void (*theFinishedOpeningDocumentsCallback) ();
+	void Gui_setOpenDocumentCallback (
+		void (*openDocumentCallback) (MelderFile file),
+		void (*finishedOpeningDocumentsCallback) ()
+	) {
+		theOpenDocumentCallback = openDocumentCallback;
+		theFinishedOpeningDocumentsCallback = finishedOpeningDocumentsCallback;
+	}
+#endif
 
 #if defined (_WIN32)
 #define TRY_BARLESS  0
@@ -398,19 +412,22 @@ void _GuiNativeControl_setTitle (GuiObject me) {
 }
 
 static int _XmScrollBar_check (GuiObject me) {
-	if (my maximum < my minimum)
-		Melder_warning (U"XmScrollBar: maximum (", my maximum, U") less than minimum (", my minimum, U").");
-	else if (my sliderSize > my maximum - my minimum)
-		Melder_warning (U"XmScrollBar: slider size (", my sliderSize, U") greater than maximum (",
-			my maximum, U") minus minimum (", my minimum, U").");
-	else if (my value < my minimum)
-		Melder_warning (U"XmScrollBar: value (", my value, U") less than minimum (", my minimum, U").");
-	else if (my value > my maximum - my sliderSize)
-		Melder_warning (U"XmScrollBar: value (", my value, U") greater than maximum (",
-			my maximum, U") minus slider size (", my sliderSize, U").");
-	else
-		return 1;
-	return 0;
+	if (my maximum < my minimum) {
+		my maximum = my minimum;
+	}
+	if (my sliderSize < 0) {
+		my sliderSize = 0;
+	}
+	if (my sliderSize > my maximum - my minimum) {
+		my sliderSize = my maximum - my minimum;
+	}
+	if (my value < my minimum) {
+		my value = my minimum;
+	}
+	if (my value > my maximum - my sliderSize) {
+		my value = my maximum - my sliderSize;
+	}
+	return 1;
 }
 
 static void NativeScrollBar_set (GuiObject me) {
@@ -528,7 +545,7 @@ static void _GuiNativizeWidget (GuiObject me) {
 		} break;
 		case xmDrawingAreaWidgetClass: Melder_crash (U"Should be implemented in GuiDrawingArea."); break;
 		case xmFormWidgetClass: {
-			my window = CreateWindowEx (0, Melder_peek32toW (theWindowClassName), L"form", WS_CHILD | WS_CLIPSIBLINGS,
+			my window = CreateWindowEx (0, Melder_peek32toW (theWindowClassName), L"form", WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
 				my x, my y, my width, my height, my parent -> window, NULL, theGui.instance, NULL);
 			SetWindowLongPtr (my window, GWLP_USERDATA, (LONG_PTR) me);
 		} break;
@@ -679,6 +696,7 @@ static void _GuiNativizeWidget (GuiObject me) {
 			className = theWindowClassName;   // all later windows
 			SetWindowLongPtr (my window, GWLP_USERDATA, (LONG_PTR) me);
 			my motiff.shell.isDialog = theDialogHint;   // so we can maintain a single Shell class instead of two different
+			DragAcceptFiles (my window, TRUE);   // enable drag-and-drop of files onto the window
 		} break;
 		default: break;
 	}
@@ -686,7 +704,7 @@ static void _GuiNativizeWidget (GuiObject me) {
 }
 
 static GuiObject createWidget (int widgetClass, GuiObject parent, const char *name) {
-	GuiObject me = _Gui_initializeWidget (widgetClass, parent, Melder_peek8to32 (name));
+	GuiObject me = _Gui_initializeWidget (widgetClass, parent, Melder_peek8to32_u (name));
 	_GuiNativizeWidget (me);
 	//TRACE
 	trace (U"Created widget ", Melder_pointer (me));
@@ -923,7 +941,7 @@ static void _motif_setValues (GuiObject me, va_list arg) {
 		case XmNdialogTitle:
 			Melder_assert (MEMBER2 (me, Form, BulletinBoard));
 			text = va_arg (arg, char *);
-			SetWindowTextW (my shell -> window, Melder_peek32toW (Melder_peek8to32 (text)));
+			SetWindowTextW (my shell -> window, Melder_peek32toW (Melder_peek8to32_u (text)));
 			break;
 		case XmNheight:
 			my height = va_arg (arg, int);
@@ -964,7 +982,7 @@ static void _motif_setValues (GuiObject me, va_list arg) {
 		case XmNlabelString:
 			Melder_assert (MEMBER2 (me, CascadeButton, PushButton));
 			text = va_arg (arg, char *);
-			my name = Melder_8to32 (text);   // BUG throwable
+			my name = Melder_8to32_e (text);   // BUG throwable
 			if (my inMenu) {
 				_GuiWinMenuItem_setText (me);
 			} else if (MEMBER (me, CascadeButton) && my motiff.cascadeButton.inBar) {
@@ -1062,12 +1080,12 @@ static void _motif_setValues (GuiObject me, va_list arg) {
 		case XmNtitle:
 			Melder_assert (MEMBER (me, Shell));
 			text = va_arg (arg, char *);
-			SetWindowTextW (my window, Melder_peek32toW (Melder_peek8to32 (text)));
+			SetWindowTextW (my window, Melder_peek32toW (Melder_peek8to32_u (text)));
 			break;
 		case XmNtitleString:
 			Melder_assert (MEMBER (me, Scale));
 			text = va_arg (arg, char *);
-			my name = Melder_8to32 (text);   // BUG throwable
+			my name = Melder_8to32_e (text);   // BUG throwable
 			_Gui_invalidateWidget (me);
 			break;
 		case XmNtopAttachment:
@@ -1118,7 +1136,7 @@ static void _motif_setValues (GuiObject me, va_list arg) {
 			if (resource < 0 || resource >= sizeof motif_resourceNames / sizeof (char *))
 				Melder_flushError (U"(XtVaSetValues:) Resource out of range (", resource, U").");
 			else
-				Melder_flushError (U"(XtVaSetValues:) Unknown resource \"", Melder_peek8to32 (motif_resourceNames [resource]), U"\".");
+				Melder_flushError (U"(XtVaSetValues:) Unknown resource \"", Melder_peek8to32_u (motif_resourceNames [resource]), U"\".");
 			return;   // because we do not know how to skip this unknown resource
 		}
 	}
@@ -1372,7 +1390,7 @@ void XtAddCallback (GuiObject me, int kind, XtCallbackProc proc, XtPointer closu
 			if (kind < 0 || kind >= sizeof motif_resourceNames / sizeof (char *))
 				Melder_flushError (U"(XtAddCallback:) Callback name out of range (", kind, U").");
 			else
-				Melder_flushError (U"(XtAddCallback:) Unknown callback \"", Melder_peek8to32 (motif_resourceNames [kind]), U"\".");
+				Melder_flushError (U"(XtAddCallback:) Unknown callback \"", Melder_peek8to32_u (motif_resourceNames [kind]), U"\".");
 	}
 }
 
@@ -1786,6 +1804,10 @@ void XtUnmanageChild (GuiObject me) {
 		case xmTextWidgetClass:
 			_GuiText_unmanage (me);
 			break;
+		case xmRowColumnWidgetClass:
+			if (my window)
+				ShowWindow (my window, SW_HIDE);
+			break;
 		default:
 			_Gui_invalidateWidget (me);
 			break;
@@ -1841,7 +1863,9 @@ void GuiWin_initialize2 (unsigned int argc, char **argv)
 	windowClass. lpszClassName = Melder_32toW (theApplicationClassName).transfer();
 	RegisterClassEx (& windowClass);
 	InitCommonControls ();
-	EnableMouseInPointer (TRUE);   // from Windows 8 on
+	#ifdef _WIN64
+		EnableMouseInPointer (TRUE);   // from Windows 8 on
+	#endif
 }
 
 void GuiApp_setApplicationShell (GuiObject shell) {
@@ -1977,7 +2001,7 @@ void XtVaGetValues (GuiObject me, ...) {
 			if (resource < 0 || resource >= sizeof motif_resourceNames / sizeof (char *))
 				Melder_flushError (U"(XtVaGetValues:) Resource out of range (", resource, U").");
 			else
-				Melder_flushError (U"(XtVaGetValues:) Unknown resource \"", Melder_peek8to32 (motif_resourceNames [resource]), U"\".");
+				Melder_flushError (U"(XtVaGetValues:) Unknown resource \"", Melder_peek8to32_u (motif_resourceNames [resource]), U"\".");
 			return;
 		}
 	}
@@ -2414,7 +2438,10 @@ modifiers & _motif_SHIFT_MASK ? " shift" : "", message -> message == WM_KEYDOWN 
 					//Melder_information (U"RETURN ", acc, U" def ", Melder_pointer (my shell -> defaultButton));
 					if (acc & 1 << GuiMenu_ENTER) { win_processKeyboardEquivalent (my shell, GuiMenu_ENTER, modifiers); return; }
 					else {
-						if (my shell -> defaultButton && _GuiWinButton_tryToHandleShortcutKey (my shell -> defaultButton)) return;
+						const bool isMultilineText = ( me && MEMBER (me, Text) && (GetWindowLong (my window, GWL_STYLE) & ES_MULTILINE) );
+						if (! isMultilineText) {
+							if (my shell -> defaultButton && _GuiWinButton_tryToHandleShortcutKey (my shell -> defaultButton)) return;
+						}
 					}
 				} else if (kar == VK_ESCAPE) {   // shortcut or cancel button (and from 2024-04-06:) or text
 					if (acc & 1 << GuiMenu_ESCAPE) { win_processKeyboardEquivalent (my shell, GuiMenu_ESCAPE, modifiers); return; }
@@ -2459,6 +2486,9 @@ modifiers & _motif_SHIFT_MASK ? " shift" : "", message -> message == WM_KEYDOWN 
 			} else if ((modifiers & _motif_COMMAND_MASK) && ! (modifiers & _motif_OPTION_MASK)) {
 				if (MEMBER (me, Text) && (kar == 'X' || kar == 'C' || kar == 'V' || kar == 'Z')) {
 					;   // let window proc handle text editing
+				} else if (MEMBER (me, Text) && (kar == 'A' || kar == 'a')) {
+					Edit_SetSel (my window, 0, -1);
+					return;
 				} else if (kar >= 186) {
 					const int shift = modifiers & _motif_SHIFT_MASK;
 					/*
@@ -2489,11 +2519,14 @@ modifiers & _motif_SHIFT_MASK ? " shift" : "", message -> message == WM_KEYDOWN 
 		/* Not me or not my shell: let windowProc handle. */
 	} else if (message -> message == WM_CHAR) {
 		int kar = LOWORD (message -> wParam);
+		GuiObject me = (GuiObject) GetWindowLongPtr (message -> hwnd, GWLP_USERDATA);
+		if (me && MEMBER (me, Text) && kar == 1) {
+			return;   // swallow Ctrl+A in WM_CHAR
+		}
 		/*
 		 * Catch character messages to push buttons and toggle buttons:
 		 * divert them to a drawing area, if possible.
 		 */
-		GuiObject me = (GuiObject) GetWindowLongPtr (message -> hwnd, GWLP_USERDATA);
 		if (me && MEMBER2 (me, PushButton, ToggleButton)) {
 			GuiObject drawingArea = _motif_findDrawingArea (my shell);
 			if (drawingArea) {
@@ -2742,24 +2775,28 @@ static void on_vscroll (HWND window, HWND controlWindow, UINT code, int pos) {
 static void on_mouseWheel (HWND window, int xPos, int yPos, int zDelta, int fwKeys) {
 	GuiObject me = (GuiObject) GetWindowLongPtr (window, GWLP_USERDATA);
 	if (me) {
-		if (my widgetClass == xmDrawingAreaWidgetClass) {
-			const bool isHorizontal = ( fwKeys & MK_SHIFT );
-			const int direction = ( isHorizontal ? ( zDelta < 0 ? SB_LINELEFT : SB_LINERIGHT ) : ( zDelta < 0 ? SB_LINEDOWN : SB_LINEUP ) );
-			const bool controlKeyPressed = ( fwKeys & MK_CONTROL );
-			if (controlKeyPressed) {
-				_GuiWinDrawingArea_handleZoom (me, double (zDelta) / 10.0);
-			} else if (my parent -> widgetClass == xmScrolledWindowWidgetClass) {
-				on_scroll (isHorizontal ? my parent -> motiff.scrolledWindow.horizontalBar : my parent -> motiff.scrolledWindow.verticalBar, direction, 0);
-			} else if (isHorizontal) {
-				for (GuiObject child = my parent -> firstChild; child; child = child -> nextSibling)
-					if (child -> widgetClass == xmScrollBarWidgetClass && child -> orientation == XmHORIZONTAL)
-						on_scroll (child, direction, 0);
-			} else {
-				for (GuiObject child = my parent -> firstChild; child; child = child -> nextSibling)
-					if (child -> widgetClass == xmScrollBarWidgetClass && child -> orientation == XmVERTICAL)
-						on_scroll (child, direction, 0);
+		const bool isHorizontal = ( fwKeys & MK_SHIFT );
+		const int direction = ( isHorizontal ? ( zDelta < 0 ? SB_LINELEFT : SB_LINERIGHT ) : ( zDelta < 0 ? SB_LINEDOWN : SB_LINEUP ) );
+		const bool controlKeyPressed = ( fwKeys & MK_CONTROL );
+		if (my widgetClass == xmDrawingAreaWidgetClass && controlKeyPressed) {
+			_GuiWinDrawingArea_handleZoom (me, double (zDelta) / 10.0);
+			return;
+		}
+		if (my widgetClass == xmDrawingAreaWidgetClass && my parent -> widgetClass == xmScrolledWindowWidgetClass) {
+			on_scroll (isHorizontal ? my parent -> motiff.scrolledWindow.horizontalBar : my parent -> motiff.scrolledWindow.verticalBar, direction, 0);
+			return;
+		}
+		GuiObject searchIn = (MEMBER (me, Shell) ? me : my parent);
+		while (searchIn) {
+			for (GuiObject child = searchIn -> firstChild; child; child = child -> nextSibling) {
+				if (child -> widgetClass == xmScrollBarWidgetClass && child -> orientation == (isHorizontal ? XmHORIZONTAL : XmVERTICAL)) {
+					on_scroll (child, direction, 0);
+					return;
+				}
 			}
-		} else FORWARD_WM_MOUSEWHEEL (window, xPos, yPos, zDelta, fwKeys, DefWindowProc);
+			searchIn = searchIn -> parent;
+		}
+		FORWARD_WM_MOUSEWHEEL (window, xPos, yPos, zDelta, fwKeys, DefWindowProc);
 	} else FORWARD_WM_MOUSEWHEEL (window, xPos, yPos, zDelta, fwKeys, DefWindowProc);
 }
 static void on_size (HWND window, UINT state, int cx, int cy) {
@@ -2888,6 +2925,7 @@ static LRESULT CALLBACK windowProc (HWND window, UINT message, WPARAM wParam, LP
 		HANDLE_MSG (window, WM_CTLCOLORBTN, on_ctlColorBtn);
 		HANDLE_MSG (window, WM_CTLCOLORSTATIC, on_ctlColorStatic);
 		HANDLE_MSG (window, WM_ACTIVATE, on_activate);
+		#ifdef _WIN64
 		case WM_POINTERWHEEL: {   // from Windows 8 on
 			int zDelta = GET_WHEEL_DELTA_WPARAM (wParam);
 			int fwKeys = GET_KEYSTATE_WPARAM (wParam);
@@ -2906,6 +2944,29 @@ static LRESULT CALLBACK windowProc (HWND window, UINT message, WPARAM wParam, LP
 			POINT point = { GET_X_LPARAM (lParam), GET_Y_LPARAM (lParam) };
 			ScreenToClient (window, & point);
 			on_mouseWheel (window, point.x, point.y, zDelta, fwKeys);
+			return 0;
+		}
+		#endif
+		case WM_DROPFILES:
+		{
+			HDROP hDrop = (HDROP) wParam;
+			if (theOpenDocumentCallback) {
+				const UINT numberOfFiles = DragQueryFileW (hDrop, 0xFFFFFFFF, NULL, 0);
+				for (UINT ifile = 0; ifile < numberOfFiles; ifile ++) {
+					WCHAR filePath [MAX_PATH + 1];
+					DragQueryFileW (hDrop, ifile, filePath, MAX_PATH + 1);
+					try {
+						structMelderFile file { };
+						Melder_sprint (file. path, kMelder_MAXPATH+1, Melder_peekWto32 (filePath));
+						theOpenDocumentCallback (& file);
+					} catch (MelderError) {
+						Melder_flushError (U"Cannot open dropped file.");
+					}
+				}
+				if (theFinishedOpeningDocumentsCallback)
+					theFinishedOpeningDocumentsCallback ();
+			}
+			DragFinish (hDrop);
 			return 0;
 		}
 		case WM_USER:   // TODO: remove once Elan's sendpraat is updated to using WM_APP instead of WM_USER
