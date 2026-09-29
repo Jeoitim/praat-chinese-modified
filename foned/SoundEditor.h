@@ -54,6 +54,7 @@ Thing_define (SoundEditor, FunctionEditor) {
 		}
 	}
 	void v_play (double startTime, double endTime) override {
+		Sound_setPlaybackSpeed (our d_playbackSpeed);
 		SoundArea_play (our soundArea().get(), startTime, endTime);
 	}
 	void v_drawLegends () override {

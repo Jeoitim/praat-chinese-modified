@@ -1482,6 +1482,52 @@ static void gui_drawingarea_cb_mouse (FunctionEditor me, GuiDrawingArea_MouseEve
 	}
 }
 
+static void gui_button_cb_speed (FunctionEditor me, GuiButtonEvent event) {
+	#if motif
+		HWND hwnd = (HWND) event -> button -> d_widget -> window;
+		POINT pt;
+		GetCursorPos (& pt);
+
+		HMENU hMenu = CreatePopupMenu ();
+		bool isZh = (g_language_choice != 0);
+
+		double speeds [] = { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0 };
+		const wchar_t *labelsZh [] = { L"0.5×", L"0.75×", L"1.0× (标准)", L"1.25×", L"1.5×", L"2.0×", L"3.0×" };
+		const wchar_t *labelsEn [] = { L"0.5×", L"0.75×", L"1.0× (Standard)", L"1.25×", L"1.5×", L"2.0×", L"3.0×" };
+
+		for (int i = 0; i < 7; i ++) {
+			UINT uFlags = MF_STRING;
+			if (fabs (my d_playbackSpeed - speeds [i]) < 0.03)
+				uFlags |= MF_CHECKED;
+			AppendMenuW (hMenu, uFlags, 101 + i, isZh ? labelsZh [i] : labelsEn [i]);
+		}
+
+		SetForegroundWindow (hwnd);
+		int cmd = TrackPopupMenu (hMenu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RETURNCMD | TPM_RIGHTBUTTON,
+			pt.x, pt.y, 0, hwnd, nullptr);
+		DestroyMenu (hMenu);
+
+		if (cmd >= 101 && cmd <= 107) {
+			double newSpeed = speeds [cmd - 101];
+			my d_playbackSpeed = newSpeed;
+			char32 buf [32];
+			if (newSpeed == 1.0)
+				Melder_sprint (buf, 32, U"1.0× ▾");
+			else if (newSpeed == 0.5)
+				Melder_sprint (buf, 32, U"0.5× ▾");
+			else if (newSpeed == 2.0)
+				Melder_sprint (buf, 32, U"2.0× ▾");
+			else if (newSpeed == 3.0)
+				Melder_sprint (buf, 32, U"3.0× ▾");
+			else
+				Melder_sprint (buf, 32, Melder_fixed (newSpeed, 2), U"× ▾");
+			GuiButton_setText (my d_speedButton, buf);
+		}
+	#else
+		(void) me; (void) event;
+	#endif
+}
+
 void structFunctionEditor :: v_createChildren () {
 	int x = BUTTON_X;
 
@@ -1507,9 +1553,16 @@ void structFunctionEditor :: v_createChildren () {
 		Create scroll bar.
 	*/
 	our scrollBar = GuiScrollBar_createShown (our windowForm,
-		x += BUTTON_WIDTH + BUTTON_SPACING, -80 - BUTTON_SPACING, -4 - Gui_PUSHBUTTON_HEIGHT, 0,
+		x += BUTTON_WIDTH + BUTTON_SPACING, -140 - BUTTON_SPACING, -4 - Gui_PUSHBUTTON_HEIGHT, 0,
 		1, maximumScrollBarValue, 1, maximumScrollBarValue - 1, 1, 1,
 		gui_cb_scroll, this, GuiScrollBar_HORIZONTAL);
+
+	/*
+		Create Playback Speed button.
+	*/
+	our d_speedButton = GuiButton_createShown (our windowForm,
+		-140, -80 - BUTTON_SPACING, -4 - Gui_PUSHBUTTON_HEIGHT, -4,
+		U"1.0× ▾", gui_button_cb_speed, this, 0);
 
 	/*
 		Create Group button.

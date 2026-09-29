@@ -487,6 +487,10 @@ void GuiButton_setText (GuiButton me, conststring32 text /* cattable */);
 void GuiButton_setProgress (GuiButton me, double fraction, int state);
 void GuiButton_setWaveform (GuiButton me, const float *peaks, int numPeaks);
 
+typedef void (*GuiButton_SplitCallback) (GuiButton me, void *nativeHandle, int screenX, int screenY);
+void GuiButton_enableSplit (GuiButton me, bool enable);
+void GuiButton_setSplitCallback (GuiButton me, GuiButton_SplitCallback cb);
+
 /********** GuiCheckButton **********/
 
 Thing_declare (GuiCheckButton);
