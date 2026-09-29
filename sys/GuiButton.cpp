@@ -236,8 +236,16 @@ void GuiButton_setText (GuiButton me, conststring32 text /* cattable */) {
 	#elif motif
 		my d_widget -> name = Melder_dup_f (text);
 		if (my d_widget -> window) {
-			SetWindowTextW (my d_widget -> window, Melder_peek32toW (_GuiWin_expandAmpersands (my d_widget -> name.get())));
-			InvalidateRect (my d_widget -> window, nullptr, FALSE);
+			HWND hwnd = my d_widget -> window;
+			SetWindowTextW (hwnd, Melder_peek32toW (_GuiWin_expandAmpersands (my d_widget -> name.get())));
+			RECT rc;
+			GetClientRect (hwnd, & rc);
+			if (GetPropW (hwnd, L"PraatSplitButton")) {
+				RECT rcSplit = { rc.right - 22, rc.top, rc.right, rc.bottom };
+				ValidateRect (hwnd, & rcSplit);
+				rc.right -= 22;
+			}
+			InvalidateRect (hwnd, & rc, FALSE);
 		}
 	#elif cocoa
 		[(NSButton *) my d_widget setTitle: (NSString *) Melder_peek32toCfstring (text)];
@@ -256,22 +264,33 @@ static LRESULT CALLBACK _ClassicSplitButtonSubclassProc (
 ) {
 	(void) dwRefData;
 	switch (uMsg) {
+		case WM_ERASEBKGND:
+			return 1;
+		case WM_TIMER:
+			return 0;
 		case WM_PAINT: {
-			LRESULT lr = DefSubclassProc (hwnd, uMsg, wParam, lParam);
+			PAINTSTRUCT ps;
+			HDC hdc = BeginPaint (hwnd, & ps);
+			RECT rc;
+			GetClientRect (hwnd, & rc);
+
+			HDC memDC = CreateCompatibleDC (hdc);
+			HBITMAP memBmp = CreateCompatibleBitmap (hdc, rc.right, rc.bottom);
+			HBITMAP oldBmp = (HBITMAP) SelectObject (memDC, memBmp);
+
+			DefSubclassProc (hwnd, WM_PRINT, (WPARAM) memDC, PRF_CLIENT | PRF_NONCLIENT | PRF_ERASEBKGND);
+
 			bool hasSplit = (GetPropW (hwnd, L"PraatSplitButton") != nullptr);
 			if (hasSplit) {
-				HDC hdc = GetDC (hwnd);
-				RECT rc;
-				GetClientRect (hwnd, & rc);
 				int splitW = 22;
 				int splitLeft = rc.right - splitW;
 
 				// Subtle divider line
 				HPEN hPen = CreatePen (PS_SOLID, 1, GetSysColor (COLOR_BTNSHADOW));
-				HPEN oldPen = (HPEN) SelectObject (hdc, hPen);
-				MoveToEx (hdc, splitLeft, rc.top + 4, nullptr);
-				LineTo (hdc, splitLeft, rc.bottom - 4);
-				SelectObject (hdc, oldPen);
+				HPEN oldPen = (HPEN) SelectObject (memDC, hPen);
+				MoveToEx (memDC, splitLeft, rc.top + 4, nullptr);
+				LineTo (memDC, splitLeft, rc.bottom - 4);
+				SelectObject (memDC, oldPen);
 				DeleteObject (hPen);
 
 				// Highlight / pressed state in split area
@@ -279,10 +298,10 @@ static LRESULT CALLBACK _ClassicSplitButtonSubclassProc (
 				bool isPressed = (GetPropW (hwnd, L"PraatSplitPressed") != nullptr);
 				if (isPressed) {
 					RECT rcSplit = { splitLeft + 1, rc.top + 2, rc.right - 2, rc.bottom - 2 };
-					FrameRect (hdc, & rcSplit, (HBRUSH) GetStockObject (BLACK_BRUSH));
+					FrameRect (memDC, & rcSplit, (HBRUSH) GetStockObject (BLACK_BRUSH));
 				} else if (isHover) {
 					RECT rcSplit = { splitLeft + 1, rc.top + 2, rc.right - 2, rc.bottom - 2 };
-					FrameRect (hdc, & rcSplit, (HBRUSH) GetStockObject (GRAY_BRUSH));
+					FrameRect (memDC, & rcSplit, (HBRUSH) GetStockObject (GRAY_BRUSH));
 				}
 
 				// Center dropdown triangle
@@ -299,13 +318,20 @@ static LRESULT CALLBACK _ClassicSplitButtonSubclassProc (
 					{ arrowCenterX, arrowCenterY + 2 }
 				};
 				HRGN rgn = CreatePolygonRgn (pts, 3, WINDING);
-				FillRgn (hdc, rgn, hBrush);
+				FillRgn (memDC, rgn, hBrush);
 				DeleteObject (rgn);
 				DeleteObject (hBrush);
-
-				ReleaseDC (hwnd, hdc);
 			}
-			return lr;
+
+			BitBlt (hdc, ps.rcPaint.left, ps.rcPaint.top,
+				ps.rcPaint.right - ps.rcPaint.left, ps.rcPaint.bottom - ps.rcPaint.top,
+				memDC, ps.rcPaint.left, ps.rcPaint.top, SRCCOPY);
+
+			SelectObject (memDC, oldBmp);
+			DeleteObject (memBmp);
+			DeleteDC (memDC);
+			EndPaint (hwnd, & ps);
+			return 0;
 		}
 		case WM_MOUSEMOVE: {
 			POINT pt = { (short) LOWORD (lParam), (short) HIWORD (lParam) };

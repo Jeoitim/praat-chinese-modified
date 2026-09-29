@@ -1196,8 +1196,11 @@ static void updatePlayButtonUi (double curTime, double totalDur, int state) {
 	if (! playBtn)
 		return;
 
+	static char32 lastTextBuf [256] = { 0 };
+
 	if (state == 0) {
 		// Stopped / Normal
+		lastTextBuf [0] = U'\0';
 		GuiButton_setText (playBtn, praat_translate (U"Play"));
 		return;
 	}
@@ -1230,7 +1233,10 @@ static void updatePlayButtonUi (double curTime, double totalDur, int state) {
 			Melder_sprint (textBuf, 256, U"Play ", tElapsed, U" / ", tTotal);
 	}
 
-	GuiButton_setText (playBtn, textBuf);
+	if (! str32equ (lastTextBuf, textBuf)) {
+		str32cpy (lastTextBuf, textBuf);
+		GuiButton_setText (playBtn, textBuf);
+	}
 }
 
 static int praat_sound_playCallback (Thing /* boss */, int phase, double tmin, double tmax, double currentTime) {
