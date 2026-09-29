@@ -299,7 +299,9 @@ jobs:
           if gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
             echo "Release $TAG_NAME exists, uploading artifacts..."
             gh release upload "$TAG_NAME" dist/* --repo "$GH_REPO" --clobber
-            gh release edit "$TAG_NAME" --repo "$GH_REPO" --title "$RELEASE_NAME" --notes "$NOTES"
+            if [ -n "$RELEASE_NOTES" ]; then
+              gh release edit "$TAG_NAME" --repo "$GH_REPO" --title "$RELEASE_NAME" --notes "$RELEASE_NOTES"
+            fi
           else
             args=(
               release create "$TAG_NAME"
