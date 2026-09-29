@@ -180,11 +180,62 @@ Thing_implement (GuiButton, GuiControl, 0);
 		float peaks [160];
 	};
 
+	static bool getPillRect (HWND hwnd, RECT *rcPill) {
+		if (! rcPill) return false;
+		HANDLE hL = GetPropW (hwnd, L"PraatPillL");
+		HANDLE hR = GetPropW (hwnd, L"PraatPillR");
+		HANDLE hT = GetPropW (hwnd, L"PraatPillT");
+		HANDLE hB = GetPropW (hwnd, L"PraatPillB");
+		if (hL && hR && hT && hB) {
+			rcPill -> left   = (int)(intptr_t) hL - 1;
+			rcPill -> right  = (int)(intptr_t) hR - 1;
+			rcPill -> top    = (int)(intptr_t) hT - 1;
+			rcPill -> bottom = (int)(intptr_t) hB - 1;
+			if (rcPill -> right > rcPill -> left)
+				return true;
+		}
+		RECT rc;
+		GetClientRect (hwnd, & rc);
+		bool hasSplit = (GetPropW (hwnd, L"PraatSplitButton") != nullptr);
+		int cx = (rc.right - (hasSplit ? 26 : 0)) / 2;
+		rcPill -> left   = cx - 35;
+		rcPill -> right  = cx + 35;
+		rcPill -> top    = rc.top + 2;
+		rcPill -> bottom = rc.bottom - 2;
+		return true;
+	}
+
 	static LRESULT CALLBACK _ModernButtonSubclassProc (
 		HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
 		UINT_PTR uIdSubclass, DWORD_PTR dwRefData
 	) {
 		switch (uMsg) {
+			case WM_SETCURSOR: {
+				if ((HWND) wParam == hwnd) {
+					bool isSeeking = (GetPropW (hwnd, L"PraatAllowSeeking") != nullptr);
+					bool hasSplit = (GetPropW (hwnd, L"PraatSplitButton") != nullptr);
+					if (isSeeking || hasSplit) {
+						POINT pt;
+						GetCursorPos (& pt);
+						ScreenToClient (hwnd, & pt);
+						RECT rc;
+						GetClientRect (hwnd, & rc);
+						if (PtInRect (& rc, pt)) {
+							RECT rcSplit = { rc.right - 26, rc.top, rc.right, rc.bottom };
+							if (hasSplit && PtInRect (& rcSplit, pt)) {
+								SetCursor (LoadCursor (nullptr, IDC_ARROW));
+								return TRUE;
+							}
+							if (isSeeking) {
+								SetCursor (LoadCursor (nullptr, IDC_HAND));
+								return TRUE;
+							}
+						}
+					}
+				}
+				break;
+			}
+
 			case WM_MOUSEMOVE: {
 				TRACKMOUSEEVENT tme;
 				tme.cbSize = sizeof (TRACKMOUSEEVENT);
@@ -198,6 +249,80 @@ Thing_implement (GuiButton, GuiControl, 0);
 					InvalidateRect (hwnd, nullptr, FALSE);
 				}
 
+				POINT pt = { (short) LOWORD (lParam), (short) HIWORD (lParam) };
+				RECT rc;
+				GetClientRect (hwnd, & rc);
+				bool hasSplit = (GetPropW (hwnd, L"PraatSplitButton") != nullptr);
+				bool isSeeking = (GetPropW (hwnd, L"PraatAllowSeeking") != nullptr);
+				RECT rcSplit = { rc.right - 26, rc.top, rc.right, rc.bottom };
+
+				if (hasSplit && PtInRect (& rcSplit, pt)) {
+					if (! GetPropW (hwnd, L"PraatSplitHover")) {
+						SetPropW (hwnd, L"PraatSplitHover", (HANDLE) 1);
+						InvalidateRect (hwnd, nullptr, FALSE);
+					}
+					if (GetPropW (hwnd, L"PraatPillHover")) {
+						RemovePropW (hwnd, L"PraatPillHover");
+						InvalidateRect (hwnd, nullptr, FALSE);
+					}
+					if (GetPropW (hwnd, L"PraatHoverX")) {
+						RemovePropW (hwnd, L"PraatHoverX");
+						InvalidateRect (hwnd, nullptr, FALSE);
+					}
+				} else {
+					if (GetPropW (hwnd, L"PraatSplitHover")) {
+						RemovePropW (hwnd, L"PraatSplitHover");
+						InvalidateRect (hwnd, nullptr, FALSE);
+					}
+					if (isSeeking) {
+						RECT rcPill;
+						getPillRect (hwnd, & rcPill);
+						if (PtInRect (& rcPill, pt)) {
+							if (! GetPropW (hwnd, L"PraatPillHover")) {
+								SetPropW (hwnd, L"PraatPillHover", (HANDLE) 1);
+								InvalidateRect (hwnd, nullptr, FALSE);
+							}
+							if (GetPropW (hwnd, L"PraatHoverX")) {
+								RemovePropW (hwnd, L"PraatHoverX");
+								InvalidateRect (hwnd, nullptr, FALSE);
+							}
+						} else {
+							if (GetPropW (hwnd, L"PraatPillHover")) {
+								RemovePropW (hwnd, L"PraatPillHover");
+								InvalidateRect (hwnd, nullptr, FALSE);
+							}
+							int prevHx = (int)(intptr_t) GetPropW (hwnd, L"PraatHoverX");
+							if (prevHx != pt.x + 1) {
+								SetPropW (hwnd, L"PraatHoverX", (HANDLE)(intptr_t)(pt.x + 1));
+								InvalidateRect (hwnd, nullptr, FALSE);
+							}
+						}
+					} else {
+						if (GetPropW (hwnd, L"PraatPillHover")) {
+							RemovePropW (hwnd, L"PraatPillHover");
+							InvalidateRect (hwnd, nullptr, FALSE);
+						}
+						if (GetPropW (hwnd, L"PraatHoverX")) {
+							RemovePropW (hwnd, L"PraatHoverX");
+							InvalidateRect (hwnd, nullptr, FALSE);
+						}
+					}
+				}
+
+				if (GetPropW (hwnd, L"PraatDraggingSeek")) {
+					GuiButton_SeekCallback seekCb = (GuiButton_SeekCallback) GetPropW (hwnd, L"PraatSeekCb");
+					if (seekCb) {
+						float padX = 8.0f;
+						float availW = (float) rc.right - (hasSplit ? 26.0f : 0.0f) - 2.0f * padX;
+						double frac = (availW > 1.0f) ? ((double) pt.x - padX) / (double) availW : 0.0;
+						if (frac < 0.0) frac = 0.0;
+						if (frac > 1.0) frac = 1.0;
+						GuiObject widget = (GuiObject) GetWindowLongPtr (hwnd, GWLP_USERDATA);
+						GuiButton btn = widget ? (GuiButton) _GuiObject_getUserData (widget) : nullptr;
+						seekCb (btn, (void *) hwnd, frac, true);
+					}
+				}
+
 				LRESULT res = DefSubclassProc (hwnd, uMsg, wParam, lParam);
 				if (GetCapture () == hwnd) {
 					InvalidateRect (hwnd, nullptr, FALSE);
@@ -206,19 +331,105 @@ Thing_implement (GuiButton, GuiControl, 0);
 				return res;
 			}
 			case WM_MOUSELEAVE: {
-				if (GetPropW (hwnd, L"PraatHover")) {
-					RemovePropW (hwnd, L"PraatHover");
-					InvalidateRect (hwnd, nullptr, FALSE);
-				}
+				RemovePropW (hwnd, L"PraatHover");
+				RemovePropW (hwnd, L"PraatSplitHover");
+				RemovePropW (hwnd, L"PraatSplitPressed");
+				RemovePropW (hwnd, L"PraatPillHover");
+				RemovePropW (hwnd, L"PraatPillPressed");
+				RemovePropW (hwnd, L"PraatHoverX");
+				InvalidateRect (hwnd, nullptr, FALSE);
 				break;
 			}
 			case WM_LBUTTONDOWN: {
+				POINT pt = { (short) LOWORD (lParam), (short) HIWORD (lParam) };
+				RECT rc;
+				GetClientRect (hwnd, & rc);
+				bool hasSplit = (GetPropW (hwnd, L"PraatSplitButton") != nullptr);
+				bool isSeeking = (GetPropW (hwnd, L"PraatAllowSeeking") != nullptr);
+				RECT rcSplit = { rc.right - 26, rc.top, rc.right, rc.bottom };
+
+				if (hasSplit && PtInRect (& rcSplit, pt)) {
+					SetPropW (hwnd, L"PraatSplitPressed", (HANDLE) 1);
+					InvalidateRect (hwnd, nullptr, FALSE);
+					UpdateWindow (hwnd);
+					POINT ptScreen = pt;
+					ClientToScreen (hwnd, & ptScreen);
+					GuiButton_SplitCallback splitCb = (GuiButton_SplitCallback) GetPropW (hwnd, L"PraatSplitCb");
+					if (splitCb) {
+						GuiObject widget = (GuiObject) GetWindowLongPtr (hwnd, GWLP_USERDATA);
+						GuiButton btn = widget ? (GuiButton) _GuiObject_getUserData (widget) : nullptr;
+						splitCb (btn, (void *) hwnd, ptScreen.x, ptScreen.y);
+					}
+					RemovePropW (hwnd, L"PraatSplitPressed");
+					InvalidateRect (hwnd, nullptr, FALSE);
+					UpdateWindow (hwnd);
+					return 0;
+				}
+
+				if (isSeeking) {
+					RECT rcPill;
+					getPillRect (hwnd, & rcPill);
+					if (PtInRect (& rcPill, pt)) {
+						SetPropW (hwnd, L"PraatPillPressed", (HANDLE) 1);
+						LRESULT res = DefSubclassProc (hwnd, uMsg, wParam, lParam);
+						InvalidateRect (hwnd, nullptr, FALSE);
+						UpdateWindow (hwnd);
+						return res;
+					} else {
+						SetCapture (hwnd);
+						SetPropW (hwnd, L"PraatDraggingSeek", (HANDLE) 1);
+						GuiButton_SeekCallback seekCb = (GuiButton_SeekCallback) GetPropW (hwnd, L"PraatSeekCb");
+						if (seekCb) {
+							float padX = 8.0f;
+							float availW = (float) rc.right - (hasSplit ? 26.0f : 0.0f) - 2.0f * padX;
+							double frac = (availW > 1.0f) ? ((double) pt.x - padX) / (double) availW : 0.0;
+							if (frac < 0.0) frac = 0.0;
+							if (frac > 1.0) frac = 1.0;
+							GuiObject widget = (GuiObject) GetWindowLongPtr (hwnd, GWLP_USERDATA);
+							GuiButton btn = widget ? (GuiButton) _GuiObject_getUserData (widget) : nullptr;
+							seekCb (btn, (void *) hwnd, frac, false);
+						}
+						InvalidateRect (hwnd, nullptr, FALSE);
+						UpdateWindow (hwnd);
+						return 0;
+					}
+				}
+
 				LRESULT res = DefSubclassProc (hwnd, uMsg, wParam, lParam);
 				InvalidateRect (hwnd, nullptr, FALSE);
 				UpdateWindow (hwnd);
 				return res;
 			}
 			case WM_LBUTTONUP: {
+				if (GetPropW (hwnd, L"PraatDraggingSeek")) {
+					ReleaseCapture ();
+					RemovePropW (hwnd, L"PraatDraggingSeek");
+					POINT pt = { (short) LOWORD (lParam), (short) HIWORD (lParam) };
+					RECT rc;
+					GetClientRect (hwnd, & rc);
+					bool hasSplit = (GetPropW (hwnd, L"PraatSplitButton") != nullptr);
+					GuiButton_SeekCallback seekCb = (GuiButton_SeekCallback) GetPropW (hwnd, L"PraatSeekCb");
+					if (seekCb) {
+						float padX = 8.0f;
+						float availW = (float) rc.right - (hasSplit ? 26.0f : 0.0f) - 2.0f * padX;
+						double frac = (availW > 1.0f) ? ((double) pt.x - padX) / (double) availW : 0.0;
+						if (frac < 0.0) frac = 0.0;
+						if (frac > 1.0) frac = 1.0;
+						GuiObject widget = (GuiObject) GetWindowLongPtr (hwnd, GWLP_USERDATA);
+						GuiButton btn = widget ? (GuiButton) _GuiObject_getUserData (widget) : nullptr;
+						seekCb (btn, (void *) hwnd, frac, false);
+					}
+					InvalidateRect (hwnd, nullptr, FALSE);
+					UpdateWindow (hwnd);
+					return 0;
+				}
+				if (GetPropW (hwnd, L"PraatPillPressed")) {
+					RemovePropW (hwnd, L"PraatPillPressed");
+					LRESULT res = DefSubclassProc (hwnd, uMsg, wParam, lParam);
+					InvalidateRect (hwnd, nullptr, FALSE);
+					UpdateWindow (hwnd);
+					return res;
+				}
 				LRESULT res = DefSubclassProc (hwnd, uMsg, wParam, lParam);
 				InvalidateRect (hwnd, nullptr, FALSE);
 				UpdateWindow (hwnd);
@@ -367,10 +578,17 @@ Thing_implement (GuiButton, GuiControl, 0);
 					}
 					bool isPausedState = (progState == 2);
 
+					bool hasSplit = (GetPropW (hwnd, L"PraatSplitButton") != nullptr);
+					bool isSeeking = (GetPropW (hwnd, L"PraatAllowSeeking") != nullptr);
+					float splitW = hasSplit ? 26.0f : 0.0f;
+					float mainW = (float) rc.right - splitW;
+
 					if (wf && wf -> count > 0) {
 						g.SetClip (& path);
 
-						float playheadX = (float) rc.right * frac;
+						float padX = 8.0f;
+						float availW = mainW - 2.0f * padX;
+						float playheadX = padX + (availW > 1.0f ? availW * frac : 0.0f);
 
 						// 1. If actively playing or paused, draw soft background progress tint
 						if (frac > 0.0f) {
@@ -383,8 +601,6 @@ Thing_implement (GuiButton, GuiControl, 0);
 
 						// 2. Waveform capsule bars
 						int n = wf -> count;
-						float padX = 8.0f;
-						float availW = (float) rc.right - 2.0f * padX;
 						if (availW > 10.0f && n > 0) {
 							float slotW = availW / (float) n;
 							float barW = slotW * 0.65f;
@@ -449,19 +665,79 @@ Thing_implement (GuiButton, GuiControl, 0);
 							? Gdiplus::Color (38, 217, 119, 6)    // Soft Amber
 							: Gdiplus::Color (38, 16, 124, 65);   // Soft Emerald
 						Gdiplus::SolidBrush tintBrush (tintCol);
-						g.FillRectangle (& tintBrush, 0.0f, 0.0f, (float) rc.right * frac, (float) rc.bottom);
+						g.FillRectangle (& tintBrush, 0.0f, 0.0f, mainW * frac, (float) rc.bottom);
 
 						Gdiplus::Color barCol = isPausedState
 							? Gdiplus::Color (235, 217, 119, 6)   // Amber accent
 							: Gdiplus::Color (235, 16, 124, 65);  // Emerald accent
 						Gdiplus::SolidBrush barBrush (barCol);
 						float barH = 3.0f;
-						g.FillRectangle (& barBrush, 0.0f, (float) rc.bottom - barH, (float) rc.right * frac, barH);
+						g.FillRectangle (& barBrush, 0.0f, (float) rc.bottom - barH, mainW * frac, barH);
 
 						g.ResetClip ();
 					}
 
+					// 4. Hover seek indicator line
+					if (isSeeking) {
+						HANDLE hHover = GetPropW (hwnd, L"PraatHoverX");
+						if (hHover) {
+							int hx = (int)(intptr_t) hHover - 1;
+							float padX = 8.0f;
+							float availW = mainW - 2.0f * padX;
+							if (hx >= (int) padX && hx <= (int)(padX + availW)) {
+								g.SetClip (& path);
+
+								// Soft Fluent accent glow column (5px wide)
+								Gdiplus::SolidBrush hGlow (Gdiplus::Color (45, 0, 103, 192));
+								g.FillRectangle (& hGlow, (float) hx - 2.0f, 2.0f, 5.0f, (float) rc.bottom - 4.0f);
+
+								// Sharp vertical guideline (Fluent accent blue, 1.5px width)
+								Gdiplus::Pen hPen (Gdiplus::Color (230, 0, 103, 192), 1.5f);
+								g.DrawLine (& hPen, (float) hx, 2.0f, (float) hx, (float) rc.bottom - 4.0f);
+
+								// Top and bottom guide notches/caps
+								Gdiplus::SolidBrush capBrush (Gdiplus::Color (255, 0, 103, 192));
+								g.FillRectangle (& capBrush, (float) hx - 2.0f, 2.0f, 5.0f, 3.0f);
+								g.FillRectangle (& capBrush, (float) hx - 2.0f, (float) rc.bottom - 5.0f, 5.0f, 3.0f);
+
+								g.ResetClip ();
+							}
+						}
+					}
+
 					g.DrawPath (& borderPen, & path);
+
+					// Render split sub-button if enabled
+					if (hasSplit) {
+						float divX = (float) rc.right - 26.0f;
+						Gdiplus::Color divCol = Gdiplus::Color (80, 209, 213, 219);
+						Gdiplus::Pen divPen (divCol, 1.0f);
+						g.DrawLine (& divPen, divX, 4.0f, divX, (float) rc.bottom - 4.0f);
+
+						bool isSplitHover = (GetPropW (hwnd, L"PraatSplitHover") != nullptr);
+						bool isSplitPressed = (GetPropW (hwnd, L"PraatSplitPressed") != nullptr);
+
+						if (isSplitHover || isSplitPressed) {
+							Gdiplus::Color shCol = isSplitPressed
+								? Gdiplus::Color (45, 0, 103, 192)
+								: Gdiplus::Color (20, 0, 103, 192);
+							Gdiplus::SolidBrush shBrush (shCol);
+							g.FillRectangle (& shBrush, divX + 1.0f, 1.0f, 24.0f, (float) rc.bottom - 2.0f);
+						}
+
+						float arrCx = (float) rc.right - 13.0f;
+						float arrCy = (float) rc.bottom / 2.0f + (isSplitPressed ? 1.0f : 0.0f);
+						Gdiplus::PointF pts [3] = {
+							{ arrCx - 3.5f, arrCy - 1.5f },
+							{ arrCx,        arrCy + 2.0f },
+							{ arrCx + 3.5f, arrCy - 1.5f }
+						};
+						Gdiplus::Pen arrPen (isSplitHover ? Gdiplus::Color (255, 0, 103, 192) : Gdiplus::Color (170, 100, 116, 139), 1.5f);
+						arrPen.SetStartCap (Gdiplus::LineCapRound);
+						arrPen.SetEndCap (Gdiplus::LineCapRound);
+						arrPen.SetLineJoin (Gdiplus::LineJoinRound);
+						g.DrawLines (& arrPen, pts, 3);
+					}
 				}
 
 				// Draw Button Text & Icon
@@ -474,7 +750,13 @@ Thing_implement (GuiButton, GuiControl, 0);
 					SetTextColor (memDC, textCol);
 
 					RECT textRc = rc;
-					int boxW = rc.right - rc.left;
+					bool hasSplit = (GetPropW (hwnd, L"PraatSplitButton") != nullptr);
+					bool isSeeking = (GetPropW (hwnd, L"PraatAllowSeeking") != nullptr);
+					float splitW = hasSplit ? 26.0f : 0.0f;
+					float mainW = (float) rc.right - splitW;
+					textRc.right = (int) mainW;
+
+					int boxW = textRc.right - textRc.left;
 					const bool isCompact = (boxW <= 48);
 					// Inset slightly to prevent text clipping
 					InflateRect (& textRc, isCompact ? -2 : -3, 0);
@@ -502,10 +784,17 @@ Thing_implement (GuiButton, GuiControl, 0);
 							float pillH = (float) szText.cy + pillPadY * 2.0f;
 							float pillX = (float) startX - pillPadX;
 							if (pillX < 2.0f) pillX = 2.0f;
-							if (pillX + pillW > (float) rc.right - 2.0f) pillW = (float) rc.right - 2.0f - pillX;
+							if (pillX + pillW > mainW - 2.0f) pillW = mainW - 2.0f - pillX;
 							float pillY = ((float) rc.bottom - pillH) / 2.0f + (isPressed ? 1.0f : 0.0f);
 							float pillR = pillH / 2.0f;
 							if (pillR * 2.0f > pillW) pillR = pillW / 2.0f;
+
+							SetPropW (hwnd, L"PraatPillL", (HANDLE)(intptr_t)((int) pillX + 1));
+							SetPropW (hwnd, L"PraatPillR", (HANDLE)(intptr_t)((int)(pillX + pillW) + 1));
+							SetPropW (hwnd, L"PraatPillT", (HANDLE)(intptr_t)((int) pillY + 1));
+							SetPropW (hwnd, L"PraatPillB", (HANDLE)(intptr_t)((int)(pillY + pillH) + 1));
+
+							bool isPillHover = (GetPropW (hwnd, L"PraatPillHover") != nullptr);
 
 							Gdiplus::Graphics gPill (memDC);
 							gPill.SetSmoothingMode (Gdiplus::SmoothingModeAntiAlias);
@@ -514,8 +803,12 @@ Thing_implement (GuiButton, GuiControl, 0);
 							pillPath.AddArc (pillX + pillW - pillR * 2.0f, pillY, pillR * 2.0f, pillR * 2.0f, 270.0f, 180.0f);
 							pillPath.CloseFigure ();
 
-							Gdiplus::SolidBrush pillBg (Gdiplus::Color (225, 255, 255, 255));
-							Gdiplus::Pen pillBorder (Gdiplus::Color (140, 203, 213, 225), 1.0f);
+							Gdiplus::SolidBrush pillBg ((isSeeking && isPillHover)
+								? Gdiplus::Color (248, 255, 255, 255)
+								: Gdiplus::Color (225, 255, 255, 255));
+							Gdiplus::Pen pillBorder ((isSeeking && isPillHover)
+								? Gdiplus::Color (255, 0, 103, 192)
+								: Gdiplus::Color (140, 203, 213, 225), (isSeeking && isPillHover) ? 1.5f : 1.0f);
 							gPill.FillPath (& pillBg, & pillPath);
 							gPill.DrawPath (& pillBorder, & pillPath);
 						}
@@ -547,12 +840,19 @@ Thing_implement (GuiButton, GuiControl, 0);
 							float pillPadY = 4.0f;
 							float pillW = (float) szText.cx + pillPadX * 2.0f;
 							float pillH = (float) szText.cy + pillPadY * 2.0f;
-							float pillX = ((float) rc.right - pillW) / 2.0f;
+							float pillX = ((float) mainW - pillW) / 2.0f;
 							if (pillX < 2.0f) pillX = 2.0f;
-							if (pillX + pillW > (float) rc.right - 2.0f) pillW = (float) rc.right - 2.0f - pillX;
+							if (pillX + pillW > mainW - 2.0f) pillW = mainW - 2.0f - pillX;
 							float pillY = ((float) rc.bottom - pillH) / 2.0f + (isPressed ? 1.0f : 0.0f);
 							float pillR = pillH / 2.0f;
 							if (pillR * 2.0f > pillW) pillR = pillW / 2.0f;
+
+							SetPropW (hwnd, L"PraatPillL", (HANDLE)(intptr_t) pillX);
+							SetPropW (hwnd, L"PraatPillR", (HANDLE)(intptr_t)(pillX + pillW));
+							SetPropW (hwnd, L"PraatPillT", (HANDLE)(intptr_t) pillY);
+							SetPropW (hwnd, L"PraatPillB", (HANDLE)(intptr_t)(pillY + pillH));
+
+							bool isPillHover = (GetPropW (hwnd, L"PraatPillHover") != nullptr);
 
 							Gdiplus::Graphics gPill (memDC);
 							gPill.SetSmoothingMode (Gdiplus::SmoothingModeAntiAlias);
@@ -561,8 +861,12 @@ Thing_implement (GuiButton, GuiControl, 0);
 							pillPath.AddArc (pillX + pillW - pillR * 2.0f, pillY, pillR * 2.0f, pillR * 2.0f, 270.0f, 180.0f);
 							pillPath.CloseFigure ();
 
-							Gdiplus::SolidBrush pillBg (Gdiplus::Color (225, 255, 255, 255));
-							Gdiplus::Pen pillBorder (Gdiplus::Color (140, 203, 213, 225), 1.0f);
+							Gdiplus::SolidBrush pillBg ((isSeeking && isPillHover)
+								? Gdiplus::Color (248, 255, 255, 255)
+								: Gdiplus::Color (225, 255, 255, 255));
+							Gdiplus::Pen pillBorder ((isSeeking && isPillHover)
+								? Gdiplus::Color (255, 0, 103, 192)
+								: Gdiplus::Color (140, 203, 213, 225), (isSeeking && isPillHover) ? 1.5f : 1.0f);
 							gPill.FillPath (& pillBg, & pillPath);
 							gPill.DrawPath (& pillBorder, & pillPath);
 						}
@@ -592,6 +896,20 @@ Thing_implement (GuiButton, GuiControl, 0);
 				RemovePropW (hwnd, L"PraatHover");
 				RemovePropW (hwnd, L"PraatProgress");
 				RemovePropW (hwnd, L"PraatProgressState");
+				RemovePropW (hwnd, L"PraatSplitButton");
+				RemovePropW (hwnd, L"PraatSplitHover");
+				RemovePropW (hwnd, L"PraatSplitPressed");
+				RemovePropW (hwnd, L"PraatAllowSeeking");
+				RemovePropW (hwnd, L"PraatPillHover");
+				RemovePropW (hwnd, L"PraatPillPressed");
+				RemovePropW (hwnd, L"PraatHoverX");
+				RemovePropW (hwnd, L"PraatDraggingSeek");
+				RemovePropW (hwnd, L"PraatPillL");
+				RemovePropW (hwnd, L"PraatPillR");
+				RemovePropW (hwnd, L"PraatPillT");
+				RemovePropW (hwnd, L"PraatPillB");
+				RemovePropW (hwnd, L"PraatSplitCb");
+				RemovePropW (hwnd, L"PraatSeekCb");
 				GuiButtonWaveform *wf = (GuiButtonWaveform *) RemovePropW (hwnd, L"PraatWaveform");
 				if (wf)
 					delete wf;
@@ -822,6 +1140,80 @@ void GuiButton_setWaveform (GuiButton me, const float *peaks, int numPeaks) {
 	#else
 		(void) me; (void) peaks; (void) numPeaks;
 	#endif
+}
+
+void GuiButton_enableSplit (GuiButton me, bool enable) {
+	if (! me) return;
+	#if motif
+		if (my d_widget && my d_widget -> window) {
+			HWND hwnd = my d_widget -> window;
+			if (enable)
+				SetPropW (hwnd, L"PraatSplitButton", (HANDLE) 1);
+			else
+				RemovePropW (hwnd, L"PraatSplitButton");
+			InvalidateRect (hwnd, nullptr, FALSE);
+			UpdateWindow (hwnd);
+		}
+	#else
+		(void) me; (void) enable;
+	#endif
+}
+
+void GuiButton_setSplitCallback (GuiButton me, GuiButton_SplitCallback cb) {
+	if (! me) return;
+	#if motif
+		if (my d_widget && my d_widget -> window) {
+			HWND hwnd = my d_widget -> window;
+			if (cb)
+				SetPropW (hwnd, L"PraatSplitCb", (HANDLE) cb);
+			else
+				RemovePropW (hwnd, L"PraatSplitCb");
+		}
+	#else
+		(void) me; (void) cb;
+	#endif
+}
+
+void GuiButton_setSeekCallback (GuiButton me, GuiButton_SeekCallback cb) {
+	if (! me) return;
+	#if motif
+		if (my d_widget && my d_widget -> window) {
+			HWND hwnd = my d_widget -> window;
+			if (cb)
+				SetPropW (hwnd, L"PraatSeekCb", (HANDLE) cb);
+			else
+				RemovePropW (hwnd, L"PraatSeekCb");
+		}
+	#else
+		(void) me; (void) cb;
+	#endif
+}
+
+void GuiButton_setSeekingEnabled (GuiButton me, bool enabled) {
+	if (! me) return;
+	#if motif
+		if (my d_widget && my d_widget -> window) {
+			HWND hwnd = my d_widget -> window;
+			if (enabled)
+				SetPropW (hwnd, L"PraatAllowSeeking", (HANDLE) 1);
+			else
+				RemovePropW (hwnd, L"PraatAllowSeeking");
+			InvalidateRect (hwnd, nullptr, FALSE);
+			UpdateWindow (hwnd);
+		}
+	#else
+		(void) me; (void) enabled;
+	#endif
+}
+
+bool GuiButton_isSeekingEnabled (GuiButton me) {
+	if (! me) return false;
+	#if motif
+		if (my d_widget && my d_widget -> window) {
+			return GetPropW (my d_widget -> window, L"PraatAllowSeeking") != nullptr;
+		}
+	#endif
+	return false;
 }
 
 /* End of file GuiButton.cpp */

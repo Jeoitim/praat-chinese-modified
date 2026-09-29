@@ -41,6 +41,7 @@
 #include "melder_audio.h"
 #include "praat_translate.h"
 #include "praatP.h"
+#include "Preferences.h"
 
 /***** LONGSOUND *****/
 
@@ -1173,6 +1174,9 @@ static double s_soundPausedTime = 0.0;        // Current paused position in seco
 static bool s_soundIsPlaying = false;         // Actively playing audio
 static bool s_soundIsPaused = false;          // Paused
 static double s_soundLastUiUpdate = 0.0;      // Timestamp for 20 FPS throttling
+static double s_soundPlaybackSpeed = 1.0;     // Current playback speed factor
+static bool s_soundAllowSeeking = false;      // Whether timeline click/drag seeking is enabled (default off)
+static bool s_soundIsReplaying = false;       // Internal flag to preserve state across implicit restart
 
 bool praat_sound_isPaused () {
 	return s_soundIsPaused;
@@ -1266,6 +1270,9 @@ static int praat_sound_playCallback (Thing /* boss */, int phase, double tmin, d
 	}
 
 	if (phase == 3) {
+		if (s_soundIsReplaying) {
+			return 1;
+		}
 		if (MelderAudio_stopWasExplicit ()) {
 			// Explicit pause by user
 			s_soundIsPlaying = false;
@@ -1334,6 +1341,116 @@ static void praat_sound_computeEnvelope (Sound snd, float *outPeaks, int numPoin
 	}
 }
 
+static void praat_sound_seek (double fraction, bool isDragging) {
+	if (! s_soundPlayPtr && theCurrentPraatObjects && theCurrentPraatObjects -> totalSelection == 1) {
+		for (integer iobj = 1; iobj <= theCurrentPraatObjects -> n; iobj ++) {
+			if (theCurrentPraatObjects -> list [iobj]. isSelected && theCurrentPraatObjects -> list [iobj]. klas == classSound) {
+				s_soundPlayPtr = (Sound) theCurrentPraatObjects -> list [iobj]. object;
+				s_soundPlayId = theCurrentPraatObjects -> list [iobj]. id;
+				s_soundTotalDuration = s_soundPlayPtr -> xmax - s_soundPlayPtr -> xmin;
+				break;
+			}
+		}
+	}
+	if (! s_soundPlayPtr) return;
+
+	double targetTime = s_soundPlayPtr -> xmin + fraction * (s_soundPlayPtr -> xmax - s_soundPlayPtr -> xmin);
+	if (targetTime < s_soundPlayPtr -> xmin) targetTime = s_soundPlayPtr -> xmin;
+	if (targetTime > s_soundPlayPtr -> xmax) targetTime = s_soundPlayPtr -> xmax;
+
+	if (s_soundIsPlaying) {
+		if (! isDragging) {
+			Sound snd = s_soundPlayPtr;
+			s_soundIsReplaying = true;
+			MelderAudio_stopPlaying (MelderAudio_IMPLICIT);
+			s_soundIsReplaying = false;
+			s_soundPlayPtr = snd;
+			s_soundCurrentTime = targetTime;
+			s_soundPausedTime = targetTime;
+			s_soundIsPlaying = true;
+			updatePlayButtonUi (targetTime, s_soundTotalDuration, 1);
+			Sound_setPlaybackSpeed (s_soundPlaybackSpeed);
+			Sound_playPart (snd, targetTime, snd -> xmax, praat_sound_playCallback, nullptr);
+		} else {
+			s_soundCurrentTime = targetTime;
+			updatePlayButtonUi (targetTime, s_soundTotalDuration, 1);
+		}
+	} else {
+		s_soundIsPaused = true;
+		s_soundPausedTime = targetTime;
+		s_soundCurrentTime = targetTime;
+		updatePlayButtonUi (targetTime, s_soundTotalDuration, 2);
+	}
+}
+
+static void praat_sound_playSeekCallback (GuiButton me, void * /* hwnd */, double fraction, bool isDragging) {
+	(void) me;
+	praat_sound_seek (fraction, isDragging);
+}
+
+static void praat_sound_playSplitCallback (GuiButton me, void *nativeHandle, int screenX, int screenY) {
+	#if motif
+		HWND hwnd = (HWND) nativeHandle;
+		HMENU hMenu = CreatePopupMenu ();
+		bool isZh = (g_language_choice != 0);
+
+		double speeds [] = { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0 };
+		const wchar_t *speedLabelsZh [] = { L"0.5×", L"0.75×", L"1.0× (标准)", L"1.25×", L"1.5×", L"2.0×", L"3.0×" };
+		const wchar_t *speedLabelsEn [] = { L"0.5×", L"0.75×", L"1.0× (Standard)", L"1.25×", L"1.5×", L"2.0×", L"3.0×" };
+
+		for (int i = 0; i < 7; i ++) {
+			UINT uFlags = MF_STRING;
+			if (fabs (s_soundPlaybackSpeed - speeds [i]) < 0.05)
+				uFlags |= MF_CHECKED;
+			AppendMenuW (hMenu, uFlags, 101 + i, isZh ? speedLabelsZh [i] : speedLabelsEn [i]);
+		}
+
+		AppendMenuW (hMenu, MF_SEPARATOR, 0, nullptr);
+
+		UINT uFlagsSeek = MF_STRING;
+		if (s_soundAllowSeeking)
+			uFlagsSeek |= MF_CHECKED;
+		AppendMenuW (hMenu, uFlagsSeek, 201, isZh ? L"启用进度条跳转与拖动" : L"Enable progress seeking & dragging");
+
+		SetForegroundWindow (hwnd);
+		int cmd = TrackPopupMenu (hMenu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RETURNCMD | TPM_RIGHTBUTTON,
+			screenX, screenY, 0, hwnd, nullptr);
+		DestroyMenu (hMenu);
+
+		if (cmd >= 101 && cmd <= 107) {
+			s_soundPlaybackSpeed = speeds [cmd - 101];
+			Sound_setPlaybackSpeed (s_soundPlaybackSpeed);
+			if (s_soundIsPlaying && s_soundPlayPtr) {
+				Sound snd = s_soundPlayPtr;
+				double curT = s_soundCurrentTime;
+				s_soundIsReplaying = true;
+				MelderAudio_stopPlaying (MelderAudio_IMPLICIT);
+				s_soundIsReplaying = false;
+				s_soundPlayPtr = snd;
+				s_soundCurrentTime = curT;
+				s_soundIsPlaying = true;
+				updatePlayButtonUi (curT, s_soundTotalDuration, 1);
+				Sound_playPart (snd, curT, snd -> xmax, praat_sound_playCallback, nullptr);
+			}
+		} else if (cmd == 201) {
+			s_soundAllowSeeking = ! s_soundAllowSeeking;
+			if (hwnd) {
+				if (s_soundAllowSeeking)
+					SetPropW (hwnd, L"PraatAllowSeeking", (HANDLE) 1);
+				else
+					RemovePropW (hwnd, L"PraatAllowSeeking");
+				InvalidateRect (hwnd, nullptr, FALSE);
+				UpdateWindow (hwnd);
+			}
+			GuiButton playBtn = praat_actions_getPlayButton ();
+			if (playBtn)
+				GuiButton_setSeekingEnabled (playBtn, s_soundAllowSeeking);
+		}
+	#else
+		(void) me; (void) nativeHandle; (void) screenX; (void) screenY;
+	#endif
+}
+
 void praat_sound_updatePlayButtonIfActive () {
 	GuiButton playBtn = praat_actions_getPlayButton ();
 	if (! playBtn)
@@ -1354,8 +1471,13 @@ void praat_sound_updatePlayButtonIfActive () {
 		float peaks [64];
 		praat_sound_computeEnvelope (snd, peaks, 64);
 		GuiButton_setWaveform (playBtn, peaks, 64);
+		GuiButton_enableSplit (playBtn, true);
+		GuiButton_setSplitCallback (playBtn, praat_sound_playSplitCallback);
+		GuiButton_setSeekCallback (playBtn, praat_sound_playSeekCallback);
+		GuiButton_setSeekingEnabled (playBtn, s_soundAllowSeeking);
 	} else {
 		GuiButton_setWaveform (playBtn, nullptr, 0);
+		GuiButton_enableSplit (playBtn, false);
 	}
 
 	if (s_soundIsPlaying || s_soundIsPaused) {
@@ -1385,6 +1507,7 @@ DIRECT (PLAY_EACH__Sound_play) {
 		MelderAudio_stopPlaying (MelderAudio_EXPLICIT);
 		updatePlayButtonUi (s_soundPausedTime, s_soundTotalDuration, 2);
 	} else {
+		Sound_setPlaybackSpeed (s_soundPlaybackSpeed);
 		FIND_ALL_LISTED (Sound, SoundList)
 		if (list -> size == 1) {
 			Sound snd = list -> at [1];
@@ -2530,6 +2653,9 @@ void praat_Sound_init () {
 	structSoundRecorder           :: f_preferences ();
 	structFunctionEditor          :: f_preferences ();
 	LongSound_preferences ();
+
+	Preferences_addBool (U"Sound.allowSeeking", & s_soundAllowSeeking, false);
+	Preferences_addDouble (U"Sound.playbackSpeed", & s_soundPlaybackSpeed, 1.0);
 
 	Melder_setRecordProc (recordProc);
 	Melder_setRecordFromFileProc (recordFromFileProc);

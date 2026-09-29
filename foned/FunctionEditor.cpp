@@ -22,6 +22,7 @@
 #include "GuiP.h"
 #include "FunctionArea.h"
 #include "SoundAnalysisArea.h"
+#include "Sound.h"
 #include <algorithm>
 
 Thing_implement_pureVirtual (FunctionEditor, Editor, 0);
@@ -1220,6 +1221,7 @@ static void PLAY_DATA__play (FunctionEditor me, EDITOR_ARGS) {
 		SET_REAL (from, my startWindow)
 		SET_REAL (to,   my endWindow)
 	EDITOR_DO
+		Sound_setPlaybackSpeed (my d_playbackSpeed);
 		MelderAudio_stopPlaying (MelderAudio_IMPLICIT);
 		my v_play (from, to);
 	EDITOR_END
@@ -1228,18 +1230,22 @@ static void PLAY_DATA__playOrStop (FunctionEditor me, EDITOR_ARGS) {
 	PLAY_DATA
 		if (MelderAudio_isPlaying) {
 			MelderAudio_stopPlaying (MelderAudio_EXPLICIT);
-		} else if (my startSelection < my endSelection) {
-			my v_play (my startSelection, my endSelection);
 		} else {
-			if (my startSelection == my endSelection && my startSelection > my startWindow && my startSelection < my endWindow)
-				my v_play (my startSelection, my endWindow);
-			else
-				my v_play (my startWindow, my endWindow);
+			Sound_setPlaybackSpeed (my d_playbackSpeed);
+			if (my startSelection < my endSelection) {
+				my v_play (my startSelection, my endSelection);
+			} else {
+				if (my startSelection == my endSelection && my startSelection > my startWindow && my startSelection < my endWindow)
+					my v_play (my startSelection, my endWindow);
+				else
+					my v_play (my startWindow, my endWindow);
+			}
 		}
 	PLAY_DATA_END
 }
 static void PLAY_DATA__playWindow (FunctionEditor me, EDITOR_ARGS) {
 	PLAY_DATA
+		Sound_setPlaybackSpeed (my d_playbackSpeed);
 		MelderAudio_stopPlaying (MelderAudio_IMPLICIT);
 		my v_play (my startWindow, my endWindow);
 	PLAY_DATA_END
@@ -1916,6 +1922,7 @@ static void gui_drawingarea_cb_mouse (FunctionEditor me, GuiDrawingArea_MouseEve
 							if (my drawingArea && my drawingArea -> d_widget)
 								UpdateWindow ((HWND) my drawingArea -> d_widget);
 						#endif
+						Sound_setPlaybackSpeed (my d_playbackSpeed);
 						switch (i) {
 							case 0: my v_play (my tmin, my tmax); break;
 							case 1: my v_play (my startWindow, my endWindow); break;
@@ -1944,6 +1951,52 @@ static void gui_drawingarea_cb_mouse (FunctionEditor me, GuiDrawingArea_MouseEve
 	}
 }
 
+static void gui_button_cb_playbackSpeed (FunctionEditor me, GuiButtonEvent event) {
+	#if motif
+		HWND hwnd = (HWND) event -> button -> d_widget -> window;
+		POINT pt;
+		GetCursorPos (& pt);
+
+		HMENU hMenu = CreatePopupMenu ();
+		bool isZh = (g_language_choice != 0);
+
+		double speeds [] = { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0 };
+		const wchar_t *labelsZh [] = { L"0.5×", L"0.75×", L"1.0× (标准)", L"1.25×", L"1.5×", L"2.0×", L"3.0×" };
+		const wchar_t *labelsEn [] = { L"0.5×", L"0.75×", L"1.0× (Standard)", L"1.25×", L"1.5×", L"2.0×", L"3.0×" };
+
+		for (int i = 0; i < 7; i ++) {
+			UINT uFlags = MF_STRING;
+			if (fabs (my d_playbackSpeed - speeds [i]) < 0.03)
+				uFlags |= MF_CHECKED;
+			AppendMenuW (hMenu, uFlags, 101 + i, isZh ? labelsZh [i] : labelsEn [i]);
+		}
+
+		SetForegroundWindow (hwnd);
+		int cmd = TrackPopupMenu (hMenu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RETURNCMD | TPM_RIGHTBUTTON,
+			pt.x, pt.y, 0, hwnd, nullptr);
+		DestroyMenu (hMenu);
+
+		if (cmd >= 101 && cmd <= 107) {
+			double newSpeed = speeds [cmd - 101];
+			my d_playbackSpeed = newSpeed;
+			char32 buf [32];
+			if (newSpeed == 1.0)
+				Melder_sprint (buf, 32, U"1.0× ▾");
+			else if (newSpeed == 0.5)
+				Melder_sprint (buf, 32, U"0.5× ▾");
+			else if (newSpeed == 2.0)
+				Melder_sprint (buf, 32, U"2.0× ▾");
+			else if (newSpeed == 3.0)
+				Melder_sprint (buf, 32, U"3.0× ▾");
+			else
+				Melder_sprint (buf, 32, Melder_fixed (newSpeed, 2), U"× ▾");
+			GuiButton_setText (my d_speedButton, buf);
+		}
+	#else
+		(void) me; (void) event;
+	#endif
+}
+
 void structFunctionEditor :: v_createChildren () {
 	const bool hasAnalysis = our hasSoundAnalysisArea ();
 	const int topToolbarHeight = (hasAnalysis ? TOP_TOOLBAR_HEIGHT : 0);
@@ -1970,16 +2023,22 @@ void structFunctionEditor :: v_createChildren () {
 		U"bak", gui_button_cb_zoomBack, this, 0);
 
 	/*
-		Create scroll bar.
+		Create scroll bar and speed / group buttons (方案 B).
 	*/
+	constexpr int SPEED_BUTTON_WIDTH = 62;
+	const int speedRight = -80 - BUTTON_SPACING;
+	const int speedLeft = speedRight - SPEED_BUTTON_WIDTH;
+	const int scrollBarRight = speedLeft - BUTTON_SPACING;
+
 	our scrollBar = GuiScrollBar_createShown (our windowForm,
-		x += BUTTON_WIDTH + BUTTON_SPACING, -80 - BUTTON_SPACING, -4 - Gui_PUSHBUTTON_HEIGHT, 0,
+		x += BUTTON_WIDTH + BUTTON_SPACING, scrollBarRight, -4 - Gui_PUSHBUTTON_HEIGHT, 0,
 		1, maximumScrollBarValue, 1, maximumScrollBarValue - 1, 1, 1,
 		gui_cb_scroll, this, GuiScrollBar_HORIZONTAL);
 
-	/*
-		Create Group button.
-	*/
+	our d_speedButton = GuiButton_createShown (our windowForm,
+		speedLeft, speedRight, -4 - Gui_PUSHBUTTON_HEIGHT, -4,
+		U"1.0× ▾", gui_button_cb_playbackSpeed, this, 0);
+
 	our groupButton = GuiCheckButton_createShown (our windowForm, -80, 0, -4 - Gui_PUSHBUTTON_HEIGHT, -4,
 		U"Group", gui_checkbutton_cb_group, this, group_equalDomain (our tmin, our tmax) ? GuiCheckButton_SET : 0);
 

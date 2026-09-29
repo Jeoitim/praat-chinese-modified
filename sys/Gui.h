@@ -486,6 +486,13 @@ GuiButton GuiButton_createShown (GuiForm parent,
 void GuiButton_setText (GuiButton me, conststring32 text /* cattable */);
 void GuiButton_setProgress (GuiButton me, double fraction, int state);
 void GuiButton_setWaveform (GuiButton me, const float *peaks, int numPeaks);
+using GuiButton_SplitCallback = void (*) (GuiButton me, void *nativeHandle, int screenX, int screenY);
+using GuiButton_SeekCallback = void (*) (GuiButton me, void *nativeHandle, double fraction, bool isDragging);
+void GuiButton_enableSplit (GuiButton me, bool enable);
+void GuiButton_setSplitCallback (GuiButton me, GuiButton_SplitCallback cb);
+void GuiButton_setSeekCallback (GuiButton me, GuiButton_SeekCallback cb);
+void GuiButton_setSeekingEnabled (GuiButton me, bool enabled);
+bool GuiButton_isSeekingEnabled (GuiButton me);
 
 /********** GuiCheckButton **********/
 

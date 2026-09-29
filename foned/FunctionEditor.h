@@ -165,6 +165,9 @@ Thing_define (FunctionEditor, Editor) {
 	void updateQuickToolbarLayout ();
 	void syncBottomAnalysisChecks ();
 
+	GuiButton d_speedButton = nullptr;
+	double d_playbackSpeed = 1.0;
+
 	bool group, enableUpdates;
 	int nrect;
 	struct { double left, right, bottom, top; } rect [8];

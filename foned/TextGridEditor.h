@@ -90,6 +90,7 @@ Thing_define (TextGridEditor, FunctionEditor) {
 	conststring32 v_selectionViewerName ()
 		override { return U"IPA chart"; }
 	void v_play (double startTime, double endTime) override {
+		Sound_setPlaybackSpeed (our d_playbackSpeed);
 		if (our soundArea())
 			SoundArea_play (our soundArea().get(), startTime, endTime);
 	}
