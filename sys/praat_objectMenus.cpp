@@ -41,32 +41,77 @@ DIRECT (PRAAT_Remove) {
 	END_NO_NEW_DATA
 }
 
-FORM (MODIFY_Rename, U"Rename object", U"Rename...") {
-	TEXTFIELD (newName, U"New name", U"", 3)
+FORM (MODIFY_Rename, U"Rename object(s)", U"Rename...") {
+	TEXTFIELD (newName, U"New name(s)", U"", 10)
 OK
-	WHERE (SELECTED)
-		SET_STRING (newName, NAME)
+	if (theCurrentPraatObjects -> totalSelection == 1) {
+		WHERE (SELECTED)
+			SET_STRING (newName, NAME)
+	} else if (theCurrentPraatObjects -> totalSelection > 1) {
+		autoMelderString defaultNames;
+		integer count = 0;
+		WHERE (SELECTED) {
+			if (count > 0)
+				MelderString_appendCharacter (& defaultNames, U'\n');
+			MelderString_append (& defaultNames, NAME);
+			count ++;
+		}
+		SET_STRING (newName, defaultNames.string)
+	}
 DO
 	if (theCurrentPraatObjects -> totalSelection == 0)
 		Melder_throw (U"Selection changed!\nNo object selected. Cannot rename.");
-	if (theCurrentPraatObjects -> totalSelection > 1)
-		Melder_throw (U"Selection changed!\nCannot rename more than one object at a time.");
-	WHERE (SELECTED)
-		break;
-	static MelderString string;
-	MelderString_copy (& string, newName);
-	praat_cleanUpName (string.string);
-	static MelderString fullName;
-	MelderString_copy (& fullName, Thing_className (OBJECT), U" ", string.string);
-	if (! str32equ (fullName.string, FULL_NAME)) {
-		theCurrentPraatObjects -> list [IOBJECT]. name = Melder_dup_f (fullName.string);
-		autoMelderString listName;
-		MelderString_append (& listName, ID, U". ", fullName.string);
-		praat_list_renameAndSelect (IOBJECT, listName.string);
-		for (int ieditor = 0; ieditor < praat_MAXNUM_EDITORS; ieditor ++)
-			if (EDITOR [ieditor])
-				Thing_setName (EDITOR [ieditor], listName.string);
-		Thing_setName (OBJECT, string.string);
+	if (theCurrentPraatObjects -> totalSelection == 1) {
+		WHERE (SELECTED)
+			break;
+		static MelderString string;
+		MelderString_copy (& string, newName);
+		praat_cleanUpName (string.string);
+		static MelderString fullName;
+		MelderString_copy (& fullName, Thing_className (OBJECT), U" ", string.string);
+		if (! str32equ (fullName.string, FULL_NAME)) {
+			theCurrentPraatObjects -> list [IOBJECT]. name = Melder_dup_f (fullName.string);
+			autoMelderString listName;
+			MelderString_append (& listName, ID, U". ", fullName.string);
+			praat_list_renameAndSelect (IOBJECT, listName.string);
+			for (int ieditor = 0; ieditor < praat_MAXNUM_EDITORS; ieditor ++)
+				if (EDITOR [ieditor])
+					Thing_setName (EDITOR [ieditor], listName.string);
+			Thing_setName (OBJECT, string.string);
+		}
+	} else {
+		autoSTRVEC lines = splitBy_STRVEC (newName, U"\n");
+		if (lines.size > 1 && lines.size < theCurrentPraatObjects -> totalSelection)
+			Melder_throw (U"Not enough names provided! You selected ",
+				theCurrentPraatObjects -> totalSelection,
+				U" objects, but only provided ", lines.size, U" lines.");
+		integer iline = 1;
+		WHERE (SELECTED) {
+			conststring32 rawLine = ( lines.size == 1 ? lines [1].get() : ( iline <= lines.size ? lines [iline].get() : nullptr ) );
+			if (rawLine) {
+				static MelderString string;
+				MelderString_copy (& string, rawLine);
+				integer len = Melder_length (string.string);
+				if (len > 0 && string.string [len - 1] == U'\r')
+					string.string [len - 1] = U'\0';
+				praat_cleanUpName (string.string);
+				if (string.string [0] != U'\0') {
+					static MelderString fullName;
+					MelderString_copy (& fullName, Thing_className (OBJECT), U" ", string.string);
+					if (! str32equ (fullName.string, FULL_NAME)) {
+						theCurrentPraatObjects -> list [IOBJECT]. name = Melder_dup_f (fullName.string);
+						autoMelderString listName;
+						MelderString_append (& listName, ID, U". ", fullName.string);
+						praat_list_renameAndSelect (IOBJECT, listName.string);
+						for (int ieditor = 0; ieditor < praat_MAXNUM_EDITORS; ieditor ++)
+							if (EDITOR [ieditor])
+								Thing_setName (EDITOR [ieditor], listName.string);
+						Thing_setName (OBJECT, string.string);
+					}
+				}
+			}
+			iline ++;
+		}
 	}
 	END_NO_NEW_DATA
 }
