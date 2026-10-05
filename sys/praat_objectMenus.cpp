@@ -90,21 +90,19 @@ DO
 		}
 	} else {
 		autoSTRVEC lines = splitBy_STRVEC (newName, U"\n");
-		if (lines.size < theCurrentPraatObjects -> totalSelection)
+		if (lines.size > 1 && lines.size < theCurrentPraatObjects -> totalSelection)
 			Melder_throw (U"Not enough names provided! You selected ",
 				theCurrentPraatObjects -> totalSelection,
-				U" objects, but only provided ", lines.size, ( lines.size == 1 ? U" line." : U" lines." ));
+				U" objects, but only provided ", lines.size, U" lines.");
 		integer iline = 1;
 		WHERE (SELECTED) {
-			if (iline > lines.size)
-				break;
-			mutablestring32 line = lines [iline].get();
-			if (line) {
-				integer len = Melder_length (line);
-				if (len > 0 && line [len - 1] == U'\r')
-					line [len - 1] = U'\0';
+			conststring32 rawLine = ( lines.size == 1 ? lines [1].get() : ( iline <= lines.size ? lines [iline].get() : nullptr ) );
+			if (rawLine) {
 				static MelderString string;
-				MelderString_copy (& string, line);
+				MelderString_copy (& string, rawLine);
+				integer len = Melder_length (string.string);
+				if (len > 0 && string.string [len - 1] == U'\r')
+					string.string [len - 1] = U'\0';
 				praat_cleanUpName (string.string);
 				if (string.string [0] != U'\0') {
 					static MelderString fullName;
