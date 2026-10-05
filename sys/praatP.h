@@ -112,6 +112,7 @@ void praat_picture_prefsChanged ();
    (after reading the prefs file).
    Picture window will update the font menu.
 */
+void praat_picture_languageChanged ();
 GuiMenu praat_picture_resolveMenu (conststring32 menu);
 
 /* The following routines are a bit private (used by praat_script.cpp). */
@@ -149,6 +150,10 @@ int praat_doAction (conststring32 command, integer narg, Stackel args, Interpret
 integer praat_getNumberOfActions ();   // for ButtonEditor
 Praat_Command praat_getAction (integer i);   // for ButtonEditor
 
+GuiButton praat_actions_getPlayButton ();
+void praat_sound_updatePlayButtonIfActive ();
+bool praat_sound_isPaused ();
+
 /* Communication with praat_statistics.cpp: */
 void praat_statistics_prefs ();   // at init time
 void praat_statistics_prefsChanged ();   // after reading prefs file
@@ -167,6 +172,7 @@ GuiMenu praat_objects_resolveMenu (conststring32 menu);
 void praat_addFixedButtons (GuiWindow window);
 void praat_addMenus (GuiWindow window);
 void praat_addMenus2 ();
+void praat_refreshObjectsWindowLanguage ();
 
 /* API creation: */
 void praat_library_createC (bool isInHeaderFile, bool includeCreateAPI, bool includeReadAPI, bool includeSaveAPI,
@@ -182,6 +188,7 @@ void praat_actions_writeC (bool isInHeaderFile, bool includeSaveAPI,
 
 void praat_cleanUpName (char32 *name);
 void praat_list_renameAndSelect (integer position, conststring32 name);
+void praat_languageChanged ();
 
 inline struct PraatP {
 	int argc;
@@ -192,6 +199,7 @@ inline struct PraatP {
 	} commandLineOptions;
 	bool fileNamesCameInByDropping, foundTheOpenSwitch, foundTheRunSwitch, foundTheSendSwitch, foundTheSendOrFormSwitch, foundTheNewSwitch;
 	bool userWantsToOpen, userWantsToSend, userWantsToSendOrForm, userWantsExistingInstance, hasFinishedLaunching;
+	bool fullTrust;
 	bool dontUsePictureWindow;   // see praat_dontUsePictureWindow ()
 	bool ignorePreferenceFiles, ignorePlugins;
 	bool hasCommandLineInput;

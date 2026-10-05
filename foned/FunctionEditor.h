@@ -134,6 +134,8 @@ Thing_define (FunctionEditor, Editor) {
 	GuiDrawingArea drawingArea;
 	GuiScrollBar scrollBar;
 	GuiCheckButton groupButton;
+	GuiButton d_speedButton = nullptr;
+	double d_playbackSpeed = 1.0;
 	GuiObject bottomArea;
 	bool group, enableUpdates;
 	int nrect;

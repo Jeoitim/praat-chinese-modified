@@ -545,7 +545,7 @@ void LongSound_getWindowExtrema (LongSound me, double tmin, double tmax, const i
 
 static struct LongSoundPlay {
 	integer numberOfSamples, i1, i2, silenceBefore, silenceAfter;
-	double startTime, endTime, dt, t1;
+	double startTime, endTime, dt, t1, speed;
 	int16 *resampledBuffer;
 	Sound_PlayCallback playCallback;
 	Thing playBoss;
@@ -554,9 +554,12 @@ static struct LongSoundPlay {
 static bool melderPlayCallback (void *closure, const integer samplesPlayed) {
 	struct LongSoundPlay *me = (struct LongSoundPlay *) closure;
 	int phase = 2;
-	const double t = samplesPlayed <= my silenceBefore ? my startTime :
-		samplesPlayed >= my silenceBefore + my numberOfSamples ? my endTime :
-		my t1 + (my i1 - 1.5 + samplesPlayed - my silenceBefore) * my dt;
+	double effectiveSamples = (double)(samplesPlayed - my silenceBefore) * (my speed > 0.0 ? my speed : 1.0);
+	double t = samplesPlayed <= my silenceBefore ? my startTime :
+		effectiveSamples >= (double) my numberOfSamples ? my endTime :
+		my t1 + (my i1 - 1.5 + effectiveSamples) * my dt;
+	if (t < my startTime) t = my startTime;
+	if (t > my endTime) t = my endTime;
 	if (! MelderAudio_isPlaying) {
 		phase = 3;
 		Melder_free (my resampledBuffer);
@@ -581,6 +584,7 @@ void LongSound_playPart (LongSound me, double startTime, double endTime, Sound_P
 		thy endTime = endTime;
 		thy playCallback = playCallback;
 		thy playBoss = playBoss;
+		thy speed = Sound_getPlaybackSpeed ();
 		integer i1, i2;
 		const integer n = Sampled_getWindowSamples (me, startTime, endTime, & i1, & i2);
 		if (n < 2)
@@ -596,7 +600,23 @@ void LongSound_playPart (LongSound me, double startTime, double endTime, Sound_P
 			thy silenceAfter = Melder_iroundTowardsZero (my sampleRate * MelderAudio_getOutputSilenceAfter ());
 			if (thy playCallback)
 				thy playCallback (thy playBoss, 1, startTime, endTime, startTime);
-			if (thy silenceBefore > 0 || thy silenceAfter > 0 || 1) {
+			if (fabs (thy speed - 1.0) > 0.01) {
+				integer stretchedN = 0;
+				autovector <int16> stretched = Sound_wsolaStretch (
+					my buffer.asArgumentToFunctionThatExpectsZeroBasedArray() + (i1 - my imin) * my numberOfChannels,
+					thy numberOfSamples,
+					my numberOfChannels,
+					my sampleRate,
+					thy speed,
+					& stretchedN
+				);
+				thy resampledBuffer = Melder_calloc (int16, (thy silenceBefore + stretchedN + thy silenceAfter) * my numberOfChannels);
+				int16 *dest = thy resampledBuffer + thy silenceBefore * my numberOfChannels;
+				const int16 *src = stretched.asArgumentToFunctionThatExpectsZeroBasedArray();
+				memcpy (dest, src, stretchedN * sizeof (int16) * my numberOfChannels);
+				MelderAudio_play16 (thy resampledBuffer, my sampleRate, thy silenceBefore + stretchedN + thy silenceAfter,
+						my numberOfChannels, melderPlayCallback, thee);
+			} else if (thy silenceBefore > 0 || thy silenceAfter > 0 || 1) {
 				thy resampledBuffer = Melder_calloc (int16, (thy silenceBefore + thy numberOfSamples + thy silenceAfter) * my numberOfChannels);
 				memcpy (& thy resampledBuffer [thy silenceBefore * my numberOfChannels],
 						my buffer.asArgumentToFunctionThatExpectsZeroBasedArray() + (i1 - my imin) * my numberOfChannels,

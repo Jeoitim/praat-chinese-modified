@@ -1,6 +1,6 @@
 /* Sound_audio.cpp
  *
- * Copyright (C) 1992-2020,2022-2025 Paul Boersma
+ * Copyright (C) 1992-2020,2022-2026 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
  */
 
 #include <errno.h>
+#include <vector>
 
 #ifdef linux
 	#define DEV_AUDIO  "/dev/dsp"
@@ -172,7 +173,7 @@ autoSound Sound_record_fixedTime (int inputSource, double gain, double balance, 
 			if (! MelderAudio_hasBeenInitialized) {
 				PaError err = Pa_Initialize ();
 				if (err)
-					Melder_throw (U"Pa_Initialize: ", Melder_peek8to32 (Pa_GetErrorText (err)));
+					Melder_throw (U"Pa_Initialize: ", Melder_peek8to32_u (Pa_GetErrorText (err)));
 				MelderAudio_hasBeenInitialized = true;
 			}
 		} else {
@@ -208,18 +209,16 @@ autoSound Sound_record_fixedTime (int inputSource, double gain, double balance, 
 			Set the input source; the default is the microphone.
 		*/
 		if (inputUsesPortAudio) {
-			if (inputSource < 1 || inputSource > Pa_GetDeviceCount ())
-				Melder_throw (U"Unknown device #", inputSource, U".");
-			/*
-				Saying
-					streamParameters. device = inputSource - 1;
-				would presuppose that the input devices are listed before the output devices.
-				TODO: cycle through all devices, and determine which of them are input devices
-			*/
-			streamParameters. device = Pa_GetDefaultInputDevice ();
+			integer preferredDevIndex = MelderAudio_getInputDeviceIndex ();
+			if (preferredDevIndex >= 0 && preferredDevIndex < Pa_GetDeviceCount ()) {
+				streamParameters. device = (PaDeviceIndex) preferredDevIndex;
+			} else {
+				streamParameters. device = Pa_GetDefaultInputDevice ();
+			}
 			Melder_casual (U"streamParameters. device: ", (integer) streamParameters. device);
 			const PaDeviceInfo *paDeviceInfo = Pa_GetDeviceInfo (streamParameters. device);
-			Melder_casual (U"Name: ", Melder_peek8to32 (paDeviceInfo -> name));
+			if (paDeviceInfo)
+				Melder_casual (U"Name: ", Melder_peek8to32_u (paDeviceInfo -> name));
 		} else {
 			#if defined (macintosh)
 			#elif defined (linux) && ! defined (NO_AUDIO)
@@ -352,10 +351,10 @@ autoSound Sound_record_fixedTime (int inputSource, double gain, double balance, 
 				0,   // this gives the default of 64 samples per buffer on Paul's 2018 MacBook Pro (checked 20200813)
 				paNoFlag, portaudioStreamCallback, (void *) & info);
 			if (err)
-				Melder_throw (U"open ", Melder_peek8to32 (Pa_GetErrorText (err)));
+				Melder_throw (U"open ", Melder_peek8to32_u (Pa_GetErrorText (err)));
 			Pa_StartStream (portaudioStream);
 			if (err)
-				Melder_throw (U"start ", Melder_peek8to32 (Pa_GetErrorText (err)));
+				Melder_throw (U"start ", Melder_peek8to32_u (Pa_GetErrorText (err)));
 		} else {
 			#if defined (macintosh)
 			#elif defined (_WIN32)
@@ -460,11 +459,145 @@ for (i = 1; i <= numberOfSamples; i ++) trace (U"Recorded ", buffer [i]);
 	}
 }
 
+static double s_currentPlaybackSpeed = 1.0;
+
+void Sound_setPlaybackSpeed (double speed) {
+	if (speed < 0.2) speed = 0.2;
+	if (speed > 5.0) speed = 5.0;
+	s_currentPlaybackSpeed = speed;
+}
+
+double Sound_getPlaybackSpeed () {
+	return s_currentPlaybackSpeed;
+}
+
+/*
+ * WSOLA (Waveform Similarity Overlap-Add) Time-Scale Modification
+ * Preserves pitch and formants (变速不变调)
+ */
+autovector <int16> Sound_wsolaStretch (
+	const int16 *input,
+	integer nInputSamples, // per channel
+	integer numberOfChannels,
+	integer sampleRate,
+	double speed,
+	integer *outStretchedSamples
+) {
+	if (speed >= 0.999 && speed <= 1.001 || nInputSamples < 128 || sampleRate <= 0 || ! input) {
+		*outStretchedSamples = nInputSamples;
+		autovector <int16> copy = newvectorzero <int16> (nInputSamples * numberOfChannels);
+		if (input)
+			memcpy (copy.asArgumentToFunctionThatExpectsZeroBasedArray(), input, nInputSamples * numberOfChannels * sizeof (int16));
+		return copy;
+	}
+
+	integer nTarget = Melder_iround ((double) nInputSamples / speed);
+	if (nTarget < 128)
+		nTarget = 128;
+	*outStretchedSamples = nTarget;
+
+	// 20ms window, 50% overlap
+	integer winSize = Melder_iround (0.020 * sampleRate);
+	if (winSize < 64) winSize = 64;
+	if (winSize > 2048) winSize = 2048;
+	if (winSize % 2 != 0) winSize ++;
+	if (winSize > nInputSamples)
+		winSize = (nInputSamples / 2) * 2;
+	if (winSize < 16)
+		winSize = 16;
+
+	integer hopSyn = winSize / 2;
+	integer hopAna = Melder_iround ((double) hopSyn * speed);
+	if (hopAna < 1) hopAna = 1;
+	integer maxDelta = winSize / 2;
+
+	// Create Hann window (0-based)
+	std::vector <float> win (winSize);
+	for (integer i = 0; i < winSize; i ++) {
+		win [i] = 0.5f * (1.0f - cosf ((float)(2.0 * M_PI * i / winSize)));
+	}
+
+	// Output buffer and accumulation buffer (0-based)
+	autovector <int16> output = newvectorzero <int16> ((nTarget + winSize + 256) * numberOfChannels);
+	int16 *outPtr = output.asArgumentToFunctionThatExpectsZeroBasedArray();
+	std::vector <float> accum ((nTarget + winSize + 256) * numberOfChannels, 0.0f);
+
+	integer prevInPos = 0;
+	integer outPos = 0;
+	integer frameIndex = 0;
+
+	while (outPos < nTarget) {
+		integer targetInPos = Melder_iround ((double) frameIndex * hopAna);
+		integer bestInPos = targetInPos;
+
+		if (frameIndex > 0) {
+			// Search best cross-correlation around targetInPos
+			integer refStart = prevInPos + hopSyn;
+			integer searchStart = targetInPos - maxDelta;
+			integer searchEnd = targetInPos + maxDelta;
+
+			if (searchStart < 0) searchStart = 0;
+			if (searchEnd + winSize > nInputSamples) searchEnd = nInputSamples - winSize;
+
+			if (searchEnd >= searchStart && refStart + hopSyn <= nInputSamples && refStart >= 0) {
+				double maxCorr = -1e30;
+				integer bestPos = targetInPos;
+
+				// Decimate search step for high sample rates
+				integer step = (sampleRate > 32000) ? 2 : 1;
+				for (integer cand = searchStart; cand <= searchEnd; cand += step) {
+					double corr = 0.0;
+					for (integer k = 0; k < hopSyn; k += 2) {
+						int16 r = input [(refStart + k) * numberOfChannels];
+						int16 c = input [(cand + k) * numberOfChannels];
+						corr += (double) r * (double) c;
+					}
+					if (corr > maxCorr) {
+						maxCorr = corr;
+						bestPos = cand;
+					}
+				}
+				bestInPos = bestPos;
+			}
+		}
+
+		if (bestInPos < 0) bestInPos = 0;
+		if (bestInPos + winSize > nInputSamples) bestInPos = nInputSamples - winSize;
+		if (bestInPos < 0) bestInPos = 0;
+
+		// Overlap-add windowed segment into output
+		for (integer k = 0; k < winSize; k ++) {
+			integer inIdx = bestInPos + k;
+			if (inIdx >= nInputSamples) break;
+			integer curOut = outPos + k;
+			if (curOut >= nTarget + winSize + 250) break;
+			float w = win [k];
+			for (integer ch = 0; ch < numberOfChannels; ch ++) {
+				accum [curOut * numberOfChannels + ch] += (float) input [inIdx * numberOfChannels + ch] * w;
+			}
+		}
+
+		prevInPos = bestInPos;
+		outPos += hopSyn;
+		frameIndex ++;
+	}
+
+	// Copy to 16-bit output buffer with saturation
+	for (integer i = 0; i < nTarget * numberOfChannels; i ++) {
+		float val = accum [i];
+		if (val > 32767.0f) val = 32767.0f;
+		if (val < -32768.0f) val = -32768.0f;
+		outPtr [i] = (int16) Melder_iround (val);
+	}
+
+	return output;
+}
+
 /********** PLAYING A SOUND **********/
 
 static struct SoundPlay {
-	integer numberOfSamples, i1, i2, silenceBefore, silenceAfter;
-	double tmin, tmax, dt, t1;
+	integer numberOfSamples, numberOfStretchedSamples, i1, i2, silenceBefore, silenceAfter;
+	double tmin, tmax, dt, t1, speed;
 	Sound_PlayCallback callback;
 	Thing boss;
 	autovector <int16> outputBuffer;
@@ -473,9 +606,12 @@ static struct SoundPlay {
 static bool melderPlayCallback (void *closure, integer samplesPlayed) {
 	struct SoundPlay *me = (struct SoundPlay *) closure;
 	int phase = 2;
+	double effectiveSamples = (double)(samplesPlayed - my silenceBefore) * my speed;
 	double t = ( samplesPlayed <= my silenceBefore ? my tmin :
-			samplesPlayed >= my silenceBefore + my numberOfSamples ? my tmax :
-			my t1 + (my i1 - 1.5 + samplesPlayed - my silenceBefore) * my dt );
+			effectiveSamples >= (double) my numberOfSamples ? my tmax :
+			my t1 + (my i1 - 1.5 + effectiveSamples) * my dt );
+	if (t < my tmin) t = my tmin;
+	if (t > my tmax) t = my tmax;
 	if (! MelderAudio_isPlaying) {
 		my outputBuffer. reset();   // get a bit of privacy
 		phase = 3;
@@ -500,6 +636,7 @@ void Sound_playPart (constSound me, double tmin, double tmax, Sound_PlayCallback
 			thy tmax = tmax;
 			thy dt = my dx;
 			thy t1 = my x1;
+			thy speed = s_currentPlaybackSpeed;
 			thy callback = callback;
 			thy boss = boss;
 			thy silenceBefore = Melder_iroundTowardsZero (ifsamp * MelderAudio_getOutputSilenceBefore ());
@@ -531,8 +668,30 @@ void Sound_playPart (constSound me, double tmin, double tmax, Sound_PlayCallback
 			}
 			if (thy callback)
 				thy callback (thy boss, 1, tmin, tmax, tmin);
-			MelderAudio_play16 (thy outputBuffer.asArgumentToFunctionThatExpectsZeroBasedArray(), ifsamp,
-				thy silenceBefore + thy numberOfSamples + thy silenceAfter, numberOfChannels, melderPlayCallback, thee);
+
+			if (fabs (thy speed - 1.0) > 0.01) {
+				integer stretchedN = 0;
+				autovector <int16> stretched = Sound_wsolaStretch (
+					thy outputBuffer.asArgumentToFunctionThatExpectsZeroBasedArray() + thy silenceBefore * numberOfChannels,
+					thy numberOfSamples,
+					numberOfChannels,
+					ifsamp,
+					thy speed,
+					& stretchedN
+				);
+				thy numberOfStretchedSamples = stretchedN;
+				autovector <int16> finalBuf = newvectorzero <int16> ((thy silenceBefore + stretchedN + thy silenceAfter) * numberOfChannels);
+				int16 *dest = finalBuf.asArgumentToFunctionThatExpectsZeroBasedArray() + thy silenceBefore * numberOfChannels;
+				const int16 *src = stretched.asArgumentToFunctionThatExpectsZeroBasedArray();
+				memcpy (dest, src, stretchedN * numberOfChannels * sizeof (int16));
+				thy outputBuffer = finalBuf.move ();
+				MelderAudio_play16 (thy outputBuffer.asArgumentToFunctionThatExpectsZeroBasedArray(), ifsamp,
+					thy silenceBefore + stretchedN + thy silenceAfter, numberOfChannels, melderPlayCallback, thee);
+			} else {
+				thy numberOfStretchedSamples = thy numberOfSamples;
+				MelderAudio_play16 (thy outputBuffer.asArgumentToFunctionThatExpectsZeroBasedArray(), ifsamp,
+					thy silenceBefore + thy numberOfSamples + thy silenceAfter, numberOfChannels, melderPlayCallback, thee);
+			}
 		} else {
 			autoSound part = Sound_extractPart (me, tmin, tmax, kSound_windowShape::RECTANGULAR, 1.0, true);
 			autoSound resampled = Sound_resample (part.get(), bestSampleRate, 20);

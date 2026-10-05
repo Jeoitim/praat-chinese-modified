@@ -302,6 +302,17 @@ void Sound_playPart (constSound me, double tmin, double tmax, Sound_PlayCallback
 void Sound_play (constSound me, Sound_PlayCallback playCallback, Thing playBoss);
 	/* The same as Sound_playPart (me, my xmin, my xmax, playCallback, playBoss); */
 
+void Sound_setPlaybackSpeed (double speed);
+double Sound_getPlaybackSpeed ();
+autovector <int16> Sound_wsolaStretch (
+	const int16 *input,
+	integer nInputSamples,
+	integer numberOfChannels,
+	integer sampleRate,
+	double speed,
+	integer *outStretchedSamples
+);
+
 /********** Sound_files.cpp **********/
 
 /* To avoid clipping, keep the absolute amplitude below 1.000. */

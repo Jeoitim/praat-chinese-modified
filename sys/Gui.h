@@ -484,6 +484,12 @@ GuiButton GuiButton_createShown (GuiForm parent,
 );
 
 void GuiButton_setText (GuiButton me, conststring32 text /* cattable */);
+void GuiButton_setProgress (GuiButton me, double fraction, int state);
+void GuiButton_setWaveform (GuiButton me, const float *peaks, int numPeaks);
+
+typedef void (*GuiButton_SplitCallback) (GuiButton me, void *nativeHandle, int screenX, int screenY);
+void GuiButton_enableSplit (GuiButton me, bool enable);
+void GuiButton_setSplitCallback (GuiButton me, GuiButton_SplitCallback cb);
 
 /********** GuiCheckButton **********/
 
@@ -664,6 +670,8 @@ autostring32 GuiFileSelect_getFolderName (GuiWindow optionalParent, conststring3
 
 /********** GuiForm **********/
 
+GuiForm GuiForm_create (GuiForm parent, int left, int right, int top, int bottom, uint32 flags);
+GuiForm GuiForm_createShown (GuiForm parent, int left, int right, int top, int bottom, uint32 flags);
 GuiForm GuiForm_createInScrolledWindow (GuiScrolledWindow parent);
 
 /********** GuiLabel **********/
@@ -705,6 +713,14 @@ typedef struct structGuiList_ScrollEvent {
 } *GuiList_ScrollEvent;
 using GuiList_ScrollCallback = MelderCallback <void, structThing /* boss */, GuiList_ScrollEvent>;
 
+typedef struct structGuiList_ContextMenuEvent {
+	GuiList list;
+	int x;
+	int y;
+	integer itemIndex;
+} *GuiList_ContextMenuEvent;
+using GuiList_ContextMenuCallback = MelderCallback <void, structThing /* boss */, GuiList_ContextMenuEvent>;
+
 Thing_define (GuiList, GuiControl) {
 	bool d_allowMultipleSelection;
 	GuiList_SelectionChangedCallback d_selectionChangedCallback;
@@ -713,6 +729,8 @@ Thing_define (GuiList, GuiControl) {
 	Thing d_doubleClickBoss;
 	GuiList_ScrollCallback d_scrollCallback;
 	Thing d_scrollBoss;
+	GuiList_ContextMenuCallback d_contextMenuCallback;
+	Thing d_contextMenuBoss;
 	#if gtk
 		GtkListStore *d_liststore;
 	#endif
@@ -749,6 +767,7 @@ void GuiList_selectItem (GuiList me, integer position);
 void GuiList_setSelectionChangedCallback (GuiList me, GuiList_SelectionChangedCallback callback, Thing boss);
 void GuiList_setDoubleClickCallback (GuiList me, GuiList_DoubleClickCallback callback, Thing boss);
 void GuiList_setScrollCallback (GuiList me, GuiList_ScrollCallback callback, Thing boss);
+void GuiList_setContextMenuCallback (GuiList me, GuiList_ContextMenuCallback callback, Thing boss);
 
 /********** GuiMenu **********/
 
@@ -1197,13 +1216,13 @@ void GuiObject_destroy (GuiObject me);
 
 /********** EVENTS **********/
 
-#if defined (macintosh)
 void Gui_setOpenDocumentCallback (void (*openDocumentCallback) (MelderFile file), void (*finishedOpeningDocumentsCallback) ());
-#endif
 
-#if defined (macintosh)
-void Gui_setQuitApplicationCallback (int (*quitApplicationCallback) (void));
-#endif
+void Gui_setQuitApplicationCallback (void (*quitApplicationCallback) ());
+void Gui_runQuitApplicationCallback ();
+
+void Gui_copyTextToClipboard (conststring32 text);
+void Gui_openUrl (conststring32 url);
 
 extern uinteger theGuiTopLowAccelerators [8];
 
@@ -1211,9 +1230,6 @@ extern uinteger theGuiTopLowAccelerators [8];
 	'parent' is the top-level widget.
 */
 void Gui_injectMessageProcs (GuiWindow parent);
-
-void Gui_copyTextToClipboard (conststring32 text);
-void Gui_openUrl (conststring32 url);
 
 /* End of file Gui.h */
 #endif

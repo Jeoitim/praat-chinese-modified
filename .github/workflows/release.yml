@@ -115,6 +115,8 @@ jobs:
 
           files_to_add = [
               ("sys/praat_translate.cpp", "sys/praat_translate.h", "23E5CB0809A22901004E41D5", "23E5D0BD09A22A57004E41D5", "23E5D0BC09A22A57004E41D5", "01"),
+              ("sys/praat_python.cpp", "sys/praat_python.h", "23E5CB0809A22901004E41D5", "23E5D0BD09A22A57004E41D5", "23E5D0BC09A22A57004E41D5", "21"),
+              ("sys/PythonScriptEditor.cpp", "sys/PythonScriptEditor.h", "23E5CB0809A22901004E41D5", "23E5D0BD09A22A57004E41D5", "23E5D0BC09A22A57004E41D5", "31"),
           ]
 
           for cpp_path, h_path, anchor_grp, anchor_src, anchor_hdr, pfx in files_to_add:

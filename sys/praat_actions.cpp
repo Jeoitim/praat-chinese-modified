@@ -1,10 +1,10 @@
 /* praat_actions.cpp
  *
- * Copyright (C) 1992-2018,2020-2024 Paul Boersma
+ * Copyright (C) 1992-2018,2020-2026 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
+ * the Free Software Foundation; either version 3 of the License, or (at
  * your option) any later version.
  *
  * This code is distributed in the hope that it will be useful, but
@@ -580,6 +580,8 @@ static bool allowExecutionHook (void *closure) {
 			sel1 = ( my class1 == classDaata ? theCurrentPraatObjects -> totalSelection : praat_numberOfSelected (my class1) );
 			if (sel1 == 0)
 				continue;
+			if (my n1 < 0 && sel1 < - my n1)
+				continue;
 			if (my class2 && (sel2 = praat_numberOfSelected (my class2)) == 0)
 				continue;
 			if (my class3 && (sel3 = praat_numberOfSelected (my class3)) == 0)
@@ -588,7 +590,7 @@ static bool allowExecutionHook (void *closure) {
 				continue;
 			if (sel1 + sel2 + sel3 + sel4 != theCurrentPraatObjects -> totalSelection)
 				continue;
-			if ((my n1 && sel1 != my n1) || (my n2 && sel2 != my n2) || (my n3 && sel3 != my n3) || (my n4 && sel4 != my n4))
+			if ((my n1 > 0 && sel1 != my n1) || (my n2 > 0 && sel2 != my n2) || (my n3 > 0 && sel3 != my n3) || (my n4 > 0 && sel4 != my n4))
 				continue;
 			return true;   // found a matching action
 		}
@@ -689,6 +691,8 @@ void praat_actions_show () {
 		sel1 = ( action -> class1 == classDaata ? theCurrentPraatObjects -> totalSelection : praat_numberOfSelected (action -> class1) );
 		if (sel1 == 0)
 			continue;
+		if (n1 < 0 && sel1 < - n1)
+			continue;
 		if (action -> class2 && (sel2 = praat_numberOfSelected (action -> class2)) == 0)
 			continue;
 		if (action -> class3 && (sel3 = praat_numberOfSelected (action -> class3)) == 0)
@@ -704,7 +708,7 @@ void praat_actions_show () {
 		*/
 		if (! action -> callback)
 			continue;   // separators are not executable
-		if ((n1 && sel1 != n1) || (n2 && sel2 != n2) || (n3 && sel3 != n3) || (n4 && sel4 != n4))
+		if ((n1 > 0 && sel1 != n1) || (n2 > 0 && sel2 != n2) || (n3 > 0 && sel3 != n3) || (n4 > 0 && sel4 != n4))
 			continue;
 		action -> executable = true;
 	}
@@ -735,7 +739,7 @@ void praat_actions_show () {
 				*/
 				GuiMenu parentMenu = ( my depth > 1 && currentSubmenu2 ? currentSubmenu2 : my depth > 0 && currentSubmenu1 ? currentSubmenu1 : nullptr );
 
-				if (str32nequ (my title.get(), U"Save ", 5) || str32nequ (my title.get(), U"Write ", 6) || str32nequ (my title.get(), U"Append to ", 10)) {
+				if (str32nequ (my title.get(), U"Save ", 5) || str32nequ (my title.get(), U"Write ", 6) || str32nequ (my title.get(), U"Append to ", 10) || str32nequ (my title.get(), U"Export ", 7)) {
 					parentMenu = praat_writeMenu;
 					if (! praat_writeMenuSeparator) {
 						if (writeMenuGoingToSeparate)
@@ -790,6 +794,7 @@ void praat_actions_show () {
 			}
 		}
 	}
+	praat_sound_updatePlayButtonIfActive ();
 }
 
 void praat_actions_createWriteMenu (GuiWindow window) {
@@ -906,6 +911,17 @@ integer praat_getNumberOfActions () { return theActions.size; }
 
 Praat_Command praat_getAction (integer i)
 	{ return i < 0 || i > theActions.size ? nullptr : theActions.at [i]; }
+
+GuiButton praat_actions_getPlayButton () {
+	for (integer i = 1; i <= theActions.size; i ++) {
+		Praat_Command action = theActions.at [i];
+		if (action -> visible && action -> title && str32equ (action -> title.get(), U"Play")) {
+			if (action -> button && Thing_isa (action -> button, classGuiButton))
+				return (GuiButton) action -> button;
+		}
+	}
+	return nullptr;
+}
 
 void praat_background () {
 	if (Melder_batch)

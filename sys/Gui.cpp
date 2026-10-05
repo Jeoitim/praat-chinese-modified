@@ -1,6 +1,6 @@
 /* Gui.cpp
  *
- * Copyright (C) 1992-2008,2010-2017,2019-2021,2024,2025 Paul Boersma
+ * Copyright (C) 1992-2008,2010-2017,2019-2021,2024-2026 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,19 +49,14 @@ int Gui_getResolution (GuiObject widget) {
 	void GuiGtk_initialize () {
 		static bool gtkHasBeenInitialized = false;
 		if (! gtkHasBeenInitialized) {
-			trace (U"before initing GTK: locale is ", Melder_peek8to32 (setlocale (LC_ALL, nullptr)));
+			trace (U"before initing GTK: locale is ", Melder_peek8to32_u (setlocale (LC_ALL, nullptr)));
 			gtk_disable_setlocale ();   // otherwise 1.5 will be written "1,5" on computers with a French or German locale
-			trace (U"during initing GTK: locale is ", Melder_peek8to32 (setlocale (LC_ALL, nullptr)));
+			trace (U"during initing GTK: locale is ", Melder_peek8to32_u (setlocale (LC_ALL, nullptr)));
 			gtk_init_check (nullptr, nullptr);
-			trace (U"after initing GTK: locale is ", Melder_peek8to32 (setlocale (LC_ALL, nullptr)));
+			trace (U"after initing GTK: locale is ", Melder_peek8to32_u (setlocale (LC_ALL, nullptr)));
 			gtkHasBeenInitialized = true;
 		}
 	}
-#endif
-
-#if defined (macintosh)
-void Gui_setQuitApplicationCallback (int (* /*quitApplicationCallback*/) (void)) {
-}
 #endif
 
 void Gui_getWindowPositioningBounds (double *x, double *y, double *width, double *height) {
@@ -151,40 +146,225 @@ void Gui_getWindowPositioningBounds (double *x, double *y, double *width, double
 			brush = CreateSolidBrush (RGB (224, 224, 224));
 		return brush;
 	}
-#endif
 
-#if defined (_WIN32)
-	#include <shellapi.h>
+	HFONT theWinGuiIconFont (int height) {
+		static struct { int h; HFONT font; } s_cached [8];
+		for (int i = 0; i < 8; i ++) {
+			if (s_cached [i].h == height && s_cached [i].font)
+				return s_cached [i].font;
+		}
+
+		static const wchar_t *families [] = {
+			L"Segoe Fluent Icons",
+			L"Segoe MDL2 Assets",
+			L"Segoe UI Symbol"
+		};
+		HDC screenDc = GetDC (nullptr);
+		HFONT result = nullptr;
+		if (screenDc) {
+			for (const wchar_t *family : families) {
+				HFONT hf = CreateFontW (
+					height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+					DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+					ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
+					family
+				);
+				if (hf) {
+					HFONT old = (HFONT) SelectObject (screenDc, hf);
+					wchar_t actual [64] = { 0 };
+					GetTextFaceW (screenDc, 64, actual);
+					SelectObject (screenDc, old);
+					if (wcsicmp (actual, family) == 0) {
+						result = hf;
+						break;
+					}
+					DeleteObject (hf);
+				}
+			}
+			ReleaseDC (nullptr, screenDc);
+		}
+		if (! result) {
+			result = CreateFontW (
+				height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+				DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+				ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
+				L"Segoe UI Symbol"
+			);
+		}
+		for (int i = 0; i < 8; i ++) {
+			if (s_cached [i].font == nullptr) {
+				s_cached [i].h = height;
+				s_cached [i].font = result;
+				break;
+			}
+		}
+		return result;
+	}
+
+	HBITMAP _GuiWin_createMenuIcon (const wchar_t *glyph, COLORREF color) {
+		const int cx = GetSystemMetrics (SM_CXSMICON);
+		const int cy = GetSystemMetrics (SM_CYSMICON);
+		const int scale = 4;
+		const int wBig = cx * scale;
+		const int hBig = cy * scale;
+
+		HDC hdcScreen = GetDC (nullptr);
+		HDC hdcMem = CreateCompatibleDC (hdcScreen);
+
+		BITMAPINFO biDst;
+		memset (& biDst, 0, sizeof (biDst));
+		biDst.bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
+		biDst.bmiHeader.biWidth = cx;
+		biDst.bmiHeader.biHeight = cy;
+		biDst.bmiHeader.biPlanes = 1;
+		biDst.bmiHeader.biBitCount = 32;
+		biDst.bmiHeader.biCompression = BI_RGB;
+		void *pBitsDst = nullptr;
+		HBITMAP hbmpDst = CreateDIBSection (hdcMem, & biDst, DIB_RGB_COLORS, & pBitsDst, nullptr, 0);
+
+		HDC hdcBig = CreateCompatibleDC (hdcScreen);
+		BITMAPINFO biBig;
+		memset (& biBig, 0, sizeof (biBig));
+		biBig.bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
+		biBig.bmiHeader.biWidth = wBig;
+		biBig.bmiHeader.biHeight = hBig;
+		biBig.bmiHeader.biPlanes = 1;
+		biBig.bmiHeader.biBitCount = 32;
+		biBig.bmiHeader.biCompression = BI_RGB;
+		void *pBitsBig = nullptr;
+		HBITMAP hbmpBig = CreateDIBSection (hdcBig, & biBig, DIB_RGB_COLORS, & pBitsBig, nullptr, 0);
+
+		if (hdcBig && hbmpBig && pBitsBig && pBitsDst) {
+			memset (pBitsBig, 0, wBig * hBig * sizeof (DWORD));
+			HBITMAP oldBmpBig = (HBITMAP) SelectObject (hdcBig, hbmpBig);
+			int fontHeightBig = - (hBig * 4 / 5);
+			HFONT hFontBig = theWinGuiIconFont (fontHeightBig);
+			HFONT oldFontBig = (HFONT) SelectObject (hdcBig, hFontBig);
+
+			SetBkMode (hdcBig, TRANSPARENT);
+			SetTextColor (hdcBig, RGB (255, 255, 255));
+			RECT rcBig = { 0, 0, wBig, hBig };
+			DrawTextW (hdcBig, glyph, -1, & rcBig, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+			DWORD *pixelsBig = (DWORD *) pBitsBig;
+			DWORD *pixelsDst = (DWORD *) pBitsDst;
+			BYTE rTarget = GetRValue (color);
+			BYTE gTarget = GetGValue (color);
+			BYTE bTarget = GetBValue (color);
+
+			for (int y = 0; y < cy; y ++) {
+				for (int x = 0; x < cx; x ++) {
+					int sumA = 0;
+					for (int dy = 0; dy < scale; dy ++) {
+						for (int dx = 0; dx < scale; dx ++) {
+							int sy = y * scale + dy;
+							int sx = x * scale + dx;
+							DWORD px = pixelsBig [sy * wBig + sx];
+							BYTE r = (BYTE) (px & 0xFF);
+							BYTE g = (BYTE) ((px >> 8) & 0xFF);
+							BYTE b = (BYTE) ((px >> 16) & 0xFF);
+							BYTE maxVal = r > g ? (r > b ? r : b) : (g > b ? g : b);
+							sumA += maxVal;
+						}
+					}
+					int a = sumA / (scale * scale);
+					if (a > 0) {
+						BYTE pr = (BYTE) (((int) rTarget * a + 127) / 255);
+						BYTE pg = (BYTE) (((int) gTarget * a + 127) / 255);
+						BYTE pb = (BYTE) (((int) bTarget * a + 127) / 255);
+						pixelsDst [y * cx + x] = ((DWORD) a << 24) | ((DWORD) pr << 16) | ((DWORD) pg << 8) | pb;
+					} else {
+						pixelsDst [y * cx + x] = 0;
+					}
+				}
+			}
+
+			SelectObject (hdcBig, oldFontBig);
+			SelectObject (hdcBig, oldBmpBig);
+			DeleteObject (hbmpBig);
+			DeleteDC (hdcBig);
+		}
+
+		DeleteDC (hdcMem);
+		ReleaseDC (nullptr, hdcScreen);
+		return hbmpDst;
+	}
+
+	void _GuiWin_setMenuItemIcon (HMENU hMenu, UINT cmdId, HBITMAP hbmp) {
+		if (! hbmp) return;
+		MENUITEMINFOW mii;
+		memset (& mii, 0, sizeof (mii));
+		mii.cbSize = sizeof (mii);
+		mii.fMask = MIIM_BITMAP;
+		mii.hbmpItem = hbmp;
+		SetMenuItemInfoW (hMenu, cmdId, FALSE, & mii);
+	}
 #endif
 
 void Gui_copyTextToClipboard (conststring32 text) {
 	if (! text || text [0] == U'\0') return;
+	autostring8 text8 = Melder_32to8 (text);
+	if (! text8) return;
+
 	#if defined (_WIN32)
-		conststringW textW = Melder_peek32toW (text);
-		if (! textW || textW [0] == L'\0') return;
-		int lenW = wcslen (textW) + 1;
+		int lenW = MultiByteToWideChar (CP_UTF8, 0, text8.get(), -1, nullptr, 0);
+		if (lenW <= 0) return;
 		if (! OpenClipboard (nullptr)) return;
 		EmptyClipboard ();
 		HGLOBAL hMem = GlobalAlloc (GMEM_MOVEABLE, lenW * sizeof (wchar_t));
 		if (hMem) {
 			wchar_t *pMem = (wchar_t *) GlobalLock (hMem);
 			if (pMem) {
-				memcpy (pMem, textW, lenW * sizeof (wchar_t));
+				MultiByteToWideChar (CP_UTF8, 0, text8.get(), -1, pMem, lenW);
 				GlobalUnlock (hMem);
 				SetClipboardData (CF_UNICODETEXT, hMem);
 			}
 		}
 		CloseClipboard ();
+	#elif defined (macintosh)
+		NSString *nsStr = [NSString stringWithUTF8String: text8.get()];
+		if (nsStr) {
+			NSPasteboard *pb = [NSPasteboard generalPasteboard];
+			[pb clearContents];
+			[pb setString: nsStr forType: NSPasteboardTypeString];
+		}
+	#elif gtk
+		GtkClipboard *cb = gtk_clipboard_get (GDK_SELECTION_CLIPBOARD);
+		if (cb) {
+			gtk_clipboard_set_text (cb, text8.get(), -1);
+		}
 	#endif
 }
 
 void Gui_openUrl (conststring32 url) {
 	if (! url || url [0] == U'\0') return;
+	autostring8 url8 = Melder_32to8 (url);
+	if (! url8) return;
+
 	#if defined (_WIN32)
-		conststringW urlW = Melder_peek32toW (url);
-		if (urlW && urlW [0] != L'\0') {
-			ShellExecuteW (nullptr, L"open", urlW, nullptr, nullptr, SW_SHOWNORMAL);
+		int lenW = MultiByteToWideChar (CP_UTF8, 0, url8.get(), -1, nullptr, 0);
+		if (lenW > 0) {
+			std::wstring w (lenW, 0);
+			MultiByteToWideChar (CP_UTF8, 0, url8.get(), -1, & w [0], lenW);
+			ShellExecuteW (nullptr, L"open", w.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 		}
+	#elif defined (macintosh)
+		NSString *nsUrl = [NSString stringWithUTF8String: url8.get()];
+		if (nsUrl) {
+			NSURL *u = [NSURL URLWithString: nsUrl];
+			if (u) {
+				[[NSWorkspace sharedWorkspace] openURL: u];
+			}
+		}
+	#else
+		std::string safeUrl = url8.get();
+		std::string escaped;
+		for (char c : safeUrl) {
+			if (c == '\'') escaped += "'\\''";
+			else escaped += c;
+		}
+		std::string cmd = "xdg-open '" + escaped + "' 2>/dev/null &";
+		system (cmd.c_str());
 	#endif
 }
 

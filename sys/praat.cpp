@@ -43,6 +43,7 @@
 #include "ScriptEditor.h"
 #include "NotebookEditor.h"
 #include "Strings_.h"
+#include "praat_python.h"
 #include "../kar/UnicodeData.h"
 #include "InfoEditor.h"
 #include "praat_translate.h"
@@ -855,34 +856,152 @@ static int publishProc (autoDaata me) {
 
 /***** QUIT *****/
 
-FORM (DO_Quit, U"Confirm Quit", U"Quit") {
-	MUTABLE_COMMENT (label1, U"You have objects in your list!")
-	MUTABLE_COMMENT (label2, U"Do you still want to quit?")
-	OK
+static GuiDialog theQuitDialog;
+static GuiLabel theQuitLabel1;
+static GuiLabel theQuitLabel2;
+
+static void gui_dialog_cb_quitGoAway (Thing /* boss */) {
+	if (theQuitDialog)
+		GuiThing_hide (theQuitDialog);
+}
+
+static void gui_button_cb_helpQuit (Thing /* boss */, GuiButtonEvent /* event */) {
+	Melder_help (U"Quit");
+}
+
+static void gui_button_cb_cancelQuit (Thing /* boss */, GuiButtonEvent /* event */) {
+	if (theQuitDialog)
+		GuiThing_hide (theQuitDialog);
+}
+
+static void gui_button_cb_directQuit (Thing /* boss */, GuiButtonEvent /* event */) {
+	if (theQuitDialog)
+		GuiThing_hide (theQuitDialog);
+	praat_exit (0);
+}
+
+static void gui_button_cb_saveProjectAndQuit (Thing /* boss */, GuiButtonEvent /* event */) {
+	autostring32 chosenPath = GuiFileSelect_getOutfileName (theCurrentPraatApplication -> topShell, praat_translate (U"Save workspace as .praat file"), U"workspace.praat");
+	if (! chosenPath || chosenPath [0] == U'\0')
+		return;
+
+	MelderString filePath;
+	MelderString_copy (& filePath, chosenPath.get());
+	if (! Melder_endsWith_caseAware (filePath.string, U".praat"))
+		MelderString_append (& filePath, U".praat");
+
+	try {
+		structMelderFile file;
+		Melder_pathToFile (filePath.string, & file);
+		autoCollection set = Collection_create ();
+		for (integer iobject = 1; iobject <= theCurrentPraatObjects -> n; iobject ++) {
+			Daata object = (Daata) theCurrentPraatObjects -> list [iobject]. object;
+			if (object)
+				set -> addItem_ref (object);
+		}
+		Data_writeToBinaryFile (set.get(), & file);
+	} catch (MelderError) {
+		Melder_flushError ();
+		return;
+	}
+
+	if (theQuitDialog)
+		GuiThing_hide (theQuitDialog);
+	praat_exit (0);
+}
+
+extern "C" void DO_Quit (UiForm /* sendingForm */, integer /* narg */, Stackel /* args */, conststring32 /* sendingString */,
+	Interpreter /* interpreter */, conststring32 /* invokingButtonTitle */, bool /* isModified */, void * /* buttonClosure */, Editor /* optionalEditor */)
 {
 	const bool youHaveObjectsInYourList = ( theCurrentPraatObjects -> n > 0 );
 	const bool youHaveUnsavedScriptsOrNotebooks = ( ScriptEditors_dirty () || NotebookEditors_dirty () );
-	if (youHaveObjectsInYourList || youHaveUnsavedScriptsOrNotebooks) {
-		if (youHaveObjectsInYourList && youHaveUnsavedScriptsOrNotebooks)
-			SET_STRING (label1, U"You have objects in your list, and unsaved scripts or notebooks!")
-		else if (youHaveUnsavedScriptsOrNotebooks)
-			SET_STRING (label1, U"You have unsaved scripts or notebooks!")
-		else
-			SET_STRING (label1, U"You have objects in your list!")
-		char32 prompt [200];
-		Melder_sprint (prompt,200, U"Do you still want to quit ", Melder_upperCaseAppName(), U"?");
-		SET_STRING (label2, prompt)
-	} else {
+	if ((! youHaveObjectsInYourList && ! youHaveUnsavedScriptsOrNotebooks) || theCurrentPraatApplication -> batch) {
 		praat_exit (0);
+		return;
 	}
+
+	conststring32 line1Text;
+	if (youHaveObjectsInYourList && youHaveUnsavedScriptsOrNotebooks)
+		line1Text = praat_translate (U"You have objects in your list, and unsaved scripts or notebooks!");
+	else if (youHaveUnsavedScriptsOrNotebooks)
+		line1Text = praat_translate (U"You have unsaved scripts or notebooks!");
+	else
+		line1Text = praat_translate (U"You have objects in your list!");
+
+	char32 line2Text [200];
+	Melder_sprint (line2Text, 200, praat_translate (U"Do you still want to quit "), Melder_upperCaseAppName(), U"?");
+
+	if (! theQuitDialog) {
+		const int dialogWidth = 470;
+		const int dialogHeight = 135;
+		theQuitDialog = GuiDialog_create (theCurrentPraatApplication -> topShell,
+			150, 70, dialogWidth, dialogHeight,
+			U"Confirm Quit",
+			gui_dialog_cb_quitGoAway, nullptr,
+			GuiDialog_Modality::MODAL);
+
+		int y = Gui_TOP_DIALOG_SPACING;
+		theQuitLabel1 = GuiLabel_createShown (theQuitDialog,
+			Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
+			y, y + Gui_LABEL_HEIGHT,
+			line1Text, 0);
+		y += Gui_LABEL_HEIGHT + Gui_VERTICAL_DIALOG_SPACING_SAME;
+
+		theQuitLabel2 = GuiLabel_createShown (theQuitDialog,
+			Gui_LEFT_DIALOG_SPACING, dialogWidth - Gui_RIGHT_DIALOG_SPACING,
+			y, y + Gui_LABEL_HEIGHT,
+			line2Text, 0);
+
+		const int buttonY = dialogHeight - Gui_BOTTOM_DIALOG_SPACING - Gui_PUSHBUTTON_HEIGHT;
+
+		// Button 1: Help
+		const int helpWidth = 65;
+		GuiButton_createShown (theQuitDialog,
+			Gui_LEFT_DIALOG_SPACING, Gui_LEFT_DIALOG_SPACING + helpWidth,
+			buttonY, buttonY + Gui_PUSHBUTTON_HEIGHT,
+			U"Help", gui_button_cb_helpQuit, nullptr, 0);
+
+		// Right-aligned buttons: Cancel, Save Project (.praat), Quit
+		const int cancelWidth = 65;
+		const int saveWidth = 145;
+		const int quitWidth = 85;
+		const int spacing = 10;
+
+		int x = dialogWidth - Gui_RIGHT_DIALOG_SPACING - quitWidth - spacing - saveWidth - spacing - cancelWidth;
+
+		// Button 2: Cancel
+		GuiButton_createShown (theQuitDialog,
+			x, x + cancelWidth,
+			buttonY, buttonY + Gui_PUSHBUTTON_HEIGHT,
+			U"Cancel", gui_button_cb_cancelQuit, nullptr, GuiButton_CANCEL);
+		x += cancelWidth + spacing;
+
+		// Button 3: Save Project (.praat)
+		GuiButton_createShown (theQuitDialog,
+			x, x + saveWidth,
+			buttonY, buttonY + Gui_PUSHBUTTON_HEIGHT,
+			U"Save Project (.praat)", gui_button_cb_saveProjectAndQuit, nullptr, 0);
+		x += saveWidth + spacing;
+
+		// Button 4: Quit
+		GuiButton_createShown (theQuitDialog,
+			x, x + quitWidth,
+			buttonY, buttonY + Gui_PUSHBUTTON_HEIGHT,
+			(g_language_choice == 0 ? U"Quit" : U"Quit Application"), gui_button_cb_directQuit, nullptr, GuiButton_DEFAULT);
+	} else {
+		GuiLabel_setText (theQuitLabel1, line1Text);
+		GuiLabel_setText (theQuitLabel2, line2Text);
+	}
+
+	GuiThing_show (theQuitDialog);
 }
-DO
-	praat_exit (0);
-	END_NO_NEW_DATA
+
+static void cb_quitApplication () {
+	DO_Quit (nullptr, 0, nullptr, nullptr, nullptr, nullptr, false, nullptr, nullptr);
 }
 
 static void gui_cb_quit (Thing /* me */) {
-	DO_Quit (nullptr, 0, nullptr, nullptr, nullptr, nullptr, false, nullptr, nullptr);
+	Gui_runQuitApplicationCallback ();
 }
 
 void praat_dontUsePictureWindow () { praatP.dontUsePictureWindow = true; }
@@ -994,10 +1113,6 @@ void praat_dontUsePictureWindow () { praatP.dontUsePictureWindow = true; }
 		}
 		return 0;
 	}
-	static int cb_quitApplication () {
-		DO_Quit (nullptr, 0, nullptr, nullptr, nullptr, nullptr, false, nullptr, nullptr);
-		return 0;
-	}
 #endif
 
 static conststring32 thePraatStandAloneScriptText = nullptr;
@@ -1062,6 +1177,7 @@ static void installPraatShellPreferences () {
 	Printer_prefs ();   // paper size, printer command...
 	structTextEditor :: f_preferences ();   // font size...
 	Preferences_addInt (U"Praat.languageChoice", & g_language_choice, 1);
+	praat_python_initPreferences ();
 }
 
 extern "C" void praatlib_init () {
@@ -1906,11 +2022,10 @@ void praat_init (conststring32 title,
 			motif_win_setUserMessageCallback (cb_userMessage);
 	#endif
 	#if defined (macintosh)
-		if (! Melder_batch) {
+		if (! Melder_batch)
 			mac_setUserMessageCallback (cb_userMessage);   // not earlier
-			Gui_setQuitApplicationCallback (cb_quitApplication);   // BUG: the Quit Application message (from the system) is never actually handled
-		}
 	#endif
+	Gui_setQuitApplicationCallback (cb_quitApplication);
 
 	GuiWindow raam = nullptr;
 	if (! Melder_batch) {
@@ -2070,7 +2185,8 @@ void praat_run () {
 
 	trace (U"adding the Quit command");
 	praat_addMenuCommand (U"Objects", U"Praat", U"-- quit --", nullptr, 0, nullptr);
-	praat_addMenuCommand (U"Objects", U"Praat", U"Quit", nullptr, GuiMenu_UNHIDABLE | 'Q' | GuiMenu_NO_API, DO_Quit);
+	praat_addMenuCommand (U"Objects", U"Praat", Melder_cat (U"Quit ", Melder_upperCaseAppName ()), nullptr, GuiMenu_UNHIDABLE | 'Q' | GuiMenu_NO_API, DO_Quit);
+	praat_addMenuCommand (U"Objects", U"Praat", U"Quit", nullptr, GuiMenu_HIDDEN | GuiMenu_NO_API, DO_Quit);
 
 	trace (U"read the preferences file, and notify those who want to be notified of this");
 	/* ...namely, those who already have a window (namely, the Picture window),

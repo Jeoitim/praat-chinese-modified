@@ -236,8 +236,16 @@ void GuiButton_setText (GuiButton me, conststring32 text /* cattable */) {
 	#elif motif
 		my d_widget -> name = Melder_dup_f (text);
 		if (my d_widget -> window) {
-			SetWindowTextW (my d_widget -> window, Melder_peek32toW (_GuiWin_expandAmpersands (my d_widget -> name.get())));
-			InvalidateRect (my d_widget -> window, nullptr, FALSE);
+			HWND hwnd = my d_widget -> window;
+			SetWindowTextW (hwnd, Melder_peek32toW (_GuiWin_expandAmpersands (my d_widget -> name.get())));
+			RECT rc;
+			GetClientRect (hwnd, & rc);
+			if (GetPropW (hwnd, L"PraatSplitButton")) {
+				RECT rcSplit = { rc.right - 22, rc.top, rc.right, rc.bottom };
+				ValidateRect (hwnd, & rcSplit);
+				rc.right -= 22;
+			}
+			InvalidateRect (hwnd, & rc, FALSE);
 		}
 	#elif cocoa
 		[(NSButton *) my d_widget setTitle: (NSString *) Melder_peek32toCfstring (text)];
@@ -246,5 +254,183 @@ void GuiButton_setText (GuiButton me, conststring32 text /* cattable */) {
 
 void GuiButton_setProgress (GuiButton /* me */, double /* fraction */, int /* state */) { }
 void GuiButton_setWaveform (GuiButton /* me */, const float * /* peaks */, int /* numPeaks */) { }
+
+#if motif
+#include <commctrl.h>
+
+static LRESULT CALLBACK _ClassicSplitButtonSubclassProc (
+	HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+	UINT_PTR uIdSubclass, DWORD_PTR dwRefData
+) {
+	(void) dwRefData;
+	switch (uMsg) {
+		case WM_ERASEBKGND:
+			return 1;
+		case WM_TIMER:
+			return 0;
+		case WM_PAINT: {
+			PAINTSTRUCT ps;
+			HDC hdc = BeginPaint (hwnd, & ps);
+			RECT rc;
+			GetClientRect (hwnd, & rc);
+
+			HDC memDC = CreateCompatibleDC (hdc);
+			HBITMAP memBmp = CreateCompatibleBitmap (hdc, rc.right, rc.bottom);
+			HBITMAP oldBmp = (HBITMAP) SelectObject (memDC, memBmp);
+
+			DefSubclassProc (hwnd, WM_PRINT, (WPARAM) memDC, PRF_CLIENT | PRF_NONCLIENT | PRF_ERASEBKGND);
+
+			bool hasSplit = (GetPropW (hwnd, L"PraatSplitButton") != nullptr);
+			if (hasSplit) {
+				int splitW = 22;
+				int splitLeft = rc.right - splitW;
+
+				// Subtle divider line
+				HPEN hPen = CreatePen (PS_SOLID, 1, GetSysColor (COLOR_BTNSHADOW));
+				HPEN oldPen = (HPEN) SelectObject (memDC, hPen);
+				MoveToEx (memDC, splitLeft, rc.top + 4, nullptr);
+				LineTo (memDC, splitLeft, rc.bottom - 4);
+				SelectObject (memDC, oldPen);
+				DeleteObject (hPen);
+
+				// Highlight / pressed state in split area
+				bool isHover = (GetPropW (hwnd, L"PraatSplitHover") != nullptr);
+				bool isPressed = (GetPropW (hwnd, L"PraatSplitPressed") != nullptr);
+				if (isPressed) {
+					RECT rcSplit = { splitLeft + 1, rc.top + 2, rc.right - 2, rc.bottom - 2 };
+					FrameRect (memDC, & rcSplit, (HBRUSH) GetStockObject (BLACK_BRUSH));
+				} else if (isHover) {
+					RECT rcSplit = { splitLeft + 1, rc.top + 2, rc.right - 2, rc.bottom - 2 };
+					FrameRect (memDC, & rcSplit, (HBRUSH) GetStockObject (GRAY_BRUSH));
+				}
+
+				// Center dropdown triangle
+				int arrowCenterX = splitLeft + splitW / 2;
+				int arrowCenterY = (rc.top + rc.bottom) / 2;
+				if (isPressed) {
+					arrowCenterX ++;
+					arrowCenterY ++;
+				}
+				HBRUSH hBrush = CreateSolidBrush (GetSysColor (COLOR_BTNTEXT));
+				POINT pts [3] = {
+					{ arrowCenterX - 3, arrowCenterY - 1 },
+					{ arrowCenterX + 3, arrowCenterY - 1 },
+					{ arrowCenterX, arrowCenterY + 2 }
+				};
+				HRGN rgn = CreatePolygonRgn (pts, 3, WINDING);
+				FillRgn (memDC, rgn, hBrush);
+				DeleteObject (rgn);
+				DeleteObject (hBrush);
+			}
+
+			BitBlt (hdc, ps.rcPaint.left, ps.rcPaint.top,
+				ps.rcPaint.right - ps.rcPaint.left, ps.rcPaint.bottom - ps.rcPaint.top,
+				memDC, ps.rcPaint.left, ps.rcPaint.top, SRCCOPY);
+
+			SelectObject (memDC, oldBmp);
+			DeleteObject (memBmp);
+			DeleteDC (memDC);
+			EndPaint (hwnd, & ps);
+			return 0;
+		}
+		case WM_MOUSEMOVE: {
+			POINT pt = { (short) LOWORD (lParam), (short) HIWORD (lParam) };
+			RECT rc;
+			GetClientRect (hwnd, & rc);
+			RECT rcSplit = { rc.right - 22, rc.top, rc.right, rc.bottom };
+			bool wasHover = (GetPropW (hwnd, L"PraatSplitHover") != nullptr);
+			bool nowHover = PtInRect (& rcSplit, pt);
+			if (wasHover != nowHover) {
+				if (nowHover) {
+					SetPropW (hwnd, L"PraatSplitHover", (HANDLE) 1);
+					TRACKMOUSEEVENT tme = { sizeof (tme), TME_LEAVE, hwnd, 0 };
+					TrackMouseEvent (& tme);
+				} else {
+					RemovePropW (hwnd, L"PraatSplitHover");
+				}
+				InvalidateRect (hwnd, nullptr, FALSE);
+			}
+			return DefSubclassProc (hwnd, uMsg, wParam, lParam);
+		}
+		case WM_MOUSELEAVE: {
+			if (GetPropW (hwnd, L"PraatSplitHover")) {
+				RemovePropW (hwnd, L"PraatSplitHover");
+				InvalidateRect (hwnd, nullptr, FALSE);
+			}
+			return DefSubclassProc (hwnd, uMsg, wParam, lParam);
+		}
+		case WM_LBUTTONDOWN: {
+			POINT pt = { (short) LOWORD (lParam), (short) HIWORD (lParam) };
+			RECT rc;
+			GetClientRect (hwnd, & rc);
+			RECT rcSplit = { rc.right - 22, rc.top, rc.right, rc.bottom };
+			if (PtInRect (& rcSplit, pt)) {
+				SetPropW (hwnd, L"PraatSplitPressed", (HANDLE) 1);
+				InvalidateRect (hwnd, nullptr, FALSE);
+				UpdateWindow (hwnd);
+
+				POINT ptScreen = pt;
+				ClientToScreen (hwnd, & ptScreen);
+				GuiButton_SplitCallback splitCb = (GuiButton_SplitCallback) GetPropW (hwnd, L"PraatSplitCb");
+				if (splitCb) {
+					GuiObject widget = (GuiObject) GetWindowLongPtr (hwnd, GWLP_USERDATA);
+					GuiButton btn = widget ? (GuiButton) _GuiObject_getUserData (widget) : nullptr;
+					splitCb (btn, (void *) hwnd, ptScreen.x, ptScreen.y);
+				}
+
+				RemovePropW (hwnd, L"PraatSplitPressed");
+				InvalidateRect (hwnd, nullptr, FALSE);
+				UpdateWindow (hwnd);
+				return 0;
+			}
+			return DefSubclassProc (hwnd, uMsg, wParam, lParam);
+		}
+		case WM_NCDESTROY: {
+			RemovePropW (hwnd, L"PraatSplitButton");
+			RemovePropW (hwnd, L"PraatSplitHover");
+			RemovePropW (hwnd, L"PraatSplitPressed");
+			RemovePropW (hwnd, L"PraatSplitCb");
+			RemoveWindowSubclass (hwnd, _ClassicSplitButtonSubclassProc, uIdSubclass);
+			return DefSubclassProc (hwnd, uMsg, wParam, lParam);
+		}
+		default:
+			return DefSubclassProc (hwnd, uMsg, wParam, lParam);
+	}
+}
+#endif
+
+void GuiButton_enableSplit (GuiButton me, bool enable) {
+	if (! me) return;
+	#if motif
+		if (my d_widget && my d_widget -> window) {
+			HWND hwnd = my d_widget -> window;
+			if (enable) {
+				SetPropW (hwnd, L"PraatSplitButton", (HANDLE) 1);
+				SetWindowSubclass (hwnd, _ClassicSplitButtonSubclassProc, 1001, 0);
+			} else {
+				RemovePropW (hwnd, L"PraatSplitButton");
+			}
+			InvalidateRect (hwnd, nullptr, FALSE);
+			UpdateWindow (hwnd);
+		}
+	#else
+		(void) me; (void) enable;
+	#endif
+}
+
+void GuiButton_setSplitCallback (GuiButton me, GuiButton_SplitCallback cb) {
+	if (! me) return;
+	#if motif
+		if (my d_widget && my d_widget -> window) {
+			HWND hwnd = my d_widget -> window;
+			if (cb)
+				SetPropW (hwnd, L"PraatSplitCb", (HANDLE) cb);
+			else
+				RemovePropW (hwnd, L"PraatSplitCb");
+		}
+	#else
+		(void) me; (void) cb;
+	#endif
+}
 
 /* End of file GuiButton.cpp */

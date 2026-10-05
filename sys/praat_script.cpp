@@ -837,6 +837,10 @@ void praat_executeScriptFromText (conststring32 text) {
 	}
 }
 
+void praat_executeScriptFromText_withFullTrust (conststring32 text) {
+	praat_executeScriptFromText (text);
+}
+
 static void secondPassThroughScript (UiForm sendingForm, integer /* narg */, Stackel /* args */,
 	conststring32 /* sendingString_dummy */, Interpreter /* interpreter_dummy */,
 	conststring32 /* invokingButtonTitle */, bool /* modified */, void * /* closure */, Editor optionalInterpreterOwningEditor)

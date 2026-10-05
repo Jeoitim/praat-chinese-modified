@@ -27,6 +27,8 @@
 #include "GraphicsP.h"
 #include "DemoEditor.h"
 #include "praat_translate.h"
+#include "praat_python.h"
+#include "PythonScriptEditor.h"
 
 #define EDITOR  theCurrentPraatObjects -> list [IOBJECT]. editors
 
@@ -236,6 +238,44 @@ DIRECT (PRAAT__openNotebook) {
 		autoNotebookEditor notebookEditor = NotebookEditor_createFromText (nullptr);
 		TextEditor_showOpen (notebookEditor.get());
 		notebookEditor.releaseToUser();
+	PRAAT_END
+}
+
+DIRECT (PRAAT__newPythonScript) {
+	PRAAT
+		autoPythonScriptEditor editor = PythonScriptEditor_createFromText (nullptr);
+		editor.releaseToUser();
+	PRAAT_END
+}
+
+DIRECT (PRAAT__openPythonScript) {
+	PRAAT
+		autoPythonScriptEditor editor = PythonScriptEditor_createFromText (nullptr);
+		TextEditor_showOpen (editor.get());
+		editor.releaseToUser();
+	PRAAT_END
+}
+
+FORM (PRAAT__pythonSettings, U"Python settings", U"Python settings...") {
+	TEXTFIELD (pythonPath, U"Python executable path", praat_python_getExecutablePath (), 1)
+	OK
+	DO
+		praat_python_setExecutablePath (pythonPath);
+	PRAAT_END
+}
+
+DIRECT (PRAAT__copyAgentPrompt) {
+	PRAAT
+		autostring32 prompt = praat_python_generateAgentPrompt ();
+		Gui_copyTextToClipboard (prompt.get());
+		MelderInfo_open ();
+		MelderInfo_write (praat_translate (
+			U"AI Agent prompt has been copied to clipboard!\n"
+			U"You can now paste (Ctrl+V) it directly into ChatGPT, Gemini, Deepseek, Doubao, etc.\n\n"
+			U"==================== Prompt Preview ====================\n\n"
+		));
+		MelderInfo_write (prompt.get());
+		MelderInfo_close ();
 	PRAAT_END
 }
 
@@ -769,7 +809,7 @@ void praat_show () {
 		(De)sensitivize the fixed buttons as appropriate for the current selection.
 	*/
 	praat_sensitivizeFixedButtonCommand (U"Remove", theCurrentPraatObjects -> totalSelection != 0);
-	praat_sensitivizeFixedButtonCommand (U"Rename...", theCurrentPraatObjects -> totalSelection == 1);
+	praat_sensitivizeFixedButtonCommand (U"Rename...", theCurrentPraatObjects -> totalSelection != 0);
 	praat_sensitivizeFixedButtonCommand (U"Copy...", theCurrentPraatObjects -> totalSelection == 1);
 	praat_sensitivizeFixedButtonCommand (U"Info", theCurrentPraatObjects -> totalSelection == 1);
 	praat_sensitivizeFixedButtonCommand (U"Inspect", theCurrentPraatObjects -> totalSelection != 0);
@@ -938,6 +978,15 @@ void praat_addMenus (GuiWindow window) {
 			PRAAT__openScript);
 	praat_addMenuCommand (U"Objects", U"Praat", U"Open Praat notebook...", nullptr, GuiMenu_NO_API,
 			PRAAT__openNotebook);
+	praat_addMenuCommand (U"Objects", U"Praat", U"-- python --", nullptr, 0, nullptr);
+	praat_addMenuCommand (U"Objects", U"Praat", U"New Python script", nullptr, GuiMenu_NO_API,
+			PRAAT__newPythonScript);
+	praat_addMenuCommand (U"Objects", U"Praat", U"Open Python script...", nullptr, GuiMenu_NO_API,
+			PRAAT__openPythonScript);
+	praat_addMenuCommand (U"Objects", U"Praat", U"Copy AI Agent prompt (for Python)...", nullptr, GuiMenu_NO_API,
+			PRAAT__copyAgentPrompt);
+	praat_addMenuCommand (U"Objects", U"Praat", U"Python settings...", nullptr, GuiMenu_NO_API,
+			PRAAT__pythonSettings);
 	praat_addMenuCommand (U"Objects", U"Praat", U"Open Picture window", nullptr, GuiMenu_NO_API,
 			WINDOW_openPictureWindow);
 	praat_addMenuCommand (U"Objects", U"Praat", U"-- buttons --", nullptr, 0, nullptr);
@@ -1014,6 +1063,9 @@ void praat_addMenus (GuiWindow window) {
 			nullptr, 0, SAVE_Data_writeToShortTextFile);   // alternative GuiMenu_DEPRECATED_2011
 	praat_addAction1 (classDaata, 0, U"Save as binary file... || Write to binary file...",
 			nullptr, 0, SAVE_Data_writeToBinaryFile);   // alternative GuiMenu_DEPRECATED_2011
+
+	praat_addAction1 (classDaata, -2, U"Batch rename... || Rename multiple...",
+			nullptr, 0, MODIFY_Rename);
 
 	praat_addAction1 (classManPages, 1, U"Save to HTML folder... || Save to HTML directory...",
 			nullptr, 0, PRAAT_ManPages_saveToHtmlFolder);   // alternative GuiMenu_DEPRECATED_2020
