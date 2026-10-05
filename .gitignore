@@ -58,6 +58,8 @@ translation_candidates.txt
 translation_check_report.md
 praat-zh-missing.tsv
 *-missing.tsv
+manuals_bilingual_review.txt
+praat_translations.txt
 scratch/
 
 # Whisper models
