@@ -238,14 +238,8 @@ void GuiButton_setText (GuiButton me, conststring32 text /* cattable */) {
 		if (my d_widget -> window) {
 			HWND hwnd = my d_widget -> window;
 			SetWindowTextW (hwnd, Melder_peek32toW (_GuiWin_expandAmpersands (my d_widget -> name.get())));
-			RECT rc;
-			GetClientRect (hwnd, & rc);
-			if (GetPropW (hwnd, L"PraatSplitButton")) {
-				RECT rcSplit = { rc.right - 22, rc.top, rc.right, rc.bottom };
-				ValidateRect (hwnd, & rcSplit);
-				rc.right -= 22;
-			}
-			InvalidateRect (hwnd, & rc, FALSE);
+			InvalidateRect (hwnd, nullptr, TRUE);
+			UpdateWindow (hwnd);
 		}
 	#elif cocoa
 		[(NSButton *) my d_widget setTitle: (NSString *) Melder_peek32toCfstring (text)];
@@ -323,9 +317,9 @@ static LRESULT CALLBACK _ClassicSplitButtonSubclassProc (
 				DeleteObject (hBrush);
 			}
 
-			BitBlt (hdc, ps.rcPaint.left, ps.rcPaint.top,
-				ps.rcPaint.right - ps.rcPaint.left, ps.rcPaint.bottom - ps.rcPaint.top,
-				memDC, ps.rcPaint.left, ps.rcPaint.top, SRCCOPY);
+			if (rc.right > 0 && rc.bottom > 0)
+				BitBlt (hdc, 0, 0, rc.right, rc.bottom,
+					memDC, 0, 0, SRCCOPY);
 
 			SelectObject (memDC, oldBmp);
 			DeleteObject (memBmp);
@@ -409,8 +403,9 @@ void GuiButton_enableSplit (GuiButton me, bool enable) {
 				SetWindowSubclass (hwnd, _ClassicSplitButtonSubclassProc, 1001, 0);
 			} else {
 				RemovePropW (hwnd, L"PraatSplitButton");
+				RemoveWindowSubclass (hwnd, _ClassicSplitButtonSubclassProc, 1001);
 			}
-			InvalidateRect (hwnd, nullptr, FALSE);
+			InvalidateRect (hwnd, nullptr, TRUE);
 			UpdateWindow (hwnd);
 		}
 	#else
