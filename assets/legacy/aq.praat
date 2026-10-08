@@ -10,9 +10,9 @@ form set parameters
 	sentence hanzi 好
 endform
 
-Read from file... 'legacyResourceDirectory$'\中古声母拟音表.txt
-Read from file... 'legacyResourceDirectory$'\中古韵母拟音表.txt
-Read from file... 'legacyResourceDirectory$'\汉字音韵表.txt
+Read from file... 'legacyResourceDirectory$'/中古声母拟音表.txt
+Read from file... 'legacyResourceDirectory$'/中古韵母拟音表.txt
+Read from file... 'legacyResourceDirectory$'/汉字音韵表.txt
 numberOfRowsYinYunBiao = Get number of rows
 boundary = Search column... 字目 #
 clearinfo

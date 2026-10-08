@@ -8,7 +8,7 @@ legacyDataDirectory$ = preferencesDirectory$ + "/data"
 clearinfo
 pathFileName$ = chooseReadFile$: "请选择诗词的txt文件"
 if pathFileName$ != ""
-	Read from file: "'legacyResourceDirectory$'\汉字音韵表.txt"
+	Read from file: "'legacyResourceDirectory$'/汉字音韵表.txt"
 	numberOfRows = Get number of rows
 	Read Strings from raw text file: pathFileName$
 	stringsFileName$ = selected$("Strings")

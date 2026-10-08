@@ -1,3 +1,8 @@
+if windows
+    legacyPictureExtension$ = "png"
+else
+    legacyPictureExtension$ = "pdf"
+endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
 legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
@@ -386,19 +391,23 @@ Text left... yes Energy (C value)
 Font size... 10
 Select outer viewport... 0 6.5 0 4
 createDirectory: legacyDataDirectory$
-i=fileReadable("'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf")
+i=fileReadable("'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'")
 if i = 1
 	pause 'name_of_picture_to_be_saved$'已经存在，请将其先移走，否则会被覆盖！
 endif
-Save as Windows metafile... 'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf
-i=fileReadable("'legacyDataDirectory$'\'name_of_file_to_be_saved$'.xls")
+if windows
+    Save as 600-dpi PNG file... 'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'
+else
+    Save as PDF file... 'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'
+endif
+i=fileReadable("'legacyDataDirectory$'/'name_of_file_to_be_saved$'.xls")
 if i = 1
 	pause 'name_of_file_to_be_saved$'已经存在，请将其先移走，否则会被覆盖！
 endif
 if integer_for_results = 1
 Formula (column range)... dot1 dot20 fixed$ (self,0)
 endif
-Save as tab-separated file... 'legacyDataDirectory$'\'name_of_file_to_be_saved$'.xls
+Save as tab-separated file... 'legacyDataDirectory$'/'name_of_file_to_be_saved$'.xls
 select Table 'fileName$'
 plus Table newTable
 Remove

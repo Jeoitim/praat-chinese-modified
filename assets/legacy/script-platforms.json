@@ -1,0 +1,1220 @@
+[
+  {
+    "script": "a.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "aa.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ab.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ac.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ad.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ae.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "af.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ag.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ah.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ai.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "aj.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ak.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "al.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "am.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "an.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ao.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "aq.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ar.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "as.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ax.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ay.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "az.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "b.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ba.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bb.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bc.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bd.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "be.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bf.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bg.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bl.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bm.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bn.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bo.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bp.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bq.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "br.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bt.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bu.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bv.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "by.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "bz.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "c.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ca.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "platform adapter",
+    "dependencies": [
+      "FFmpeg"
+    ],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "cb.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "platform adapter",
+    "dependencies": [
+      "Python 3",
+      "desktop applications"
+    ],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "cc.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "cd.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ce.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "cf.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "cg.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ch.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ci.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "d.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "da.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "db.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "dc.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "dd.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "platform adapter",
+    "dependencies": [
+      "Python 3",
+      "system audio adapter"
+    ],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "de.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "platform adapter",
+    "dependencies": [
+      "Python 3",
+      "system audio adapter"
+    ],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "df.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "platform adapter",
+    "dependencies": [
+      "Python 3",
+      "FFmpeg",
+      "screen and microphone permissions"
+    ],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "dg.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "platform adapter",
+    "dependencies": [
+      "Python 3",
+      "FFmpeg",
+      "screen and loopback audio devices"
+    ],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "dh.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "platform adapter",
+    "dependencies": [
+      "Python 3",
+      "FFmpeg",
+      "camera and loopback audio devices"
+    ],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "di.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "dj.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "dl.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "dm.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "do.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "dr.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "ds.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "e.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "f.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "g.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "h.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "i.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "j.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "k.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "l.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "m.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "n.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "o.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "p.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "q.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "r.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "s.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "t.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "u.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "v.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "Praat native path/file/graphics APIs",
+    "dependencies": [],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "w.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "platform adapter",
+    "dependencies": [
+      "FFplay"
+    ],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "word-frequency.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "platform adapter",
+    "dependencies": [
+      "Python 3",
+      "jieba",
+      "optional wordcloud/Pillow and Chinese font"
+    ],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "x.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "platform adapter",
+    "dependencies": [
+      "FFmpeg"
+    ],
+    "requires_interaction": true,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "y.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "platform adapter",
+    "dependencies": [
+      "FFmpeg"
+    ],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  },
+  {
+    "script": "z.praat",
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ],
+    "adaptation": "platform adapter",
+    "dependencies": [
+      "FFmpeg"
+    ],
+    "requires_interaction": false,
+    "control_structure_checked": true,
+    "full_workflow_tested": false
+  }
+]

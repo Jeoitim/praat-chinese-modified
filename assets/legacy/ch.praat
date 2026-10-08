@@ -1,3 +1,8 @@
+if windows
+    legacyPictureExtension$ = "png"
+else
+    legacyPictureExtension$ = "pdf"
+endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
 legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
@@ -22,6 +27,7 @@ maximum = Get maximum... 'columnLabel$'
 if maximum != 100
 exit 请选择正确的时长与能量分布值表。
 endif
+affricate$ = backslashTrigraphsToUnicode$(affricate$)
 numberOfRows = Search column... affricate 'affricate$'
 if numberOfRows = 0
 exit 表中不存在指定的塞擦音，请重新输入。
@@ -52,7 +58,11 @@ Font size... 10
 Text left... yes FrictionIndex
 Text bottom... yes DurationIndex
 if name_of_picture_to_be_saved$ != ""
-	Save as Windows metafile: "'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf"
+	if windows
+	    Save as 600-dpi PNG file: "'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'"
+	else
+	    Save as PDF file: "'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'"
+	endif
 endif
 Select outer viewport: 0, 6, 0, 4
 #END

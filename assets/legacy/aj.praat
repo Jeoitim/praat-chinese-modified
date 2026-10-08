@@ -8,10 +8,10 @@ legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #repeat;如果一个文件要测量多次，例如语调，则开放。
 editorInfo$ = Editor info
 fileName$ = extractWord$(editorInfo$,"Data name:")
-fileReadable = fileReadable("'legacyDataDirectory$'\consonantIPA.txt")
+fileReadable = fileReadable("'legacyDataDirectory$'/consonantIPA.txt")
 if fileReadable = 1
 	endeditor
-	Read from file: "'legacyDataDirectory$'\consonantIPA.txt"
+	Read from file: "'legacyDataDirectory$'/consonantIPA.txt"
 	row = Search column: "consonant", fileName$
 	if row != 0
 		ipa$ = Get value: row, "IPA"
@@ -96,7 +96,7 @@ if dot = 1
 	endfor
 	energyDistribution$ = Bei 计算能量分布模式... 'x2' 'x3' 'x4' 'x5' 'x6' 'x7' 'x8' 'x9' 'x10' 'x11' 'x12' 'x13' 'x14' 'x15' 'x16' 'x17' 'x18' 'x19' 'x20' 'x21' 'x22' 'x23' 'x24'
 	printline 'consonant$''tab$''energyDistribution$''tab$''centreOfGravity:0''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4'
-	fileappend "'legacyDataDirectory$'\energyDistribution.txt" 'consonant$''tab$''energyDistribution$''tab$''centreOfGravity:0''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
+	fileappend "'legacyDataDirectory$'/energyDistribution.txt" 'consonant$''tab$''energyDistribution$''tab$''centreOfGravity:0''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
 	if draw = 1
 		length0 = length(energyDistribution$)
 		position0 = index(energyDistribution$,"	")
@@ -150,7 +150,7 @@ elsif dot = 2
 		endfor
 	energyDistribution$ = Bei 计算能量分布模式... 'x2' 'x3' 'x4' 'x5' 'x6' 'x7' 'x8' 'x9' 'x10' 'x11' 'x12' 'x13' 'x14' 'x15' 'x16' 'x17' 'x18' 'x19' 'x20' 'x21' 'x22' 'x23' 'x24'
 	printline 'consonant$''tab$''energyDistribution$''tab$''centreOfGravity:0''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4'
-	fileappend "'legacyDataDirectory$'\energyDistribution.txt" 'consonant$''tab$''energyDistribution$''tab$''centreOfGravity:0''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
+	fileappend "'legacyDataDirectory$'/energyDistribution.txt" 'consonant$''tab$''energyDistribution$''tab$''centreOfGravity:0''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
 	if draw = 1
 		length0 = length(energyDistribution$)
 		position0 = index(energyDistribution$,"	")
@@ -204,7 +204,7 @@ elsif dot = 3
 		endfor
 		energyDistribution$ = Bei 计算能量分布模式... 'x2' 'x3' 'x4' 'x5' 'x6' 'x7' 'x8' 'x9' 'x10' 'x11' 'x12' 'x13' 'x14' 'x15' 'x16' 'x17' 'x18' 'x19' 'x20' 'x21' 'x22' 'x23' 'x24'
 		printline 'consonant$''tab$''energyDistribution$''tab$''centreOfGravity:0''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4'
-		fileappend "'legacyDataDirectory$'\energyDistribution.txt" 'consonant$''tab$''energyDistribution$''tab$''centreOfGravity:0''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
+		fileappend "'legacyDataDirectory$'/energyDistribution.txt" 'consonant$''tab$''energyDistribution$''tab$''centreOfGravity:0''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
 		if draw = 1
 			length0 = length(energyDistribution$)
 			position0 = index(energyDistribution$,"	")

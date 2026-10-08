@@ -1,3 +1,8 @@
+if windows
+    legacyPictureExtension$ = "png"
+else
+    legacyPictureExtension$ = "pdf"
+endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
 legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
@@ -118,7 +123,6 @@ if rectangle = 1
 		select Table 0
 			Extract rows where column (text)... numberOfSyllable "is equal to" 'i'
 			Rename... 'i'
-		endif
 	endfor
 	select all
 	minus Table 'fileName$'
@@ -152,7 +156,11 @@ if rectangle = 1
 	Text... valueDot Centre min0-5 Half 'min0:0'
 endif
 if name_of_picture_to_be_saved$ != ""
-	Save as Windows metafile: "'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf"
+	if windows
+	    Save as 600-dpi PNG file: "'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'"
+	else
+	    Save as PDF file: "'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'"
+	endif
 endif
 
 select all

@@ -68,7 +68,7 @@ zlib_inc = include_directories ('external/zlib')
 
 threads_dep = dependency('threads')
 
-gtk_dep = dependency('gtk+-3.0')
+gtk_dep = [dependency('gtk+-3.0'), dependency('fontconfig')]
 
 add_project_arguments (compiler_arguments_c, language: 'c')
 add_project_arguments (compiler_arguments_cpp, language: 'cpp')

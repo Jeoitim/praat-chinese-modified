@@ -8,10 +8,10 @@ legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #repeat;如果一个文件要测量多次，例如语调，则开放。
 editorInfo$ = Editor info
 fileName$ = extractWord$(editorInfo$,"Data name:")
-fileReadable = fileReadable("'legacyDataDirectory$'\toneIPA.txt")
+fileReadable = fileReadable("'legacyDataDirectory$'/toneIPA.txt")
 if fileReadable = 1
 	endeditor
-	Read from file: "'legacyDataDirectory$'\toneIPA.txt"
+	Read from file: "'legacyDataDirectory$'/toneIPA.txt"
 	row = Search column: "tone", fileName$
 	if row != 0
 		ipa$ = Get value: row, "IPA"
@@ -51,7 +51,7 @@ elsif x = 0
 	value$ = value$ - "	"
 	value$ = tone$ + value$
 	createDirectory: legacyDataDirectory$
-	fileappend "'legacyDataDirectory$'\tone.txt" 'value$''tab$''duration:3''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
+	fileappend "'legacyDataDirectory$'/tone.txt" 'value$''tab$''duration:3''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
 	printline 'value$''tab$''duration:3''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4'
 endif
 #until 0 > 1

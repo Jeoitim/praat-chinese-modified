@@ -1,3 +1,8 @@
+if windows
+    legacyPictureExtension$ = "png"
+else
+    legacyPictureExtension$ = "pdf"
+endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
 legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
@@ -141,11 +146,15 @@ endif
 
 Font size... 10
 Black
-i=fileReadable("'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf")
+i=fileReadable("'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'")
 if i = 1
 	pause 'name_of_picture_to_be_saved$'已经存在，请将其先移走，否则会被覆盖！
 endif
-Save as Windows metafile... 'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf
+if windows
+    Save as 600-dpi PNG file... 'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'
+else
+    Save as PDF file... 'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'
+endif
 select Sound 'fileName0$'
 editor Sound 'fileName0$'
 Select... timeStart timeEnd

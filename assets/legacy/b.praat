@@ -8,10 +8,10 @@ legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #repeat;如果一个文件要测量多次，例如语调，则开放。
 editorInfo$ = Editor info
 fileName$ = extractWord$(editorInfo$,"Data name:")
-fileReadable = fileReadable("'legacyDataDirectory$'\vowelIPA.txt")
+fileReadable = fileReadable("'legacyDataDirectory$'/vowelIPA.txt")
 if fileReadable = 1
 	endeditor
-	Read from file: "'legacyDataDirectory$'\vowelIPA.txt"
+	Read from file: "'legacyDataDirectory$'/vowelIPA.txt"
 	row = Search column: "vowel", fileName$
 	if row != 0
 		ipa$ = Get value: row, "IPA"
@@ -38,6 +38,8 @@ if temp$ = "/"
 pause 您输入的第一个为"/"，不是代码中的"\"，是否继续？
 endif
 vowel$ = backslashTrigraphsToUnicode$(vowel$)
+vowel$ = replace$(vowel$, "（", "(", 0)
+vowel$ = replace$(vowel$, "）", ")", 0)
 index = index(vowel$,"-")
 if index = 3
 	right$ = right$(vowel$, 1)
@@ -75,6 +77,6 @@ cursor = Get cursor
 cursor$ = fixed$('cursor',4)
 value$ = vowel$ + value$ + tab$ + f3$ + tab$ + fileName$ + tab$ + cursor$
 createDirectory: legacyDataDirectory$
-fileappend "'legacyDataDirectory$'\vowel.txt" 'value$''newline$'
+fileappend "'legacyDataDirectory$'/vowel.txt" 'value$''newline$'
 printline 'value$'
 #until 0 > 1

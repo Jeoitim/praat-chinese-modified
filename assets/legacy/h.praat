@@ -13,18 +13,8 @@ form set parameters
 	positive intensityMax 0.99
 	positive intensityMin 0.15
 	positive samplingFrequency 44100
-	choice system 1
-		button windows
-		button mac
 endform
 
-if system = 1
-	slash = rindex(homeDirectory$, "\")
-elsif system = 2
-	slash = rindex(homeDirectory$, "/")
-endif
-length = length(homeDirectory$)
-user$ = right$(homeDirectory$, length - slash)
 if intensityMax > 1
 	exit intensityMax最好不要大于1。
 endif
@@ -36,11 +26,7 @@ Read Strings from raw text file... 'file$'
 fileName$ = selected$("Strings")
 numberOfStrings = Get number of strings
 Erase all
-if system = 1
-	createDirectory: legacyDataDirectory$ + "/sound"
-elsif system = 2
-	nocheck system mkdir /Users/'user$'/Desktop/sound
-endif
+createDirectory: legacyDataDirectory$ + "/sound"
 for i from 1 to numberOfStrings
 	if i < 10
 		j$ = "000" + "'i'"
@@ -105,11 +91,7 @@ for i from 1 to numberOfStrings
 			Resample... 44100 50
 		endif
 		Rename... 'i''strings$'
-		if system = 1
-			Save as WAV file... 'legacyDataDirectory$'\sound\'j$''strings$'.wav
-		elsif system = 2
-			Save as WAV file... /Users/'user$'/Desktop/sound/'j$''strings$'.wav
-		endif
+        Save as WAV file: legacyDataDirectory$ + "/sound/" + j$ + strings$ + ".wav"
 		Remove
 		if samplingFrequency = 44100
 			select Sound untitled

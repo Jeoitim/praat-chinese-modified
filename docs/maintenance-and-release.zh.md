@@ -10,16 +10,13 @@
 
 每次发版应记录 tag、修改提交、上游基线提交、编译工具链和文件 SHA-256。程序关于页目前显示基础版本 7.0.02，发行修订号需要在 Release 标题及说明中写清楚。
 
-## 2. 当前发布工作流的问题
+## 2. 构建与草稿发布流程
 
-仓库继承的 `.github/workflows/release.yml` 不适合直接发布当前修改版：
+`build-cross-platform.yml` 在开发分支更新和 PR 中构建 Windows x64、Linux x64 与 macOS 通用应用，并检查脚本、资源及代表性功能。下载构建产物时应保留完整资源目录。
 
-- Windows 包只包含 `Praat.exe` 和旧 `README.txt`，没有增强脚本、参考表格、字体、关于页及辅助工具。
-- 默认采用 x64v3，本地已验证版本采用兼容范围更广的 x64v1。
-- 工作流可对已存在的 Release 使用 `--clobber`，会替换附件。正式版本应发布新的修订号。
-- macOS 参数仍指向较早的 Xcode 模板，工程补丁没有加入 `sys/praat_chinese.cpp`，也没有安排新增资源的 `.app` 打包。
+`release.yml` 仅手动触发，要求已有的修改版 tag。三平台构建成功后，流程附上完整运行包、源码和校验和，创建新的草稿 Release。它不自动创建 tag，不公开草稿，也不覆盖已有 Release 附件。
 
-在工作流补齐前，先采用下面的本地构建和草稿发布步骤。不要把旧工作流产出的 exe-only 压缩包作为完整修改版发布。
+维护者创建并推送 tag 后，可在 Actions 中运行 Prepare modified release，选择包含流程文件的开发分支并填写 tag。发布说明优先读取 `docs/release-notes-<tag>.md`。公开之前应复核平台构建结果、解压后的资源与实际语音素材，并为各平台写清验证范围。
 
 ## 3. 首次发布步骤
 
@@ -34,7 +31,7 @@ git log -1 --oneline
 git push origin jeoitim-modified
 ```
 
-当前 GitHub 默认分支仍是 `master`，它不是修改版开发分支。建议在仓库 Settings → Branches 中将默认分支设为 `jeoitim-modified`。无论默认分支是什么，都要从已验证的修改分支创建 tag，避免把原始上游提交当成修改版发布。
+仓库默认开发分支为 `jeoitim-modified`。发行 tag 应从该分支上已验证的修改提交创建；使用其他分支工作时，先确认 tag 指向的内容属于修改版。
 
 ### 3.2 构建并检查完整目录
 
@@ -42,7 +39,7 @@ git push origin jeoitim-modified
 .\build-windows.ps1
 ```
 
-关闭占用同一路径的程序后再构建。检查 `dist/PraatChineseModified-7.0.02-modern`，至少应包含：
+关闭占用同一路径的程序后再构建。检查 `dist/PraatChineseModified-7.0.02-modified`，至少应包含：
 
 ```text
 PraatChineseModified.exe
@@ -50,6 +47,7 @@ assets/
   legacy/
   data/
   fonts/
+  platform/
   docs/
   about.html
   icon.png
@@ -61,7 +59,7 @@ THIRD_PARTY_NOTICES.md
 gpl-3.0.txt
 ```
 
-在一个新的目录解压测试，检查中文界面、增强菜单、声音编辑器、播放器、手册、关于页、结果输出和中文路径。还应使用自己的实际音频素材复核常用脚本。首次对外发布建议只提供已经验证的 Windows x64 包。
+在一个新的目录解压测试，检查中文界面、增强菜单、声音编辑器、播放器、手册、关于页、结果输出和中文路径。还应使用自己的实际音频素材复核常用脚本。对外发布仅提供已完成相应验证的平台包，并记录设备功能的实际测试范围。
 
 ### 3.3 创建附注 tag 与附件
 
@@ -77,7 +75,7 @@ New-Item -ItemType Directory -Path $releaseFolder -Force | Out-Null
 
 $runtimeZip = Join-Path $releaseFolder "PraatChineseModified-$releaseTag-Windows-x64.zip"
 $sourceZip = Join-Path $releaseFolder "PraatChineseModified-$releaseTag-source.zip"
-Compress-Archive -LiteralPath 'dist/PraatChineseModified-7.0.02-modern' -DestinationPath $runtimeZip
+Compress-Archive -LiteralPath 'dist/PraatChineseModified-7.0.02-modified' -DestinationPath $runtimeZip
 git archive --format=zip --prefix=PraatChineseModified-source/ "--output=$sourceZip" $releaseTag
 
 $checksumFile = Join-Path $releaseFolder 'SHA256SUMS.txt'
@@ -160,26 +158,10 @@ gh pr create --repo Jeoitim/praat-chinese-modified `
 
 参考：[GitHub 的 fork 同步说明](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/syncing-a-fork)。
 
-## 5. 跨平台构建还差哪些工作
+## 5. 跨平台构建与验证
 
-### 5.1 Windows
+Windows 使用 MinGW-w64 / MSYS2，Linux 使用 GTK 与系统音频库，macOS 使用版本匹配的官方 Xcode 工程。依赖、架构选择、完整资源打包、签名及设备限制见 [跨平台指南](cross-platform.zh.md)。
 
-当前 x64v1 构建已完成。MSYS2/Clang64 可以作为后续 CI 的工具链，但完整资源打包和测试要与本地版本一致。ARM64 需要单独构建与验证，不能把 x64 辅助工具随同 ARM64 包直接宣称为原生支持。
+每个平台应使用独立检出或构建目录，避免复用其他平台的目标文件。发布正式 macOS 包时，需要维护者自己的签名与公证；Linux 包需要检查目标发行版的库依赖。Windows ARM64 和其他架构尚无本项目验证记录，不应将 x64 辅助工具视作其他架构的原生实现。
 
-### 5.2 Linux
-
-核心程序、通用汉化和 GTK 界面有现成构建基础。主要工作是安装编译和音频/GTK 依赖，处理资源定位与打包，再测试真实桌面会话。当前非 Windows 的资源定位取自启动工作目录，还没有做到可靠的可执行文件相对定位。
-
-HTML 关于页目前只有 Windows 打开实现，私有字体加载也只有 Windows 实现。增强脚本中的反斜杠、`system start`、批处理、Windows 图元文件及 `.exe` 工具还需适配或按平台隐藏。Linux 通用构建入口可参照 HOW_TO_BUILD_ONE.md，但目前没有验证本修改版的 Linux 产物。
-
-### 5.3 macOS
-
-上游使用 Xcode 构建。需要为正确的 Praat 基线取得匹配的工程文件，加入 `sys/praat_chinese.cpp` 和头文件，把脚本、字体、图标和 HTML 放进 `.app`，并将资源定位改为使用 bundle 资源路径。
-
-本修改版默认数据路径、字体注册、HTML 打开方式和增强脚本还需测试。公开分发的 `.app` / `.dmg` 还要处理签名、公证和 Gatekeeper；在这些步骤完成前不应发布“已支持 macOS”的声明。
-
-### 5.4 难度判断
-
-把核心算法和中文界面编译到 Linux、macOS，属于可以分步推进的适配工作。把 Windows 的 Win32 现代控件一并搬过去，则需要 Cocoa 或 GTK 的对应实现，工作量明显更大。
-
-建议顺序：先稳定 Windows 发版，再完成 Linux 的构建与资源适配，最后处理 macOS 的工程、bundle 和分发。每个平台通过实际测试后再添加对应 Release 附件。
+界面适配和算法测试分开记录：GTK/Cocoa 的外观不会自动获得 Win32 的现代控件样式。麦克风、摄像头、回环音源和桌面录制需有实际设备记录后再声明支持。

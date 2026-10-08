@@ -32,9 +32,9 @@ if pathFileName$ != ""
 			numberOfStrings = numberOfStrings - 1
 		endif
 	endfor
-	Read from file... 'legacyResourceDirectory$'\中古声母拟音表.txt
-	Read from file... 'legacyResourceDirectory$'\中古韵母拟音表.txt
-	Read from file... 'legacyResourceDirectory$'\汉字音韵表.txt
+	Read from file... 'legacyResourceDirectory$'/中古声母拟音表.txt
+	Read from file... 'legacyResourceDirectory$'/中古韵母拟音表.txt
+	Read from file... 'legacyResourceDirectory$'/汉字音韵表.txt
 	numberOfRowsYinYunBiao = Get number of rows
 	for i from 1 to numberOfStrings
 		select Strings 'stringsFileName$'

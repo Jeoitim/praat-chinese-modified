@@ -8,10 +8,10 @@ legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #repeat;如果一个文件要测量多次，例如语调，则开放。
 editorInfo$ = Editor info
 fileName$ = extractWord$(editorInfo$,"Data name:")
-fileReadable = fileReadable("'legacyDataDirectory$'\affricateIPA.txt")
+fileReadable = fileReadable("'legacyDataDirectory$'/affricateIPA.txt")
 if fileReadable = 1
 	endeditor
-	Read from file: "'legacyDataDirectory$'\affricateIPA.txt"
+	Read from file: "'legacyDataDirectory$'/affricateIPA.txt"
 	row = Search column: "affricate", fileName$
 	if row != 0
 		ipa$ = Get value: row, "IPA"
@@ -96,7 +96,7 @@ if print_title_of_data = 1
 	appendInfoLine: "塞擦音	空白段时长	摩擦段时长	谱重心	离散度	谱重心（Hz）	时长指数	摩擦指数"
 endif
 printline 'affricate$''tab$''gap:3''tab$''vot:3''tab$''energyDistribution$''tab$''centreOfGravity:0''tab$''durationIndex:2''tab$''frictionIndex:2'
-fileappend "'legacyDataDirectory$'\affricate.txt" 'affricate$''tab$''gap:3''tab$''vot:3''tab$''energyDistribution$''tab$''centreOfGravity:0''tab$''durationIndex:2''tab$''frictionIndex:2''newline$'
+fileappend "'legacyDataDirectory$'/affricate.txt" 'affricate$''tab$''gap:3''tab$''vot:3''tab$''energyDistribution$''tab$''centreOfGravity:0''tab$''durationIndex:2''tab$''frictionIndex:2''newline$'
 if draw = 1
 	Text special... 'durationIndex' Centre 'frictionIndex' Half Times 10 0 'affricate$'
 endif

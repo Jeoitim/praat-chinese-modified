@@ -37,7 +37,7 @@ time = time + timeStep
 editor PitchTier 'fileName$'
 endfor
 createDirectory: legacyDataDirectory$
-fileappend "'legacyDataDirectory$'\tone.txt" 'tone$''tab$''value1:0''tab$''value2:0''tab$''value3:0''tab$''value4:0''tab$''value5:0''tab$''value6:0''tab$''value7:0''tab$''value8:0''tab$''value9:0''tab$''duration:3''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
+fileappend "'legacyDataDirectory$'/tone.txt" 'tone$''tab$''value1:0''tab$''value2:0''tab$''value3:0''tab$''value4:0''tab$''value5:0''tab$''value6:0''tab$''value7:0''tab$''value8:0''tab$''value9:0''tab$''duration:3''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
 printline 'tone$''tab$''value1:0''tab$''value2:0''tab$''value3:0''tab$''value4:0''tab$''value5:0''tab$''value6:0''tab$''value7:0''tab$''value8:0''tab$''value9:0''tab$''duration:3''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4'
 Select... timeStart timeEnd
 

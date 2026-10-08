@@ -1,333 +1,74 @@
-name: Build and release
+name: Prepare modified release
 
 on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "Release tag, e.g. v7.0-zh.3"
+        description: Existing verified tag, such as v7.0.02-jeoitim.1
         required: true
-        default: "v7.0-zh.3"
         type: string
-      release_name:
-        description: "Release title"
-        required: false
-        default: "Praat 7.0 中文版 (v7.0-zh.3)"
-        type: string
-      release_notes:
-        description: "Release notes / description (appended to existing release notes if release exists)"
-        required: false
-        default: "- **现代化增强版 (Modern Edition)**：\n  - 引入 Fluent 矢量图标系统（自动适配 Win11 Segoe Fluent Icons / Win10 Segoe MDL2 Assets）\n  - 对象列表条目高度优化与圆角平滑悬停微动效\n  - 对象列表原生右键上下文菜单（支持二级子菜单“保存为 ▶”、“查询 ▶”及常用高频操作）\n  - 对象列表上方新增常用快捷工具栏按钮（录制、打开...、保存）\n  - 音频播放按钮支持“播放 / 暂停”状态切换与精确断点续播\n  - 独立区分对话框“应用”按钮图标与“确定”按钮图标"
-        type: string
-      build_macos:
-        description: "Build macOS package (Modern UI enhancements are Windows Win32 only)"
-        required: false
-        default: false
-        type: boolean
-      praat_upstream_tag:
-        description: "Upstream Praat tag used for the Xcode project, e.g. v7.0.01"
-        required: false
-        default: "v7.0.01"
-        type: string
-      praat_version_digits:
-        description: "Praat version digits used in upstream asset names, e.g. 7001"
-        required: false
-        default: "7001"
-        type: string
-      xcodeproj_url:
-        description: "Optional direct URL to praatXXXX_xcodeproj.zip; leave blank to use upstream tag/version"
-        required: false
-        default: ""
-        type: string
-      draft:
-        description: "Create as draft release"
-        required: false
-        default: false
-        type: boolean
       prerelease:
-        description: "Mark as prerelease"
-        required: false
-        default: false
+        description: Mark draft as a candidate release
         type: boolean
+        default: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build-windows-x64:
-    name: Build Windows x64
-    runs-on: windows-latest
-
-    defaults:
-      run:
-        shell: msys2 {0}
-
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Set up MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: CLANG64
-          update: true
-          install: >-
-            make
-            zip
-            mingw-w64-clang-x86_64-clang
-            mingw-w64-clang-x86_64-pkgconf
-
-      - name: Build Praat
-        run: make PRAAT_ARCH=x64v3 -j2
-
-      - name: Prepare release package
-        env:
-          PACKAGE_NAME: Praat-${{ inputs.tag_name }}-Modern-Windows-x64.zip
-        run: |
-          mkdir -p dist
-          cp Praat.exe dist/Praat.exe
-          cp README.txt dist/README.txt
-          cd dist
-          zip -9 "$PACKAGE_NAME" Praat.exe README.txt
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Praat-${{ inputs.tag_name }}-Modern-Windows-x64
-          path: dist/Praat-${{ inputs.tag_name }}-Modern-Windows-x64.zip
-
-  build-macos:
-    name: Build macOS universal
-    runs-on: macos-14
-    if: ${{ inputs.build_macos }}
-
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: 'latest-stable'
-
-      - name: Show Xcode version
-        shell: bash
-        run: |
-          xcodebuild -version
-          xcode-select -p
-
-      - name: Prepare Xcode project
-        shell: bash
-        env:
-          XCODEPROJ_URL: ${{ inputs.xcodeproj_url }}
-          PRAAT_UPSTREAM_TAG: ${{ inputs.praat_upstream_tag }}
-          PRAAT_VERSION_DIGITS: ${{ inputs.praat_version_digits }}
-        run: |
-          set -euo pipefail
-
-          if [ -d praat.xcodeproj ]; then
-            echo "Using praat.xcodeproj from repository."
-          else
-            if [ -z "$XCODEPROJ_URL" ]; then
-              XCODEPROJ_URL="https://github.com/praat/praat/releases/download/${PRAAT_UPSTREAM_TAG}/praat${PRAAT_VERSION_DIGITS}_xcodeproj.zip"
-            fi
-
-            echo "Downloading Xcode project from $XCODEPROJ_URL"
-            curl -fL "$XCODEPROJ_URL" -o praat_xcodeproj.zip
-            python3 -c "import zipfile; zipfile.ZipFile('praat_xcodeproj.zip').extractall('.')"
-            rm praat_xcodeproj.zip
-          fi
-
-          test -d praat.xcodeproj
-
-          mkdir -p praat.xcodeproj/xcshareddata/xcschemes
-          cp -f praat.xcodeproj/xcuserdata/*/xcschemes/*.xcscheme praat.xcodeproj/xcshareddata/xcschemes/ 2>/dev/null || true
-
-          python3 <<'PY'
-          from pathlib import Path
-
-          project_path = Path("praat.xcodeproj/project.pbxproj")
-          project = project_path.read_text(encoding="utf-8")
-
-          project = project.replace('DEVELOPMENT_TEAM = J9C6R9XA5W;', 'DEVELOPMENT_TEAM = "";')
-          project = project.replace('CODE_SIGN_IDENTITY = "Apple Development";', 'CODE_SIGN_IDENTITY = "-";')
-          project = project.replace('"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";', '"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";')
-          project = project.replace('CODE_SIGN_STYLE = Automatic;', 'CODE_SIGN_STYLE = Manual;')
-          project = project.replace('CODE_SIGN_ENTITLEMENTS = main/Praat.entitlements;', 'CODE_SIGN_ENTITLEMENTS = "";')
-          project = project.replace('INFOPLIST_PREFIX_HEADER = /Users/pboersma/Dropbox/Praats/src/sys/praat_version.h;', 'INFOPLIST_PREFIX_HEADER = main/main_Praat.h;')
-
-          files_to_add = [
-              ("sys/praat_translate.cpp", "sys/praat_translate.h", "23E5CB0809A22901004E41D5", "23E5D0BD09A22A57004E41D5", "23E5D0BC09A22A57004E41D5", "01"),
-              ("LPC/CPP.cpp", "LPC/CPP.h", "23D1643C243D165800A2A049", "23D1643D243D165800A2A049", "23D16441243D165F00A2A049", "11"),
-              ("LPC/Sound_to_CPP.cpp", "LPC/Sound_to_CPP.h", "23D1643C243D165800A2A049", "23D1643D243D165800A2A049", "23D16441243D165F00A2A049", "15"),
-              ("sys/praat_python.cpp", "sys/praat_python.h", "23E5CB0809A22901004E41D5", "23E5D0BD09A22A57004E41D5", "23E5D0BC09A22A57004E41D5", "21"),
-              ("sys/PythonScriptEditor.cpp", "sys/PythonScriptEditor.h", "23E5CB0809A22901004E41D5", "23E5D0BD09A22A57004E41D5", "23E5D0BC09A22A57004E41D5", "31"),
-              ("sys/PreferencesDialog.cpp", "sys/PreferencesDialog.h", "23E5CB0809A22901004E41D5", "23E5D0BD09A22A57004E41D5", "23E5D0BC09A22A57004E41D5", "41"),
-          ]
-
-          for cpp_path, h_path, anchor_grp, anchor_src, anchor_hdr, pfx in files_to_add:
-              import os
-              cpp_name = os.path.basename(cpp_path)
-              h_name = os.path.basename(h_path)
-              if cpp_name in project:
-                  print(f"{cpp_name} is already present in the Xcode project.")
-                  continue
-
-              file_ref_cpp = f"CDFE000000000000000000{pfx}1"
-              build_file_cpp = f"CDFE000000000000000000{pfx}2"
-              header_ref = f"CDFE000000000000000000{pfx}3"
-              header_build = f"CDFE000000000000000000{pfx}4"
-
-              project = project.replace(
-                  "/* Begin PBXBuildFile section */\n",
-                  "/* Begin PBXBuildFile section */\n"
-                  f"\t\t{build_file_cpp} /* {cpp_name} in Sources */ = "
-                  f"{{isa = PBXBuildFile; fileRef = {file_ref_cpp} /* {cpp_name} */; }};\n"
-                  f"\t\t{header_build} /* {h_name} in Headers */ = "
-                  f"{{isa = PBXBuildFile; fileRef = {header_ref} /* {h_name} */; }};\n",
-                  1,
-              )
-              project = project.replace(
-                  "/* Begin PBXFileReference section */\n",
-                  "/* Begin PBXFileReference section */\n"
-                  f"\t\t{file_ref_cpp} /* {cpp_name} */ = "
-                  f"{{isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; "
-                  f"name = {cpp_name}; path = {cpp_path}; sourceTree = \"<group>\"; }};\n"
-                  f"\t\t{header_ref} /* {h_name} */ = "
-                  f"{{isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; "
-                  f"name = {h_name}; path = {h_path}; sourceTree = \"<group>\"; }};\n",
-                  1,
-              )
-
-              # Group anchor
-              grp_anchor = f"\t\t\t\t{anchor_grp} /*"
-              idx = project.find(grp_anchor)
-              if idx != -1:
-                  end_line = project.find("\n", idx) + 1
-                  project = project[:end_line] + f"\t\t\t\t{file_ref_cpp} /* {cpp_name} */,\n\t\t\t\t{header_ref} /* {h_name} */,\n" + project[end_line:]
-
-              # Sources anchor
-              src_anchor = f"\t\t\t\t{anchor_src} /*"
-              idx = project.find(src_anchor)
-              if idx != -1:
-                  end_line = project.find("\n", idx) + 1
-                  project = project[:end_line] + f"\t\t\t\t{build_file_cpp} /* {cpp_name} in Sources */,\n" + project[end_line:]
-
-              # Headers anchor
-              hdr_anchor = f"\t\t\t\t{anchor_hdr} /*"
-              idx = project.find(hdr_anchor)
-              if idx != -1:
-                  end_line = project.find("\n", idx) + 1
-                  project = project[:end_line] + f"\t\t\t\t{header_build} /* {h_name} in Headers */,\n" + project[end_line:]
-
-              print(f"Added {cpp_path} and {h_path} to praat_mac Xcode target.")
-
-          project_path.write_text(project, encoding="utf-8")
-          print("All missing files patched into Xcode project successfully.")
-          PY
-
-      - name: Build Praat.app
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          xcodebuild \
-            -project praat.xcodeproj \
-            -target praat_mac \
-            -configuration Configuration64 \
-            SYMROOT="$PWD/build/macos/products" \
-            OBJROOT="$PWD/build/macos/intermediates" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS="" \
-            DEVELOPMENT_TEAM="" \
-            build
-
-      - name: Prepare release package
-        shell: bash
-        env:
-          PACKAGE_NAME: Praat-${{ inputs.tag_name }}-macOS-universal.dmg
-        run: |
-          set -euo pipefail
-
-          mkdir -p dist
-          APP_PATH="$(find build/macos -type d -name Praat.app -print -quit)"
-          if [ -z "$APP_PATH" ]; then
-            echo "Praat.app was not produced by the Xcode build."
-            find build/macos -maxdepth 4 -print || true
-            exit 1
-          fi
-
-          hdiutil create -fs HFS+ -ov -srcfolder "$APP_PATH" -volname "Praat ${{ inputs.tag_name }}" "dist/${PACKAGE_NAME%.dmg}.tmp.dmg"
-          hdiutil convert -ov -format UDZO -o "dist/$PACKAGE_NAME" "dist/${PACKAGE_NAME%.dmg}.tmp.dmg"
-          rm "dist/${PACKAGE_NAME%.dmg}.tmp.dmg"
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Praat-${{ inputs.tag_name }}-macOS-universal
-          path: dist/Praat-${{ inputs.tag_name }}-macOS-universal.dmg
-
-  create-release:
-    name: Create GitHub release
+  verify-tag:
     runs-on: ubuntu-latest
-    needs:
-      - build-windows-x64
-      - build-macos
-    if: always() && !cancelled() && needs.build-windows-x64.result == 'success' && (needs.build-macos.result == 'success' || needs.build-macos.result == 'skipped')
-
     steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          path: dist
+          fetch-depth: 0
+      - name: Require an existing project tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag_name }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-jeoitim\.[0-9]+(-rc\.[0-9]+)?$ ]]
+          git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}"
+  build:
+    needs: verify-tag
+    uses: ./.github/workflows/build-cross-platform.yml
+    with:
+      ref: ${{ inputs.tag_name }}
+  draft:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag_name }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: modified-*
+          path: dist/releases
           merge-multiple: true
-
-      - name: Create or update GitHub release
+      - name: Create a new draft with complete packages
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG_NAME: ${{ inputs.tag_name }}
-          RELEASE_NAME: ${{ inputs.release_name }}
-          RELEASE_NOTES: ${{ inputs.release_notes }}
-          DRAFT: ${{ inputs.draft }}
+          RELEASE_TAG: ${{ inputs.tag_name }}
           PRERELEASE: ${{ inputs.prerelease }}
         run: |
           set -euo pipefail
-
-          if gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
-            echo "Release $TAG_NAME exists, uploading Modern Edition artifacts..."
-            gh release upload "$TAG_NAME" dist/* --repo "$GH_REPO" --clobber
-            if [ -n "$RELEASE_NOTES" ]; then
-              EXISTING_NOTES="$(gh release view "$TAG_NAME" --repo "$GH_REPO" --json body -q .body)"
-              if [[ "$EXISTING_NOTES" != *"Modern Edition"* ]]; then
-                UPDATED_NOTES=$(printf "%s\n\n### 现代化版本 (Modern Edition)\n\n%s" "$EXISTING_NOTES" "$RELEASE_NOTES")
-                gh release edit "$TAG_NAME" --repo "$GH_REPO" --notes "$UPDATED_NOTES"
-              fi
-            fi
-          else
-            NOTES="$RELEASE_NOTES"
-            if [ -z "$NOTES" ]; then
-              NOTES="基于 Praat 7.0 的非官方中文现代化版本。"
-            fi
-            args=(
-              release create "$TAG_NAME"
-              dist/*
-              --repo "$GH_REPO"
-              --target "${{ github.sha }}"
-              --title "$RELEASE_NAME"
-              --notes "$NOTES"
-            )
-
-            if [ "$DRAFT" = "true" ]; then
-              args+=(--draft)
-            fi
-            if [ "$PRERELEASE" = "true" ]; then
-              args+=(--prerelease)
-            fi
-
-            gh "${args[@]}"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release already exists. Existing tags and assets will not be overwritten."
+            exit 1
           fi
+          git archive --format=zip --prefix=PraatChineseModified-source/ --output="dist/releases/PraatChineseModified-source.zip" "$RELEASE_TAG"
+          (cd dist/releases && sha256sum *.zip *.tar.gz > SHA256SUMS.txt)
+          args=(release create "$RELEASE_TAG" dist/releases/* --verify-tag --draft --title "Praat 修改版 $RELEASE_TAG")
+          notes="docs/release-notes-${RELEASE_TAG}.md"
+          if [ -f "$notes" ]; then
+            args+=(--notes-file "$notes")
+          else
+            args+=(--notes "Windows、Linux 与 macOS 完整资源包。发布前请检查构建记录和已知限制。")
+          fi
+          if [ "$PRERELEASE" = "true" ]; then args+=(--prerelease); fi
+          gh "${args[@]}"

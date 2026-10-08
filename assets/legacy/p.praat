@@ -10,10 +10,10 @@ legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #repeat;如果一个文件要测量多次，例如语调，则开放。
 editorInfo$ = Editor info
 fileName$ = extractWord$(editorInfo$,"Data name:")
-fileReadable = fileReadable("'legacyDataDirectory$'\unitIPA.txt")
+fileReadable = fileReadable("'legacyDataDirectory$'/unitIPA.txt")
 if fileReadable = 1
 	endeditor
-	Read from file: "'legacyDataDirectory$'\unitIPA.txt"
+	Read from file: "'legacyDataDirectory$'/unitIPA.txt"
 	row = Search column: "unit", fileName$
 	if row != 0
 		ipa$ = Get value: row, "IPA"
@@ -58,7 +58,7 @@ amplitude = s / number
 amplitudeMean = Bei 幅度积3... amplitude
 fuduji = amplitudeMean * duration
 createDirectory: legacyDataDirectory$
-fileappend "'legacyDataDirectory$'\amplitude.txt" 'unit$''tab$''amplitudeMean:0''tab$''duration:3''tab$''fuduji:1''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
+fileappend "'legacyDataDirectory$'/amplitude.txt" 'unit$''tab$''amplitudeMean:0''tab$''duration:3''tab$''fuduji:1''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
 printline 'unit$''tab$''amplitudeMean:0''tab$''duration:3''tab$''fuduji:1''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4'
 Remove
 select Sound 'fileName$'

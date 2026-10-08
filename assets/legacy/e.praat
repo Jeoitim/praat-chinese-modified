@@ -1,3 +1,8 @@
+if windows
+    legacyPictureExtension$ = "png"
+else
+    legacyPictureExtension$ = "pdf"
+endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
 legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
@@ -106,7 +111,11 @@ Text bottom... yes Time (normalized)
 Text left... yes Pitch (T value)
 Select outer viewport... 0 6.5 0 4
 if name_of_picture_to_be_saved$ != ""
-	Save as Windows metafile: "'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf"
+	if windows
+	    Save as 600-dpi PNG file: "'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'"
+	else
+	    Save as PDF file: "'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'"
+	endif
 endif
 Font size... 10
 Select outer viewport: 0, 6, 0, 4

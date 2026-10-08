@@ -6,12 +6,13 @@ legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #请勿在其他praat软件上运行本脚本，因为有的语句是praat汉化修改版独有的。
 #2019.10.18
 
+#repeat;如果一个文件要测量多次，例如语调，则开放。
 editorInfo$ = Editor info
 fileName$ = extractWord$(editorInfo$,"Data name:")
-fileReadable = fileReadable("'legacyDataDirectory$'\consonantIPA.txt")
+fileReadable = fileReadable("'legacyDataDirectory$'/consonantIPA.txt")
 if fileReadable = 1
 	endeditor
-	Read from file: "'legacyDataDirectory$'\consonantIPA.txt"
+	Read from file: "'legacyDataDirectory$'/consonantIPA.txt"
 	row = Search column: "consonant", fileName$
 	if row != 0
 		ipa$ = Get value: row, "IPA"
@@ -27,8 +28,8 @@ endif
 beginPause: "Set parameters"
 	boolean: "print_title_of_data", 0
 	boolean: "include_first_band", 0
-	real: "hertz_start", 0
 	sentence: "consonant", ipa$
+	real: "hertz_start", 0
 clicked = endPause: "继续", 1
 editor Sound 'fileName$'
 if consonant$ = "consonant" or consonant$ = ""
@@ -66,7 +67,7 @@ Bei 修改0
 hertzStep = floor((hertzEnd - hertzStart) / 20)
 createDirectory: legacyDataDirectory$
 print 'consonant$'
-fileappend "'legacyDataDirectory$'\energy.txt" 'consonant$'
+fileappend "'legacyDataDirectory$'/energy.txt" 'consonant$'
 for i from 1 to 20
 	binStart = Bei Spectrum2... hertzStart
 	binEnd = Bei Spectrum2... hertzStart+hertzStep
@@ -81,22 +82,22 @@ for i from 1 to 20
 	dB = dB / k
 	if include_first_band = 1
 		print 'tab$''dB:1'
-		fileappend "'legacyDataDirectory$'\energy.txt" 'tab$''dB:1'
+		fileappend "'legacyDataDirectory$'/energy.txt" 'tab$''dB:1'
 	elsif include_first_band = 0
 		if i = 1
 			print 'tab$'
-			fileappend "'legacyDataDirectory$'\energy.txt" 'tab$'
+			fileappend "'legacyDataDirectory$'/energy.txt" 'tab$'
 		elsif i >= 2
 			print 'tab$''dB:1'
-			fileappend "'legacyDataDirectory$'\energy.txt" 'tab$''dB:1'
+			fileappend "'legacyDataDirectory$'/energy.txt" 'tab$''dB:1'
 		endif
 	endif
 endfor
 
 print 'tab$''duration:3''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4'
-fileappend "'legacyDataDirectory$'\energy.txt" 'tab$''duration:3''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4'
+fileappend "'legacyDataDirectory$'/energy.txt" 'tab$''duration:3''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4'
 printline
-fileappend "'legacyDataDirectory$'\energy.txt" 'newline$'
+fileappend "'legacyDataDirectory$'/energy.txt" 'newline$'
 select Sound 'fileName2$'
 plus Spectrum 'fileName2$'
 if file = 1
@@ -105,5 +106,5 @@ endif
 Remove
 select Sound 'fileName$'
 editor Sound 'fileName$'
-
+#until 0 > 1
 

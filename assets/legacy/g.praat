@@ -8,10 +8,10 @@ legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #repeat;如果一个文件要测量多次，例如语调，则开放。
 editorInfo$ = Editor info
 fileName$ = extractWord$(editorInfo$,"Data name:")
-fileReadable = fileReadable("'legacyDataDirectory$'\segmentIPA.txt")
+fileReadable = fileReadable("'legacyDataDirectory$'/segmentIPA.txt")
 if fileReadable = 1
 	endeditor
-	Read from file: "'legacyDataDirectory$'\segmentIPA.txt"
+	Read from file: "'legacyDataDirectory$'/segmentIPA.txt"
 	row = Search column: "segment", fileName$
 	if row != 0
 		ipa$ = Get value: row, "IPA"
@@ -40,5 +40,5 @@ exit 您还没有选择待测语音部分
 elsif value != 0
 printline 'segment$''tab$''value:3''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4'
 createDirectory: legacyDataDirectory$
-fileappend "'legacyDataDirectory$'\duration.txt" 'segment$''tab$''value:3''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
+fileappend "'legacyDataDirectory$'/duration.txt" 'segment$''tab$''value:3''tab$''fileName$''tab$''timeStart:4''tab$''timeEnd:4''newline$'
 endif

@@ -8,10 +8,10 @@ legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #repeat;如果一个文件要测量多次，例如语调，则开放。
 editorInfo$ = Editor info
 fileName$ = extractWord$(editorInfo$,"Data name:")
-fileReadable = fileReadable("'legacyDataDirectory$'\stopIPA.txt")
+fileReadable = fileReadable("'legacyDataDirectory$'/stopIPA.txt")
 if fileReadable = 1
 	endeditor
-	Read from file: "'legacyDataDirectory$'\stopIPA.txt"
+	Read from file: "'legacyDataDirectory$'/stopIPA.txt"
 	row = Search column: "stop", fileName$
 	if row != 0
 		ipa$ = Get value: row, "IPA"
@@ -50,5 +50,5 @@ timeEnd = Get end of selection
 vot = timeEnd - timeStart
 value$ = stop$ + tab$ + fixed$('gap',3) + tab$ + fixed$('vot',3)
 createDirectory: legacyDataDirectory$
-fileappend "'legacyDataDirectory$'\stop.txt" 'value$''tab$''fileName$''tab$''timeStart0:4''tab$''timeEnd0:4''tab$''timeStart:4''tab$''timeEnd:4''newline$'
+fileappend "'legacyDataDirectory$'/stop.txt" 'value$''tab$''fileName$''tab$''timeStart0:4''tab$''timeEnd0:4''tab$''timeStart:4''tab$''timeEnd:4''newline$'
 printline 'value$''tab$''fileName$''tab$''timeStart0:4''tab$''timeEnd0:4''tab$''timeStart:4''tab$''timeEnd:4'

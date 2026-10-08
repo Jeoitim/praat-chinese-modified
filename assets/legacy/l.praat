@@ -1,3 +1,8 @@
+if windows
+    legacyPictureExtension$ = "png"
+else
+    legacyPictureExtension$ = "pdf"
+endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
 legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
@@ -18,8 +23,8 @@ form set parameters
 		button Blue
 		button Green
 		button Black
-	sentence name_of_file_to_be_saved T值图(绝对时长)表
-	sentence name_of_picture_to_be_saved T值图(绝对时长)图
+	sentence name_of_file_to_be_saved T值表(绝对时长)
+	sentence name_of_picture_to_be_saved T值图(绝对时长)
 endform
 endeditor
 pathFileName$ = chooseReadFile$: "请选择tone文件"
@@ -192,7 +197,10 @@ hertzMin = min
 if method = 1
 	min = log10(min)
 	max = log10(max)
-	Bei计算基频对数值
+	for legacyColumn from 2 to 10
+    legacyColumnLabel$ = Get column label: legacyColumn
+    Formula: legacyColumnLabel$, "log10(self)"
+endfor
 endif
 clearinfo
 numberOfColumns = 10
@@ -247,6 +255,7 @@ for i from 2 to numberOfRows
 endfor
 x = i - 1
 y = y + 1
+j = j + 1
 select Table table
 diaoleix$ = diaolei'j'$
 Set string value... y tone 'diaoleix$'
@@ -340,20 +349,37 @@ Text bottom... yes Time (s)
 Text left... yes Pitch (T value)
 Font size... 10
 Select outer viewport... 0 6.5 0 4
-system md 'legacyDataDirectory$'
-i=fileReadable("'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf")
+createDirectory: legacyDataDirectory$
+i=fileReadable("'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'")
 if i = 1
 	pause 'name_of_picture_to_be_saved$'已经存在，请将其先移走，否则会被覆盖！
 endif
-Save as Windows metafile... 'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf
-i=fileReadable("'legacyDataDirectory$'\'name_of_file_to_be_saved$'.xls")
+if windows
+    Save as 600-dpi PNG file... 'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'
+else
+    Save as PDF file... 'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'
+endif
+i=fileReadable("'legacyDataDirectory$'/'name_of_file_to_be_saved$'.xls")
 if i = 1
 	pause 'name_of_file_to_be_saved$'已经存在，请将其先移走，否则会被覆盖！
 endif
+select Table table
+numberOfRows = Get number of rows
+for inumberOfRows to numberOfRows
+	select Table table
+	tone$ = Get value: inumberOfRows, "tone"
+	duration = Get value: inumberOfRows, "duration"
+	select Table newTable
+	if inumberOfRows = 1
+		Append column: "duration"
+	endif
+	line = Search column: "tone", tone$
+	Set numeric value: line, "duration", duration
+endfor
 if two_decimal_places_for_results = 1
 	Formula (column range)... dot1 dot9 fixed$ (self,2)
 endif
-Save as tab-separated file... 'legacyDataDirectory$'\'name_of_file_to_be_saved$'.xls
+Save as tab-separated file... 'legacyDataDirectory$'/'name_of_file_to_be_saved$'.xls
 select Table 'fileName$'
 plus Table newTable
 plus Table table

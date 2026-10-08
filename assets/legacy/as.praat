@@ -43,9 +43,9 @@ else
 endif
 
 fileName$ = selected$("Table")
-Read Table from whitespace-separated file... 'legacyResourceDirectory$'\声母表.txt
-Read Table from whitespace-separated file... 'legacyResourceDirectory$'\韵母表.txt
-Read Table from whitespace-separated file... 'legacyResourceDirectory$'\声调表.txt
+Read Table from whitespace-separated file... 'legacyResourceDirectory$'/声母表.txt
+Read Table from whitespace-separated file... 'legacyResourceDirectory$'/韵母表.txt
+Read Table from whitespace-separated file... 'legacyResourceDirectory$'/声调表.txt
 clearinfo
 select Table 'fileName$'
 Sort rows... 调
@@ -183,7 +183,7 @@ Remove column... 'lableOfColumn4$'
 Remove column... 'lableOfColumn7$'
 Remove column... 'lableOfColumn8$'
 Remove column... 'lableOfColumn9$'
-Save as tab-separated file... 'legacyDataDirectory$'\同音字表.txt
+Save as tab-separated file... 'legacyDataDirectory$'/同音字表.txt
 select Table 声母表
 plus Table 韵母表
 plus Table 声调表

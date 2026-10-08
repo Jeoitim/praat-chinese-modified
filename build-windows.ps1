@@ -1,4 +1,4 @@
-param([int]$Jobs = 12)
+param([int]$Jobs = 6, [string]$PackageDirectory = 'dist/PraatChineseModified-7.0.02-modified')
 $ErrorActionPreference = 'Stop'
 $projectPath = $PSScriptRoot
 $compiler = Get-Command g++ -ErrorAction Stop
@@ -12,7 +12,8 @@ $env:PATH = $compilerDirectory + ';' + (Split-Path $bashPath) + ';' + $env:PATH
 $makePath = Join-Path $compilerDirectory 'mingw32-make.exe'
 Push-Location $projectPath
 try {
-    $makeArguments = @('PRAAT_OS=windows','PRAAT_COMPILER=gcc','PRAAT_ARCH=x64v1','EXECUTABLE_FILE=PraatChineseModified.exe',("SHELL=" + $bashPath.Replace('\','/')),("-j" + $Jobs))
+    New-Item -ItemType Directory -Path 'build' -Force | Out-Null
+    $makeArguments = @('PRAAT_OS=windows','PRAAT_COMPILER=gcc','PRAAT_ARCH=x64v1','EXECUTABLE_FILE=build/PraatChineseModified.exe',("SHELL=" + $bashPath.Replace('\','/')),("-j" + $Jobs))
     # Recent WinLibs GCC adds a default manifest automatically. Use our complete
     # manifest (Common Controls, GDI scaling, long paths, asInvoker) exactly once.
     $compilerSpecs = (& $compiler.Source -dumpspecs) -join "`n"
@@ -26,16 +27,16 @@ try {
     }
     & $makePath @makeArguments
     if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
-    $packageDirectory = Join-Path $projectPath 'dist/PraatChineseModified-7.0.02-modern'
+    $packageDirectory = Join-Path $projectPath $PackageDirectory
     New-Item -ItemType Directory -Path $packageDirectory -Force | Out-Null
-    Copy-Item -LiteralPath 'PraatChineseModified.exe' -Destination (Join-Path $packageDirectory 'PraatChineseModified.exe')
+    Copy-Item -LiteralPath 'build/PraatChineseModified.exe' -Destination (Join-Path $packageDirectory 'PraatChineseModified.exe')
     $packageAssets = Join-Path $packageDirectory 'assets'
     New-Item -ItemType Directory -Path $packageAssets -Force | Out-Null
     Get-ChildItem -LiteralPath 'assets' -Force | Where-Object { $_.Name -ne 'tools' } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $packageAssets -Recurse -Force }
     Copy-Item -LiteralPath 'README-修改版.md','THIRD_PARTY_NOTICES.md','main/gpl-3.0.txt' -Destination $packageDirectory -Force
     $packageDocs = Join-Path $packageDirectory 'docs'
     New-Item -ItemType Directory -Path $packageDocs -Force | Out-Null
-    Copy-Item -LiteralPath 'docs/maintenance-and-release.zh.md','docs/release-notes-v7.0.02-jeoitim.1.md' -Destination $packageDocs -Force
+    Copy-Item -LiteralPath 'docs/maintenance-and-release.zh.md','docs/release-notes-v7.0.02-jeoitim.1.md','docs/cross-platform.zh.md' -Destination $packageDocs -Force
     if (Test-Path -LiteralPath 'assets/tools') {
         Get-ChildItem -LiteralPath 'assets/tools' -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $packageDirectory -Force }
     }

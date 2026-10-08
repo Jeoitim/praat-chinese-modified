@@ -1,3 +1,8 @@
+if windows
+    legacyPictureExtension$ = "png"
+else
+    legacyPictureExtension$ = "pdf"
+endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
 legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
@@ -21,7 +26,7 @@ form set parameters
 	sentence second_syllable 11-2
 	sentence name_of_first_syllable_in_picture 
 	sentence name_of_second_syllable_in_picture 
-	sentence name_of_picture_to_be_saved 双字调T值图(相对时长)
+	sentence name_of_picture_to_be_saved 11组合双字调T值图(相对时长)
 endform
 fileName$ = selected$("Table")
 columnLabel$ = Get column label... 3
@@ -137,10 +142,14 @@ Text left... yes Pitch (T value)
 Font size... 10
 Select outer viewport... 0 6.5 0 4
 createDirectory: legacyDataDirectory$
-i=fileReadable("'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf")
+i=fileReadable("'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'")
 if i = 1
 pause 'name_of_picture_to_be_saved$'已经存在，请将其先移走，否则会被覆盖！
 endif
-Save as Windows metafile... 'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf
+if windows
+    Save as 600-dpi PNG file... 'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'
+else
+    Save as PDF file... 'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'
+endif
 Select outer viewport: 0, 6, 0, 4
 #END

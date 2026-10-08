@@ -1,3 +1,8 @@
+if windows
+    legacyPictureExtension$ = "png"
+else
+    legacyPictureExtension$ = "pdf"
+endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
 legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
@@ -17,6 +22,35 @@ form set parameters
 	sentence vowel a
 	sentence name_of_picture_to_be_saved 
 endform
+
+temp$ = left$(vowel$, 1)
+if temp$ = "/"
+pause 您输入的第一个为"/"，不是代码中的"\"，是否继续？
+endif
+vowel$ = backslashTrigraphsToUnicode$(vowel$)
+vowel$ = replace$(vowel$, "（", "(", 0)
+vowel$ = replace$(vowel$, "）", ")", 0)
+index = index(vowel$,"-")
+if index = 3
+	right$ = right$(vowel$, 1)
+	vowel$ = vowel$ - right$(vowel$, 2)
+	if right$ = "1"
+		vowel$ = left$(vowel$, 1) + "(" + mid$(vowel$, 2, 1) + ")"
+	elsif right$ = "2"
+		vowel$ = "(" + left$(vowel$, 1) + ")" + mid$(vowel$, 2, 1)
+	endif
+endif
+if index = 4
+	right$ = right$(vowel$, 1)
+	vowel$ = vowel$ - right$(vowel$, 2)
+	if right$ = "1"
+		vowel$ = left$(vowel$, 1) + "(" + mid$(vowel$, 2, 2) + ")"
+	elsif right$ = "2"
+		vowel$ = "(" + left$(vowel$, 1) + ")" + mid$(vowel$, 2, 1) + "(" + mid$(vowel$, 3, 1) + ")"
+	elsif right$ = "3"
+		vowel$ = "(" + mid$(vowel$, 1, 2)  + ")" + mid$(vowel$, 3, 1)
+	endif
+endif
 
 columnLabel$ = Get column label... 3
 maximum = Get maximum... 'columnLabel$'
@@ -98,5 +132,9 @@ Text left... yes F1(V value)
 Text bottom... yes F3-F2(V value)
 Select outer viewport... 0 6 0 4
 if name_of_picture_to_be_saved$ != ""
-	Save as Windows metafile: "'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf"
+	if windows
+	    Save as 600-dpi PNG file: "'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'"
+	else
+	    Save as PDF file: "'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'"
+	endif
 endif

@@ -1,3 +1,8 @@
+if windows
+    legacyPictureExtension$ = "png"
+else
+    legacyPictureExtension$ = "pdf"
+endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
 legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
@@ -223,14 +228,14 @@ for h from 1 to numberOfColumns
 	endif
 endfor
 
-i=fileReadable("'legacyDataDirectory$'\'name_of_file_to_be_saved$'.xls")
+i=fileReadable("'legacyDataDirectory$'/'name_of_file_to_be_saved$'.xls")
 if i = 1
 	pause 'name_of_file_to_be_saved$'已经存在，请将其先移走，否则会被覆盖！
 endif
 if integer_for_results = 1
 	Formula (column range)... dot1 dot9 round (self)
 endif
-Save as tab-separated file... 'legacyDataDirectory$'\'name_of_file_to_be_saved$'.xls
+Save as tab-separated file... 'legacyDataDirectory$'/'name_of_file_to_be_saved$'.xls
 
 numberOfSyllable = Get maximum... numberOfSyllable
 if rectangle != 1
@@ -374,11 +379,15 @@ if rectangle = 1
 	Text... valueDot Centre min0-5 Half 'min0:0'
 endif
 createDirectory: legacyDataDirectory$
-i = fileReadable("'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf")
+i = fileReadable("'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'")
 if i = 1
 	pause 'name_of_picture_to_be_saved$'已经存在，请将其先移走，否则会被覆盖！
 endif
-Save as Windows metafile... 'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf
+if windows
+    Save as 600-dpi PNG file... 'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'
+else
+    Save as PDF file... 'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'
+endif
 printline 句子基频均值最大值为：'hertzMax'Hz('max:1'St)
 printline 句子基频均值最小值为：'hertzMin'Hz('min:1'St)
 select all

@@ -8,17 +8,17 @@ legacyDataDirectory$ = preferencesDirectory$ + "/data"
 
 endeditor
 fileName$ = selected$()
-Read Strings from raw text file... 'legacyDataDirectory$'\vowel.txt
+Read Strings from raw text file... 'legacyDataDirectory$'/vowel.txt
 clearinfo
 numberOfStrings = Get number of strings
 if numberOfStrings = 1
-system del 'legacyDataDirectory$'\vowel.txt
+deleteFile: "'legacyDataDirectory$'/vowel.txt"
 printline 撤销上一步共振峰数据成功！
 select Strings vowel
 Remove
 elsif numberOfStrings != 1
 Extract part... 1 'numberOfStrings'-1
-Save as raw text file... 'legacyDataDirectory$'\vowel.txt
+Save as raw text file... 'legacyDataDirectory$'/vowel.txt
 numberOfStrings = Get number of strings
 for i from 1 to numberOfStrings
 value$ = Get string... i

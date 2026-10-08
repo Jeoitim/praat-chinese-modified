@@ -164,7 +164,7 @@ ifeq ($(OS_IS_FREEBSD),1)
   SYSTEM_COMPILER_FLAGS = -DUNIX -Dlinux
 
   GRAPHICS_COMPILER_FLAGS := `$(PKG_CONFIG) --cflags gtk+-3.0`
-  GRAPHICS_LINKER_FLAGS := `$(PKG_CONFIG) --libs gtk+-3.0`
+  GRAPHICS_LINKER_FLAGS := `$(PKG_CONFIG) --libs gtk+-3.0 fontconfig`
 
   # -DALSA and -DJACK: Use ALSA and Jack audio in pa_unix_hostapis.c
   AUDIO_COMPILER_FLAGS := -DALSA -DJACK -DHAVE_SYS_SOUNDCARD_H
@@ -277,11 +277,11 @@ else ifeq ($(OS_IS_LINUX),1)
     EXECUTABLE_FILE = praat_barren
   else ifeq ($(PRAAT_GRAPHICS),nogui)
     GRAPHICS_COMPILER_FLAGS := -DNO_GUI `$(PKG_CONFIG) --cflags pangocairo`
-    GRAPHICS_LINKER_FLAGS := `$(PKG_CONFIG) --libs pangocairo`
+    GRAPHICS_LINKER_FLAGS := `$(PKG_CONFIG) --libs pangocairo fontconfig`
     EXECUTABLE_FILE = praat_nogui
   else
     GRAPHICS_COMPILER_FLAGS := `$(PKG_CONFIG) --cflags gtk+-3.0`
-    GRAPHICS_LINKER_FLAGS := `$(PKG_CONFIG) --libs gtk+-3.0`
+    GRAPHICS_LINKER_FLAGS := `$(PKG_CONFIG) --libs gtk+-3.0 fontconfig`
     EXECUTABLE_FILE = praat
   endif
 

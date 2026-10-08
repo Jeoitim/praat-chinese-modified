@@ -2,9 +2,18 @@
 #include "praatP.h"
 #include "praat_chinese.h"
 #include <filesystem>
+#include <vector>
 #if defined (_WIN32)
 #include <windows.h>
 #include <shellapi.h>
+#elif defined (macintosh)
+#include <mach-o/dyld.h>
+#include <CoreText/CoreText.h>
+#else
+#include <unistd.h>
+#ifndef NO_GRAPHICS
+#include <fontconfig/fontconfig.h>
+#endif
 #endif
 
 #include "praatM.h"
@@ -164,21 +173,75 @@ static void praat_chinese_registerCommands () {
     praat_addMenuCommand(U"Objects",U"Goodies",U"Bei 根据半音按指定参考频率求赫兹...",nullptr,GuiMenu_HIDDEN,QUERY_legacyHertz);
 }
 
-static std::u32string applicationDirectory;
-const char32_t * praat_chineseDirectory () { return applicationDirectory.c_str(); }
-void praat_chinese_init () {
+// Resolve resources independently of the caller's working directory.
+static std::filesystem::path resourceFolder () {
     std::filesystem::path folder;
     #if defined (_WIN32)
         wchar_t executable [32768];
         DWORD n = GetModuleFileNameW (nullptr, executable, 32768);
         Melder_require (n > 0 && n < 32768, U"Cannot locate the bundled scripts.");
         folder = std::filesystem::path(executable).parent_path();
+    #elif defined (macintosh)
+        uint32_t size = 0;
+        _NSGetExecutablePath(nullptr, &size);
+        std::vector<char> executable(size);
+        Melder_require(_NSGetExecutablePath(executable.data(), &size) == 0, U"Cannot locate the bundled scripts.");
+        folder = std::filesystem::weakly_canonical(executable.data()).parent_path();
+        if (folder.filename() == "MacOS" && std::filesystem::is_directory(folder.parent_path()/"Resources"/"assets"))
+            folder = folder.parent_path()/"Resources";
     #else
-        folder = std::filesystem::path(Melder_peek32to8(Melder_getShellDirectory()));
+        std::error_code error;
+        auto executable = std::filesystem::read_symlink("/proc/self/exe",error);
+        folder = error ? std::filesystem::path(Melder_peek32to8(Melder_getShellDirectory())) : executable.parent_path();
     #endif
+    if (conststring32 overrideFolder = Melder_getenv(U"PRAAT_MODIFIED_RESOURCES")) {
+        auto overridePath = std::filesystem::path(std::u32string(overrideFolder));
+        Melder_require(overridePath.is_absolute() && std::filesystem::is_directory(overridePath/"assets"/"legacy"),
+            U"PRAAT_MODIFIED_RESOURCES must name an absolute directory containing assets/legacy.");
+        return overridePath;
+    }
+    if (std::filesystem::is_directory(folder/"assets"/"legacy")) return folder;
+    #if !defined (_WIN32) && !defined (macintosh)
+        auto installed = folder.parent_path()/"share"/"PraatChineseModified";
+        if (std::filesystem::is_directory(installed/"assets"/"legacy")) return installed;
+    #endif
+    return folder;
+}
+
+void praat_chinese_openResource (conststring32 target) {
+    Melder_require(target && target[0],U"请选择需要打开的文件、目录或网址。");
+    #if defined (_WIN32)
+        auto path=std::filesystem::path(std::u32string(target));
+        auto result=ShellExecuteW(nullptr,L"open",path.c_str(),nullptr,nullptr,SW_SHOWNORMAL);
+        Melder_require(reinterpret_cast<INT_PTR>(result)>32,U"无法打开指定资源。");
+    #else
+        autostring32 argument=Melder_dup(target);
+        char32 *arguments [2] = {nullptr,argument.get()};
+        #if defined (macintosh)
+            Melder_runSubprocess(U"open",1,arguments);
+        #else
+            Melder_runSubprocess(U"xdg-open",1,arguments);
+        #endif
+    #endif
+}
+FORM (MODIFIED_openResource, U"打开文件、目录或网址", nullptr) {
+    SENTENCE (target, U"资源", U"")
+    OK
+DO
+    Melder_require(praat_commandsWithExternalSideEffectsAreAllowed(), U"External resource opening is not available inside manuals.");
+    Melder_checkTrust(interpreter, U"open an external resource: ", target);
+    praat_chinese_openResource(target);
+END_NO_NEW_DATA
+}
+
+static std::u32string applicationDirectory;
+const char32_t * praat_chineseDirectory () { return applicationDirectory.c_str(); }
+void praat_chinese_init () {
+    auto folder = resourceFolder();
     auto base = folder.u32string();
     applicationDirectory = base;
     praat_chinese_registerCommands ();
+    praat_addMenuCommand(U"Objects",U"Goodies",U"Modified open resource...",nullptr,GuiMenu_HIDDEN,MODIFIED_openResource);
     if (! std::filesystem::is_directory(folder / "assets" / "legacy")) return;
     auto data = std::filesystem::path(std::u32string(MelderFolder_peekPath(Melder_preferencesFolder()))) / "data";
     std::filesystem::create_directories(data);
@@ -221,7 +284,7 @@ void praat_chinese_init () {
     praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 声调统计与画图(相对时长)",U"声调",1,Melder_cat (base.c_str(),U"/assets/legacy/c.praat"));
     praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 声调统计与画图(绝对时长)",U"声调",1,Melder_cat (base.c_str(),U"/assets/legacy/l.praat"));
     praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 单独画某调类",U"声调",1,Melder_cat (base.c_str(),U"/assets/legacy/e.praat"));
-    praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 多人T值平均与画图",U"声调",1,Melder_cat (base.c_str(),U"/assets/legacy/s.praat"));
+    praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 多人T值平均与画图（相对时长）",U"声调",1,Melder_cat (base.c_str(),U"/assets/legacy/s.praat"));
     praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 双字调画图",U"声调",1,Melder_cat (base.c_str(),U"/assets/legacy/bd.praat"));
     praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 三字调画图",U"声调",1,Melder_cat (base.c_str(),U"/assets/legacy/dm.praat"));
     praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 声调时长统计与画图",U"声调",1,Melder_cat (base.c_str(),U"/assets/legacy/i.praat"));
@@ -264,6 +327,11 @@ void praat_chinese_init () {
     praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 录制屏幕和麦克风",U"视频处理",1,Melder_cat (base.c_str(),U"/assets/legacy/df.praat"));
     praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 录制屏幕、声卡和麦克风",U"视频处理",1,Melder_cat (base.c_str(),U"/assets/legacy/dg.praat"));
     praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 录制摄像头、声卡和麦克风",U"视频处理",1,Melder_cat (base.c_str(),U"/assets/legacy/dh.praat"));
+    praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 多人T值平均与画图（绝对时长）",U"声调",1,Melder_cat(base.c_str(),U"/assets/legacy/dl.praat"));
+    praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 根据汉字音韵信息查询汉字",U"查询检索",1,Melder_cat(base.c_str(),U"/assets/legacy/do.praat"));
+    praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 提取纯汉字、纯阿拉伯数字或英文",U"查询检索",1,Melder_cat(base.c_str(),U"/assets/legacy/dr.praat"));
+    praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 字频统计",U"查询检索",1,Melder_cat(base.c_str(),U"/assets/legacy/ds.praat"));
+    praat_addMenuCommandScript (U"Objects",U"Praat",U"Bei 词频统计",U"查询检索",1,Melder_cat(base.c_str(),U"/assets/legacy/word-frequency.praat"));
     praat_addMenuCommandScript (U"SoundEditor",U"Time",U"Bei 测量时长",U"",0,Melder_cat (base.c_str(),U"/assets/legacy/g.praat"));
     praat_addMenuCommandScript (U"SoundEditor",U"Time",U"Bei 绘制声学图片",U"",0,Melder_cat (base.c_str(),U"/assets/legacy/q.praat"));
     praat_addMenuCommandScript (U"SoundEditor",U"Spectrogram",U"Bei 测量塞音时长",U"",0,Melder_cat (base.c_str(),U"/assets/legacy/cc.praat"));
@@ -290,21 +358,36 @@ void praat_chinese_init () {
     praat_addMenuCommandScript (U"TextGridEditor",U"Formants",U"Bei 测量共振峰",U"",0,Melder_cat (base.c_str(),U"/assets/legacy/b.praat"));
 }
 
-// Private process-local phonetic font; no system installation or registry writes.
+// Private process-local phonetic font; no system font installation.
 void praat_chinese_loadFonts () {
+    auto font=resourceFolder()/"assets"/"fonts"/"DoulosSIL-R.ttf";
+    if (!std::filesystem::is_regular_file(font)) return;
     #if defined (_WIN32)
-        wchar_t executable [32768];
-        DWORD n=GetModuleFileNameW(nullptr,executable,32768);
-        if(n>0 && n<32768) {
-            auto font=std::filesystem::path(executable).parent_path()/"assets"/"fonts"/"DoulosSIL-R.ttf";
-            AddFontResourceExW(font.c_str(),FR_PRIVATE,nullptr);
-        }
+        AddFontResourceExW(font.c_str(),FR_PRIVATE,nullptr);
+    #elif defined (macintosh)
+        auto name=font.string();
+        CFURLRef url=CFURLCreateFromFileSystemRepresentation(nullptr,
+            reinterpret_cast<const UInt8 *>(name.data()),name.size(),false);
+        if (url) { CTFontManagerRegisterFontsForURL(url,kCTFontManagerScopeProcess,nullptr); CFRelease(url); }
+    #elif !defined (NO_GRAPHICS)
+        auto name=font.string();
+        FcConfigAppFontAddFile(FcConfigGetCurrent(),reinterpret_cast<const FcChar8 *>(name.c_str()));
     #endif
 }
 
 void praat_chinese_showHtmlAbout () {
+    auto path=std::filesystem::path(applicationDirectory)/"assets"/"about.html";
+    if(std::filesystem::exists(path)) praat_chinese_openResource(path.u32string().c_str());
+}
+
+const char32_t * praat_chineseTool (const char32_t *name) {
+    static std::u32string path;
+    auto filename=std::u32string(name);
     #if defined (_WIN32)
-        auto path=std::filesystem::path(applicationDirectory)/"assets"/"about.html";
-        if(std::filesystem::exists(path)) ShellExecuteW(nullptr,L"open",path.c_str(),nullptr,nullptr,SW_SHOWNORMAL);
+        filename += U".exe";
     #endif
+    auto bundled=std::filesystem::path(applicationDirectory)/filename;
+    if(!std::filesystem::is_regular_file(bundled)) bundled=std::filesystem::path(applicationDirectory)/"assets"/"tools"/filename;
+    path=std::filesystem::is_regular_file(bundled) ? bundled.u32string() : filename;
+    return path.c_str();
 }

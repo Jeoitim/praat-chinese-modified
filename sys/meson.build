@@ -21,13 +21,13 @@ sources = '''
 	ScriptEditor.cpp StringsEditor.cpp
 	Script.cpp Simple.cpp site.cpp Strings.cpp
 	TextEditor.cpp Thing.cpp
-	Ui.cpp UiFile.cpp UiPause.cpp praat_translate.cpp'''.split()
+	Ui.cpp UiFile.cpp UiPause.cpp praat_translate.cpp praat_chinese.cpp praat_python.cpp PythonScriptEditor.cpp PreferencesDialog.cpp'''.split()
 
 libsys = static_library (
 	'sys',
 	sources : sources,
 	dependencies : gtk_dep,
-	include_directories : [melder_inc, dwsys_inc]
+	include_directories : [melder_inc, dwsys_inc, fon_inc, foned_inc, dwtools_inc, LPC_inc]
 )
 
 libsys_dep = declare_dependency (

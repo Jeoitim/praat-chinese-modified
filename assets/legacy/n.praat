@@ -8,17 +8,17 @@ legacyDataDirectory$ = preferencesDirectory$ + "/data"
 
 endeditor
 fileName$ = selected$()
-Read Strings from raw text file... 'legacyDataDirectory$'\tone.txt
+Read Strings from raw text file... 'legacyDataDirectory$'/tone.txt
 clearinfo
 numberOfStrings = Get number of strings
 if numberOfStrings = 1
-system del 'legacyDataDirectory$'\tone.txt
+deleteFile: "'legacyDataDirectory$'/tone.txt"
 printline 撤销上一步基频数据成功！
 select Strings tone
 Remove
 elsif numberOfStrings != 1
 Extract part... 1 'numberOfStrings'-1
-Save as raw text file... 'legacyDataDirectory$'\tone.txt
+Save as raw text file... 'legacyDataDirectory$'/tone.txt
 numberOfStrings = Get number of strings
 for i from 1 to numberOfStrings
 value$ = Get string... i

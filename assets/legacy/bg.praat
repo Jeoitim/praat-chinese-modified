@@ -17,7 +17,8 @@ if fileName$ <> ""
 	printline 'comumnLabel$'
 	for i to numberOfRows
 		value$ = Get value... i 'comumnLabel$'
-	printline 'value$'
-endfor
+		printline 'value$'
+	endfor
+endif
 Remove
 exit 请将信息窗口的内容复制粘贴到第一列出现乱码的文件里。

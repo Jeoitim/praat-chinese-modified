@@ -443,6 +443,11 @@ typedef uLong FAR uLongf;
    typedef unsigned long z_crc_t;
 #endif
 
+/* Praat Unix builds do not run zlib configure. */
+#if !defined(_WIN32) && (defined(UNIX) || defined(macintosh))
+#  define Z_HAVE_UNISTD_H
+#endif
+
 #if HAVE_UNISTD_H-0     /* may be set to #if 1 by ./configure */
 #  define Z_HAVE_UNISTD_H
 #endif

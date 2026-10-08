@@ -2,7 +2,10 @@
 form 视频文件夹
     sentence directory .
 endform
-ffmpeg$ = applicationDirectory$ + "/ffmpeg.exe"
+if directory$ = "."
+    directory$ = preferencesDirectory$ + "/data"
+endif
+ffmpeg$ = ffmpegExecutable$
 Create Strings as file list: "fileList", directory$ + "/*.*"
 count = Get number of strings
 for i from 1 to count
@@ -13,7 +16,7 @@ for i from 1 to count
         input$ = directory$ + "/" + name$
         stem$ = left$(name$,dot-1)
         output$ = directory$ + "/" + stem$ + ".wav"
-        runSubprocess: ffmpeg$, "-n", "-i", input$, "-vn", output$
+        runSubprocess: ffmpeg$, "-nostdin", "-n", "-i", input$, "-vn", output$
     endif
 endfor
 Remove

@@ -1,3 +1,8 @@
+if windows
+    legacyPictureExtension$ = "png"
+else
+    legacyPictureExtension$ = "pdf"
+endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
 legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
@@ -38,6 +43,7 @@ else
 	Marks left every... 1 20 yes yes no
 endif
 #numberOfRows = Get number of rows
+consonant$ = backslashTrigraphsToUnicode$(consonant$)
 numberOfRows = Search column... consonant 'consonant$'
 if numberOfRows = 0
 	exit 表中不存在指定的辅音，请重新输入。
@@ -125,7 +131,11 @@ Text bottom... yes Frequency Band
 Text left... yes Energy  (C value)
 Select outer viewport... 0 6.5 0 4
 if name_of_picture_to_be_saved$ != ""
-	Save as Windows metafile: "'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf"
+	if windows
+	    Save as 600-dpi PNG file: "'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'"
+	else
+	    Save as PDF file: "'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'"
+	endif
 endif
 Font size... 10
 Select outer viewport: 0, 6, 0, 4

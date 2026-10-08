@@ -1,3 +1,8 @@
+if windows
+    legacyPictureExtension$ = "png"
+else
+    legacyPictureExtension$ = "pdf"
+endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
 legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
@@ -170,7 +175,8 @@ for i from 1 to numberOfRows
 	endif
 endfor
 select Table newTable
-Bei计算共振峰Bark值
+Formula: "F1", "hertzToBark(self)"
+Formula: "F2", "hertzToBark(self)"
 Append column... 1
 Append column... 2
 Append column... 3
@@ -183,7 +189,8 @@ for i from 1 to rowTemp
 endfor
 Remove column... F2
 Set column label (label)... F3 F2
-Bei计算共振峰Bark值
+Formula: "F1", "hertzToBark(self)"
+Formula: "F2", "hertzToBark(self)"
 for i from 1 to rowTemp
 	valueTemp2 = Get value...  i F2
 	Set string value... i 3 'valueTemp2'
@@ -195,6 +202,7 @@ Set column label (label)... 2 F2
 Set column label (label)... 3 F3
 numberOfColumns = Get number of columns
 for h from 1 to numberOfColumns
+	if h >= 2
 		select Table newTable
 		columnLabel$ = Get column label... h
 		minNew = Get minimum... 'columnLabel$'
@@ -308,19 +316,23 @@ Select outer viewport... 0 6 0 4
 
 #保存图表数据
 createDirectory: legacyDataDirectory$
-i=fileReadable("'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf")
+i=fileReadable("'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'")
 if i = 1
 	pause 'name_of_picture_to_be_saved$'已经存在，请将其先移走，否则会被覆盖！
 endif
-Save as Windows metafile... 'legacyDataDirectory$'\'name_of_picture_to_be_saved$'.emf
-i=fileReadable("'legacyDataDirectory$'\'name_of_file_to_be_saved$'.xls")
+if windows
+    Save as 600-dpi PNG file... 'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'
+else
+    Save as PDF file... 'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'
+endif
+i=fileReadable("'legacyDataDirectory$'/'name_of_file_to_be_saved$'.xls")
 if i = 1
 	pause 'name_of_file_to_be_saved$'已经存在，请将其先移走，否则会被覆盖！
 endif
 if integer_for_results = 1
 	Formula (column range)... F1 F3-F2 fixed$ (self,0)
 endif
-Save as tab-separated file... 'legacyDataDirectory$'\'name_of_file_to_be_saved$'.xls
+Save as tab-separated file... 'legacyDataDirectory$'/'name_of_file_to_be_saved$'.xls
 select Table 'fileName$'
 plus Table newTable
 Remove

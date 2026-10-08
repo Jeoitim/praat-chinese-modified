@@ -11,15 +11,62 @@ sentence 注意： 若是双元音，则不填startIPA。
 	choice picture_type 1
 		button 两图垂直呈现
 		button 两图水平呈现
-sentence startIPA i(au)
-sentence middleIPA (i)a(u)
-sentence endIPA (ia)u
+sentence startIPA u(ai)
+sentence middleIPA (u)a(i)
+sentence endIPA (ua)i
 endform
 
 if "'middleIPA$'" = "" or "'endIPA$'" = ""
 exit middleIPA和endIPA不能为空！
 endif
-
+middleIPA$ = backslashTrigraphsToUnicode$(middleIPA$)
+middleIPA$ = replace$(middleIPA$, "（", "(", 0)
+middleIPA$ = replace$(middleIPA$, "）", ")", 0)
+index = index(middleIPA$,"-")
+if index = 3
+	right$ = right$(middleIPA$, 1)
+	middleIPA$ = middleIPA$ - right$(middleIPA$, 2)
+	if right$ = "1"
+		middleIPA$ = left$(middleIPA$, 1) + "(" + mid$(middleIPA$, 2, 1) + ")"
+	elsif right$ = "2"
+		middleIPA$ = "(" + left$(middleIPA$, 1) + ")" + mid$(middleIPA$, 2, 1)
+	endif
+endif
+if index = 4
+	right$ = right$(middleIPA$, 1)
+	middleIPA$ = middleIPA$ - right$(middleIPA$, 2)
+	if right$ = "1"
+		middleIPA$ = left$(middleIPA$, 1) + "(" + mid$(middleIPA$, 2, 2) + ")"
+	elsif right$ = "2"
+		middleIPA$ = "(" + left$(middleIPA$, 1) + ")" + mid$(middleIPA$, 2, 1) + "(" + mid$(middleIPA$, 3, 1) + ")"
+	elsif right$ = "3"
+		middleIPA$ = "(" + mid$(middleIPA$, 1, 2)  + ")" + mid$(middleIPA$, 3, 1)
+	endif
+endif
+endIPA$ = backslashTrigraphsToUnicode$(endIPA$)
+endIPA$ = replace$(endIPA$, "（", "(", 0)
+endIPA$ = replace$(endIPA$, "）", ")", 0)
+index = index(endIPA$,"-")
+if index = 3
+	right$ = right$(endIPA$, 1)
+	endIPA$ = endIPA$ - right$(endIPA$, 2)
+	if right$ = "1"
+		endIPA$ = left$(endIPA$, 1) + "(" + mid$(endIPA$, 2, 1) + ")"
+	elsif right$ = "2"
+		endIPA$ = "(" + left$(endIPA$, 1) + ")" + mid$(endIPA$, 2, 1)
+	endif
+endif
+if index = 4
+	right$ = right$(endIPA$, 1)
+	endIPA$ = endIPA$ - right$(endIPA$, 2)
+	if right$ = "1"
+		endIPA$ = left$(endIPA$, 1) + "(" + mid$(endIPA$, 2, 2) + ")"
+	elsif right$ = "2"
+		endIPA$ = "(" + left$(endIPA$, 1) + ")" + mid$(endIPA$, 2, 1) + "(" + mid$(endIPA$, 3, 1) + ")"
+	elsif right$ = "3"
+		endIPA$ = "(" + mid$(endIPA$, 1, 2)  + ")" + mid$(endIPA$, 3, 1)
+	endif
+endif
 
 if "'middleIPA$'" <> "" and "'endIPA$'" <> ""
 rowOfMiddleIPA = Search column... vowel 'middleIPA$'
@@ -72,6 +119,30 @@ Axes... 0 100 100 0
 Draw arrow... v3subt2Middle v1Middle v3subt2End v1End
 
 if "'startIPA$'" <> ""
+startIPA$ = backslashTrigraphsToUnicode$(startIPA$)
+startIPA$ = replace$(startIPA$, "（", "(", 0)
+startIPA$ = replace$(startIPA$, "）", ")", 0)
+index = index(startIPA$,"-")
+if index = 3
+	right$ = right$(startIPA$, 1)
+	startIPA$ = startIPA$ - right$(startIPA$, 2)
+	if right$ = "1"
+		startIPA$ = left$(startIPA$, 1) + "(" + mid$(startIPA$, 2, 1) + ")"
+	elsif right$ = "2"
+		startIPA$ = "(" + left$(startIPA$, 1) + ")" + mid$(startIPA$, 2, 1)
+	endif
+endif
+if index = 4
+	right$ = right$(startIPA$, 1)
+	startIPA$ = startIPA$ - right$(startIPA$, 2)
+	if right$ = "1"
+		startIPA$ = left$(startIPA$, 1) + "(" + mid$(startIPA$, 2, 2) + ")"
+	elsif right$ = "2"
+		startIPA$ = "(" + left$(startIPA$, 1) + ")" + mid$(startIPA$, 2, 1) + "(" + mid$(startIPA$, 3, 1) + ")"
+	elsif right$ = "3"
+		startIPA$ = "(" + mid$(startIPA$, 1, 2)  + ")" + mid$(startIPA$, 3, 1)
+	endif
+endif
 rowOfStartIPA = Search column... vowel 'startIPA$'
 if rowOfStartIPA = 0
 exit 找不到该复元音！

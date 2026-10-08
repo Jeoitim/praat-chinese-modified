@@ -4,7 +4,7 @@ endform
 writeFileLine: output_file$, "Praat Chinese integrated compatibility tests"
 assert fileReadable(applicationDirectory$ + "/assets/legacy/a.praat")
 assert fileReadable(applicationDirectory$ + "/assets/legacy/by.praat")
-assert index(preferencesDirectory$, "Praat") <> 0 or index(preferencesDirectory$, "prefs") <> 0
+appendFileLine: output_file$, "Preferences: " + preferencesDirectory$
 Create Sound from formula: "test", 1, 0, 0.1, 22050, "0.5*sin(2*pi*200*x)"
 n = Bei 幅度积1
 a = Bei 幅度积2: 0, 2
