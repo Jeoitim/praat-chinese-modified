@@ -2,7 +2,7 @@ name: Cross-platform build
 
 on:
   push:
-    branches: [jeoitim-modified, cross-platform-validation]
+    branches: [jeoitim-modified]
   pull_request:
     branches: [jeoitim-modified]
   workflow_dispatch:

@@ -1,6 +1,6 @@
 # 开发与发布指南
 
-本指南对应 Jeoitim/praat-chinese-modified。开发分支为 `jeoitim-modified`，唯一同步上游为 KasumiKitsune/praat-simplified-chinese 的 `modern` 分支。以下命令是在发布时手动执行的步骤，不代表已经创建 tag 或 Release。
+本指南对应 Jeoitim/praat-chinese-modified。开发分支为 `jeoitim-modified`，唯一同步上游为 KasumiKitsune/praat-simplified-chinese 的 `modern` 分支。发布版本从干净提交创建附注 tag，经三平台构建和附件检查后公开。以下命令供后续维护与发版参考。
 
 ## 1. 发布版本怎么命名
 

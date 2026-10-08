@@ -72,7 +72,7 @@ PRAAT_MAC_ARCHS=arm64 JOBS=4 bash build-macos.sh
 
 ## 5. 全部增强脚本的适配范围
 
-本次参考公众号“实验语音学与praat软件”提供的汉化修改版 6.0 安装包。共保留 89 份原功能脚本，加上 2 份明确标注的缺失资源补充脚本，共 91 份。逐文件适配记录见 [script-platforms.json](../assets/legacy/script-platforms.json)，6.0 原文件校验记录见 [reference-6.0.json](../assets/legacy/reference-6.0.json)。
+本次参考公众号“实验语音学与praat软件”提供的汉化修改版 6.0 安装包。随包提供 91 份增强脚本。逐文件适配记录见 [script-platforms.json](../assets/legacy/script-platforms.json)，6.0 原文件校验记录见 [reference-6.0.json](../assets/legacy/reference-6.0.json)。
 
 - 所有脚本的文件路径改用 `/`；国际音标的反斜杠转义保留。
 - 绘图脚本在 Windows 导出 600 dpi PNG，在 Linux / macOS 导出 PDF，代替固定使用 Windows 专用 EMF。原来以 `.xls` 命名的表格仍为制表符分隔文本，可用表格软件导入。

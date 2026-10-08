@@ -69,6 +69,3 @@ build/
 *.log
 !assets/tools/*.exe
 !assets/tools/*.dll
-
-/praat.xcodeproj/
-__pycache__/
