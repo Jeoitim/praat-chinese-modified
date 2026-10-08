@@ -18,84 +18,36 @@
 
 #include "../sys/praat.h"
 #include "main_Praat.h"
+#include "../sys/praat_chinese.h"
 
-static void logo (Graphics graphics) {
-	Graphics_setWindow (graphics, 0.0, 1.0, 0.0, 1.0);
-	Graphics_setGrey (graphics, 0.95);
-	Graphics_fillRectangle (graphics, 0.0, 1.0, 0.0, 1.0);
-	Graphics_setTextAlignment (graphics, Graphics_CENTRE, Graphics_HALF);
-	Graphics_setFont (graphics, kGraphics_font::TIMES);
-	Graphics_setFontSize (graphics, 45.0);
-	Graphics_setColour (graphics, Melder_MAROON);
-	Graphics_text (graphics, 0.385, 0.89, U"P");
-	Graphics_text (graphics, 0.448, 0.89, U"\\s{R}");
-	Graphics_text (graphics, 0.510, 0.89, U"\\s{A}");
-	Graphics_text (graphics, 0.575, 0.89, U"\\s{A}");
-	Graphics_text (graphics, 0.628, 0.89, U"\\s{T}");
-	Graphics_setFontSize (graphics, 18.0);
-	Graphics_text (graphics, 0.5, 0.77, U"%%doing phonetics by computer");
-	Graphics_setFontSize (graphics, 14.0);
-	Graphics_text (graphics, 0.5, 0.62, Melder_cat (U"version ", Melder_appVersionSTR(),
-			U" (", Melder_appDay(), U" ", Melder_appMonthSTR(), U" ", Melder_appYear(), U")"));
-	Graphics_setFontSize (graphics, 12.0);
-	[[maybe_unused]] constexpr bool isArm64 =
-		#if defined (__aarch64__) || defined (_M_ARM64_)
-			true;
-		#else
-			false;
-		#endif
-	[[maybe_unused]] constexpr int x64_version =
-		#if defined (__AVX2__) && defined (__FMA__) && defined (__F16C__)
-			3;
-		#else
-			1;
-		#endif
-	const conststring32 builtFor =
-		#if defined (macintosh)
-			isArm64 ? U"ARM64 macOS" : U"Intel64 macOS";
-		#elif defined (_WIN32)
-			isArm64 ? U"ARM64 Windows" :
-			sizeof (void *) == 4 ? U"Intel32 Windows" :
-			x64_version == 3 ? U"x64(v3) Windows" :
-			U"x64(v1) Windows";
-		#elif defined (__s390x__)
-			U"s390x Linux";
-		#elif defined (raspberrypi)
-			U"ARMV7 Raspberry Pi";
-		#elif defined (chrome)
-			isArm64 ? U"ARM64 Chromebook" :
-			x64_version == 3 ? U"x64(v3) Chromebook" :
-			U"x64(v1) Chromebook";
-		#elif defined (linux)
-			isArm64 ? U"ARM64 Linux" :
-			x64_version == 3 ? U"x64(v3) Linux" :
-			U"x64(v1) Linux";
-		#else
-			U"";
-			#error Unknown OS type.
-		#endif
-	Graphics_text (graphics, 0.5, 0.54, Melder_cat (U"built for ", builtFor));
-	Graphics_setColour (graphics, Melder_BLACK);
-	Graphics_setFont (graphics, kGraphics_font::HELVETICA);
-	Graphics_setFontSize (graphics, 10.0);
-	Graphics_text (graphics, 0.5, 0.37, Melder_cat (U"Copyright © 1992–", Melder_appYear(), U" Paul Boersma, David Weenink, Anastasia Shchupak"));
-	Graphics_setFontSize (graphics, 10.0);
-	Graphics_setTextAlignment (graphics, Graphics_RIGHT, Graphics_HALF);
-	Graphics_text (graphics, 0.34, 0.28, U"Download sites:");
-	Graphics_text (graphics, 0.27, 0.14, U"Source code:");
-	Graphics_text (graphics, 0.32, 0.065, U"Praat Users List:");
-	Graphics_setTextAlignment (graphics, Graphics_LEFT, Graphics_HALF);
-	Graphics_setFont (graphics, kGraphics_font::COURIER);
-	Graphics_text (graphics, 0.36, 0.28, U"https://praat.org");
-	Graphics_text (graphics, 0.36, 0.22, U"https://www.fon.hum.uva.nl/praat");
-	Graphics_text (graphics, 0.28, 0.14, U"https://github.com/praat/praat.github.io");
-	Graphics_text (graphics, 0.33, 0.065, U"https://groups.io/g/Praat-Users-List");
+void praat_chinese_loadFonts ();
+
+static void logo (Graphics g) {
+    Graphics_setWindow(g,0,1,0,1);
+    Graphics_setColour(g,MelderColour(0.965,0.972,0.985));Graphics_fillRectangle(g,0,1,0,1);
+    Graphics_setFont(g,kGraphics_font::HELVETICA);Graphics_setUnderscoreIsSubscript(g,false);
+    Graphics_setTextAlignment(g,Graphics_LEFT,Graphics_HALF);
+    Graphics_setColour(g,MelderColour(0.02,0.25,0.47));Graphics_setFontSize(g,25);
+    Graphics_text(g,0.24,0.90,U"Praat 修改版");
+    try { Graphics_imageFromFile(g,Melder_cat(praat_chineseDirectory(),U"/assets/icon.png"),0.067,0.198,0.74,0.96); } catch(MelderError) { Melder_clearError(); }
+    Graphics_setFontSize(g,12);Graphics_setColour(g,MelderColour(0.34,0.40,0.49));
+    Graphics_text(g,0.24,0.80,U"电脑上的语音实验台");
+    Graphics_setFontSize(g,10);
+    Graphics_text(g,0.24,0.74,U"7.0.02");
+    Graphics_setColour(g,Melder_WHITE);Graphics_fillRoundedRectangle(g,0.055,0.945,0.10,0.70,3);
+    Graphics_setFontSize(g,11);Graphics_setColour(g,MelderColour(0.15,0.20,0.28));
+    Graphics_text(g,0.085,0.62,U"修改版维护：jeoitim");
+    Graphics_text(g,0.085,0.48,U"汉化及自定义内容：贝先明、向柠");
+    Graphics_text(g,0.085,0.34,U"现代界面与汉化手册：KasumiKitsune");
+    Graphics_setFontSize(g,10);
+    Graphics_text(g,0.085,0.20,U"Praat 核心：Paul Boersma、David Weenink、Anastasia Shchupak");
 }
 
 int main (int argc, char *argv []) {
 	try {
+		praat_chinese_loadFonts ();
 		//TRACE
-		praat_setLogo (130.0, 100.0, logo);
+		praat_setLogo (155.0, 105.0, logo);
 		MelderStopwatch stopwatch;
 		praat_init (U"" stringize (PRAAT_NAME),
 			U"" stringize (PRAAT_VERSION_STR), PRAAT_VERSION_NUM,
@@ -106,6 +58,7 @@ int main (int argc, char *argv []) {
 		trace (stopwatch());
 		INCLUDE_LIBRARY (praat_uvafon_init)
 		trace (stopwatch());
+		praat_chinese_init ();
 		praat_run ();
 		trace (stopwatch());
 	} catch (MelderError) {

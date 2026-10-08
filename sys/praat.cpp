@@ -1293,7 +1293,7 @@ extern "C" void DO_Quit (UiForm /* sendingForm */, integer /* narg */, Stackel /
 		line1Text = praat_translate (U"You have objects in your list!");
 
 	char32 line2Text [200];
-	Melder_sprint (line2Text, 200, praat_translate (U"Do you still want to quit "), Melder_upperCaseAppName(), U"?");
+	Melder_sprint(line2Text,200,praat_translate(Melder_cat(U"Do you still want to quit ",Melder_upperCaseAppName(),U"?")));
 
 	if (! theQuitDialog) {
 		const int dialogWidth = 500;

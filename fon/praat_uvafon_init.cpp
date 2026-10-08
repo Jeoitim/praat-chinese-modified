@@ -3586,6 +3586,7 @@ praat_addAction1 (classParamCurve, 0, U"Draw", nullptr, 0, nullptr);
 					nullptr, 2, REAL_Spectrum_getBinWidth);
 			praat_addAction1 (classSpectrum, 1, U"Get frequency from bin number... || Get frequency from bin...",
 					nullptr, 2, REAL_Spectrum_getFrequencyFromBin);   // alternative GuiMenu_DEPRECATED_2004
+			praat_addAction1(classSpectrum,1,U"Bei Spectrum2...",nullptr,GuiMenu_HIDDEN | GuiMenu_DEPTH_2,REAL_Spectrum_getBinNumberFromFrequency);
 			praat_addAction1 (classSpectrum, 1, U"Get bin number from frequency... || Get bin from frequency...",
 					nullptr, 2, REAL_Spectrum_getBinNumberFromFrequency);
 		praat_addAction1 (classSpectrum, 1, U"-- get content --",

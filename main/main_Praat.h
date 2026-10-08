@@ -23,7 +23,7 @@
 	and then set `Preprocess Info.plist File` to `Yes`
 	and `Info.plist Preprocessor Prefix File` to `main/main_Praat.h`.
 */
-#define PRAAT_NAME  Praat
+#define PRAAT_NAME  PraatChineseModified
 #define PRAAT_VERSION_STR  7.0.02
 #define PRAAT_VERSION_NUM  7002
 #define PRAAT_YEAR  2026

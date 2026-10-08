@@ -2832,6 +2832,7 @@ void praat_Sound_init () {
 		praat_addAction1 (classSound, 1, U"Get number of channels", nullptr, 1,
 				QUERY_ONE_FOR_INTEGER__Sound_getNumberOfChannels);
 		praat_addAction1 (classSound, 1, U"Query time sampling", nullptr, 1, nullptr);
+		praat_addAction1(classSound,1,U"Bei 幅度积1",nullptr,GuiMenu_HIDDEN | GuiMenu_DEPTH_2,QUERY_ONE_FOR_INTEGER__Sound_getNumberOfSamples);
 		praat_addAction1 (classSound, 1, U"Get number of samples", nullptr, 2,
 				QUERY_ONE_FOR_INTEGER__Sound_getNumberOfSamples);
 		praat_addAction1 (classSound, 1, U"Get sampling period || Get sample duration || Get sample period",
@@ -2848,6 +2849,7 @@ void praat_Sound_init () {
 		praat_addAction1 (classSound, 1, U"-- get content --", nullptr, 1, nullptr);
 		praat_addAction1 (classSound, 1, U"Get value at time...", nullptr, 1,
 				QUERY_ONE_FOR_REAL__Sound_getValueAtTime);
+		praat_addAction1(classSound,1,U"Bei 幅度积2...",nullptr,GuiMenu_HIDDEN | GuiMenu_DEPTH_1,QUERY_ONE_FOR_REAL__Sound_getValueAtIndex);
 		praat_addAction1 (classSound, 1, U"Get value at sample number... || Get value at index...",
 				nullptr, 1, QUERY_ONE_FOR_REAL__Sound_getValueAtIndex);   // alternative COMPATIBILITY <= 2004
 		praat_addAction1 (classSound, 1, U"-- get shape --", nullptr, 1, nullptr);

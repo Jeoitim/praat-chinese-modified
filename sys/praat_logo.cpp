@@ -55,15 +55,17 @@ static void gui_drawingarea_cb_expose (Thing /* me */, GuiDrawingArea_ExposeEven
 	theLogo.draw (theLogo.graphics.get());
 }
 
-static void gui_drawingarea_cb_mouse (Thing /* me */, GuiDrawingArea_MouseEvent event) {
-	if (event -> isClick ())
-		GuiThing_hide (theLogo.form);
+static void gui_drawingarea_cb_mouse (Thing, GuiDrawingArea_MouseEvent) {
+    // The modern drawing area emits MOVE events. Only explicit controls dismiss About.
 }
 
 static void gui_cb_goAway (Thing /* boss */) {
  	GuiThing_hide (theLogo.form);
 }
 
+void praat_chinese_showHtmlAbout ();
+static void gui_cb_aboutHtml (Thing,GuiButtonEvent) { praat_chinese_showHtmlAbout(); }
+static void gui_cb_aboutClose (Thing,GuiButtonEvent) { gui_cb_goAway(nullptr); }
 void praat_showLogo () {
 	if (theCurrentPraatApplication -> batch || ! theLogo.draw)
 		return;
@@ -73,7 +75,7 @@ void praat_showLogo () {
 		theLogo.dia = GuiDialog_create (theCurrentPraatApplication -> topShell, 100, 100, width, height,
 				U"About", gui_cb_goAway, nullptr, GuiDialog_Modality::MODELESS);
 		theLogo.form = theLogo.dia;
-		theLogo.drawingArea = GuiDrawingArea_createShown (theLogo.form, 0, width, 0, height,
+		theLogo.drawingArea = GuiDrawingArea_createShown (theLogo.form, 0, width, 0, height-52,
 				gui_drawingarea_cb_expose, gui_drawingarea_cb_mouse, nullptr, nullptr, nullptr, nullptr, 0);
 		/*
 			Note about ordering the following three statements (2021-01-20).
@@ -82,6 +84,8 @@ void praat_showLogo () {
 			(It is possible that the *native* graphics *context* is created later.)
 		*/
 		theLogo.graphics = Graphics_create_xmdrawingarea (theLogo.drawingArea);
+        GuiButton_createShown(theLogo.form,20,180,height-42,height-10,U"Show full credits",gui_cb_aboutHtml,nullptr,0);
+        GuiButton_createShown(theLogo.form,width-108,width-20,height-42,height-10,U"Close",gui_cb_aboutClose,nullptr,GuiButton_DEFAULT);
 		GuiThing_show (theLogo.form);
 		GuiThing_show (theLogo.dia);
 	} else {

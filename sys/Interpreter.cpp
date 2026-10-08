@@ -17,6 +17,7 @@
  */
 
 #include "Interpreter.h"
+#include "praat_chinese.h"
 #include "praatP.h"
 #include "praat_script.h"
 #include "UiPause.h"
@@ -2264,6 +2265,7 @@ static void private_Interpreter_initialize (Interpreter me, autostring32 text, c
 		Interpreter_addStringVariable (me, U"newline$", U"\n");
 		Interpreter_addStringVariable (me, U"tab$", U"\t");
 		Interpreter_addStringVariable (me, U"shellDirectory$", Melder_getShellDirectory ());
+		Interpreter_addStringVariable (me,U"applicationDirectory$",praat_chineseDirectory());
 		{// scope
 			structMelderFolder folder { };
 			Melder_getCurrentFolder (& folder);

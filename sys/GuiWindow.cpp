@@ -124,6 +124,7 @@ Thing_implement (GuiWindow, GuiShell, 0);
 GuiWindow GuiWindow_create (int x, int y, int width, int height, int minimumWidth, int minimumHeight,
 	conststring32 title /* cattable */, GuiShell_GoAwayCallback goAwayCallback, Thing goAwayBoss, uint32 flags)
 {
+	title=praat_translate(title);
 	autoGuiWindow me = Thing_new (GuiWindow);
 	if (Melder_debug == 55)
 		Melder_casual (U"\t", Thing_messageNameAndAddress (me.get()), U" init");

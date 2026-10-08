@@ -64,3 +64,8 @@ scratch/
 
 # Whisper models
 models/**/*.bin
+
+build/
+*.log
+!assets/tools/*.exe
+!assets/tools/*.dll

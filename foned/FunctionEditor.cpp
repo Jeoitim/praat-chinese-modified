@@ -361,6 +361,10 @@ static void drawBackgroundAndData (FunctionEditor me) {
 					inverseValue = 1.0 / value;
 				}
 			}
+            if(g_language_choice!=0) {
+                if(strequ(format,"Total duration %f seconds")) format=u8"总时长 %f 秒";
+                else if(strequ(format,"Visible part %f seconds")) format=u8"可见部分 %f 秒";
+            }
 			const int prec = my v_fixedPrecision_long ();
 			char dynFormat [128];
 			const char *pPctF = strstr (format, "%f");

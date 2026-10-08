@@ -343,7 +343,7 @@ static void gui_error (conststring32 message) {
 		trace (U"destroy dialog");
 		gtk_widget_destroy (GTK_WIDGET (dialog));
 	#elif motif
-		MessageBox (nullptr, Melder_peek32toW (message), L"Message", MB_OK | MB_TOPMOST | MB_ICONWARNING);   // or (HWND) XtWindow ((GuiObject) Melder_topShell)
+		MessageBox (nullptr, Melder_peek32toW (praat_translate(message)), L"提示", MB_OK | MB_TOPMOST | MB_ICONWARNING);   // or (HWND) XtWindow ((GuiObject) Melder_topShell)
 	#elif cocoa
 		mac_message (NSAlertStyleWarning, message);
 	#endif
@@ -372,7 +372,7 @@ static void gui_warning (conststring32 message) {
 		gtk_dialog_run (GTK_DIALOG (dialog));
 		gtk_widget_destroy (GTK_WIDGET (dialog));
 	#elif motif
-		MessageBox (nullptr, Melder_peek32toW (message), L"Warning", MB_OK | MB_TOPMOST | MB_ICONINFORMATION);
+		MessageBox (nullptr, Melder_peek32toW (praat_translate(message)), L"警告", MB_OK | MB_TOPMOST | MB_ICONINFORMATION);
 	#elif cocoa
 		mac_message (NSAlertStyleInformational, message);
 	#endif

@@ -13,5 +13,5 @@ clean:
 
 # The following is only for Windows.
 
-praat_win.o: praat_win.rc
+praat_win.o: praat_win.rc praat.exe.manifest praat.ico
 	$(WINDRES) -o praat_win.o praat_win.rc

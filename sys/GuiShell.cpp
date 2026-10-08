@@ -162,6 +162,7 @@ int GuiShell_getShellHeight (GuiShell me) {
 }
 
 void GuiShell_setTitle (GuiShell me, conststring32 title /* cattable */) {
+	title=praat_translate(title);
 	#if gtk
 		gtk_window_set_title (my d_gtkWindow, Melder_peek32to8 (title));
 		#if defined (chrome)

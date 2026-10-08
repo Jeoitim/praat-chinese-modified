@@ -2352,7 +2352,50 @@ DIRECT (SoundAnalysisArea, cb_getShimmer_dda) { cb_getShimmer_xx (me, PointProce
 
 #pragma mark - SoundAnalysisArea All menus
 
+static void INFO_DATA__legacyPitch (SoundAnalysisArea me, EDITOR_ARGS) {
+    INFO_DATA
+        double tmin, tmax;
+        makeQueriable (me, true, &tmin, &tmax);
+        SoundAnalysisArea_haveVisiblePitch (me);
+        MelderInfo_open ();
+        if (tmin == tmax) MelderInfo_write (U"\t请选择一段语音。");
+        else for (int i = 1; i <= 9; ++i)
+            MelderInfo_write (U"\t", Melder_fixed (Pitch_getValueAtTime (my d_pitch.get(), tmin+(tmax-tmin)*(i-1)/8.0, kPitch_unit::HERTZ, true),0));
+        MelderInfo_close ();
+    INFO_DATA_END
+}
+
+static void INFO_DATA__legacyFormants (SoundAnalysisArea me, EDITOR_ARGS) {
+    INFO_DATA
+        double tmin, tmax;
+        makeQueriable (me, true, &tmin, &tmax);
+        SoundAnalysisArea_haveVisibleFormants (me);
+        MelderInfo_open ();
+        if (tmin != tmax) MelderInfo_write (U"共振峰测量只需选择时间点，无需选择时间段，请重新选择");
+        else for (int f = 1; f <= 2; ++f)
+            MelderInfo_write (U"\t", Melder_fixed (Formant_getValueAtTime(my d_formant.get(),f,tmin,kFormant_unit::HERTZ),0));
+        MelderInfo_close ();
+    INFO_DATA_END
+}
+
+static void INFO_DATA__legacyFormants10 (SoundAnalysisArea me, EDITOR_ARGS) {
+    INFO_DATA
+        double tmin, tmax;
+        makeQueriable (me, true, &tmin, &tmax);
+        SoundAnalysisArea_haveVisibleFormants (me);
+        MelderInfo_open ();
+        for (int f = 1; f <= 3; ++f)
+            for (int i = 0; i < 10; ++i)
+                MelderInfo_write (U"\t", Melder_fixed(Formant_getValueAtTime(my d_formant.get(),f,tmin+(tmax-tmin)*i/9.0,kFormant_unit::HERTZ),0));
+        MelderInfo_close ();
+    INFO_DATA_END
+}
+
 void structSoundAnalysisArea :: v_createMenuItems_formant (EditorMenu menu) {
+    FunctionAreaMenu_addCommand(menu,U"H测量共振峰",GuiMenu_HIDDEN,INFO_DATA__legacyFormants,this);
+    FunctionAreaMenu_addCommand(menu,U"H测量共振峰(10点)",GuiMenu_HIDDEN,INFO_DATA__legacyFormants10,this);
+    FunctionAreaMenu_addCommand(menu,U"Ⓗ Measure formants",0,INFO_DATA__legacyFormants,this);
+    FunctionAreaMenu_addCommand(menu,U"Ⓗ Measure formants (10 points)",0,INFO_DATA__legacyFormants10,this);
 	our formantToggle = FunctionAreaMenu_addCommand (menu, U"Show formants",
 		GuiMenu_CHECKBUTTON | (instancePref_formant_show() ? GuiMenu_TOGGLE_ON : 0),
 		menu_cb_showFormants, this
@@ -2396,6 +2439,7 @@ void structSoundAnalysisArea :: v_createMenuItems_formant (EditorMenu menu) {
 }
 
 void structSoundAnalysisArea :: v_createMenus () {
+	Editor_addMenu(our functionEditor(),U"Legacy",0);
 	if (our v_hasSpectrogram () && our v_hasPitch () && our v_hasIntensity () && our v_hasPulses ()) {
 		EditorMenu menu = Editor_addMenu (our functionEditor(), U"Analyses", 0);
 		FunctionAreaMenu_addCommand (menu, U"Show analyses...", 0, menu_cb_showAnalyses, this);
@@ -2442,6 +2486,8 @@ void structSoundAnalysisArea :: v_createMenus () {
 
 	if (our v_hasPitch ()) {
 		EditorMenu menu = Editor_addMenu (our functionEditor(), U"Pitch", 0);
+        FunctionAreaMenu_addCommand(menu,U"H测量基频",GuiMenu_HIDDEN,INFO_DATA__legacyPitch,this);
+        FunctionAreaMenu_addCommand(menu,U"Ⓗ Measure pitch",0,INFO_DATA__legacyPitch,this);
 		our pitchToggle = FunctionAreaMenu_addCommand (menu, U"Show pitch",
 			GuiMenu_CHECKBUTTON | ( our instancePref_pitch_show() ? GuiMenu_TOGGLE_ON : 0 ),
 			menu_cb_showPitch, this
