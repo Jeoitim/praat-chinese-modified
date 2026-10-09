@@ -65,13 +65,19 @@ assert rows = {row_count}
             run(injected('c',source_tone),'yes','yes',method,'Blue',name,name)
             assert (data/(name+'.xls')).is_file()
             assert (data/(name+('.png' if executable.suffix=='.exe' else '.pdf'))).is_file()
-        results.append('relative-duration T values with linear/logarithmic modes')
+        name=case+'_absolute'
+        run(injected('l',source_tone),'yes','yes','lgHertz','Blue',name,name)
+        assert (data/(name+'.xls')).is_file()
+        results.append('relative/absolute-duration T values with linear/logarithmic modes')
         name=case+'_fluctuation'
         # The form is read before script execution even if historically midway.
         run(injected('r',source_intonation),'yes','1','3','64','Blue','yes',name,name)
         assert (data/(name+'.xls')).is_file()
         assert (data/(name+('.png' if executable.suffix=='.exe' else '.pdf'))).is_file()
-        results.append('64 Hz fluctuation table and rectangle chart')
+        name=case+'_fluctuation_50'
+        run(injected('r',source_intonation),'yes','1','3','50','Blue','no',name,name)
+        assert (data/(name+'.xls')).is_file()
+        results.append('50/64 Hz fluctuation tables and rectangle chart')
         name=case+'_column'
         run(injected('u',source_tone),'2','平均值',name,name,'three_decimal_places','yes','no')
         assert (data/(name+'.xls')).is_file()
@@ -111,7 +117,36 @@ assert rows = {row_count}
             run(injected(filename,source),'wav','no')
             assert (data/'annotation.TextGrid').is_file()
             assert hashlib.sha256((base/'annotation.TextGrid').read_bytes()).hexdigest()==grid_digest
-        results.append('consonant/vowel/tone annotation saves without changing input TextGrid')
+        run(injected('dc',base/'dc.txt'),'wav','yes')
+        assert hashlib.sha256((base/'annotation.TextGrid').read_bytes()).hexdigest()!=grid_digest
+        results.append('consonant/vowel/tone annotation: portable saves and explicit input-directory saves')
+        numeric=base/'statistics.txt'
+        numeric.write_text('\n'.join('\t'.join([group]+[str(50+dot*10+trial) for dot in range(25)])
+            for group in ['a','b','c'] for trial in range(8))+'\n',encoding='utf-8')
+        digest=hashlib.sha256(numeric.read_bytes()).hexdigest()
+        for filename in ['af','ar','ay','az','ba','bb','be','cd','cg','d','i']:
+            code=(ROOT/f'assets/legacy/{filename}.praat').read_text(encoding='utf-8')
+            fields=[];options=None
+            for line in code.split('endform')[0].split('form ',1)[1].splitlines()[1:]:
+                cells=line.strip().split(maxsplit=2)
+                if not cells:continue
+                kind=cells[0]
+                if kind in ['choice','optionmenu']:
+                    options=[];fields.append((kind,int(cells[2].split()[0]),options))
+                elif kind in ['button','option'] and options is not None:options.append(' '.join(cells[1:]))
+                elif kind in ['boolean','integer','natural','real','positive','sentence','word','text']:
+                    value=cells[2] if len(cells)>2 else ''
+                    if cells[1].startswith('name_of_'):value=case+'_'+filename+'_'+cells[1]
+                    fields.append((kind,value,None))
+            params=[]
+            for kind,value,options in fields:
+                if kind=='choice':params.append(options[value-1])
+                elif kind=='boolean':params.append('yes' if str(value).split()[0]=='1' else 'no')
+                elif kind in ['integer','natural','real','positive']:params.append(value.split()[0])
+                else:params.append(value)
+            run(injected(filename,numeric),*params)
+        assert hashlib.sha256(numeric.read_bytes()).hexdigest()==digest
+        results.append('eleven additional energy/formant/stop/outlier/descriptive-statistics workflows')
         for p,digest in input_hashes.items():assert hashlib.sha256(p.read_bytes()).hexdigest()==digest,str(p)
         for p,digest in original_hashes.items():assert hashlib.sha256(Path(p).read_bytes()).hexdigest()==digest,p
     print(json.dumps({'passed':results,'input_files_unchanged':True,'outputs':str(data)},ensure_ascii=False,indent=2))

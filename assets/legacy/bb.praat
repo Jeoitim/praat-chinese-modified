@@ -14,7 +14,7 @@ form set parameters
 	choice is_column_label_existed 1
 		button no
 		button yes
-	boolean erase_all
+	boolean erase_all 1
 	choice type_of_picture 2
 		button F1(Hz)_F2(log(Hz))
 		button F1(Bark)_F2(Bark)

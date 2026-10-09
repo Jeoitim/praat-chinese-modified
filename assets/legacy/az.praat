@@ -60,7 +60,7 @@ for i from 1 to numberOfRows-1
 	endif
 endfor
 select Table 'fileName$'
-exit 完成!
+appendInfoLine: "完成!"
 
 procedure mean_std_cv
 	numberOfRowsTemp = Get number of rows

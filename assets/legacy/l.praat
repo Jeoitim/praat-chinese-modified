@@ -174,12 +174,12 @@ y = 0
 Create Table with column names... table numberOfRowsNew tone duration
 select Table 'fileName$'
 diaolei1$ = Get value... 1 tone
-sum = Get value... 1 dot10
+sum = Get value... 1 duration
 for i from 2 to numberOfRows
 	diaolei'i'$ = Get value... i tone
 	j = i - 1
 	if diaolei'i'$ = diaolei'j'$
-		duration'i' = Get value... i dot10
+		duration'i' = Get value... i duration
 		sum = sum + duration'i'
 		x = x + 1
 		mean = sum / x
@@ -200,7 +200,7 @@ for i from 2 to numberOfRows
 		select Table 'fileName$'
 		sum = 0
 		x = 0
-		duration'i' = Get value... i dot10
+		duration'i' = Get value... i duration
 		sum = sum + duration'i'
 		x = x + 1
 		mean = sum

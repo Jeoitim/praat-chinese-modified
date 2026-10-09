@@ -234,4 +234,4 @@ plus Table 中古韵母拟音表
 plus Table 汉字音韵表
 plus Strings 'stringsFileName$'
 Remove
-exit 完成
+appendInfoLine: "完成"

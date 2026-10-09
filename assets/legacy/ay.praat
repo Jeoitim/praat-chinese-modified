@@ -90,7 +90,7 @@ if delete_outliers_and_extreme_values = 1
 	endfor
 	Remove column: "离群值或极端值"
 endif
-exit 完成，请手动保存主界面中的新文件!
+appendInfoLine: "完成，请手动保存主界面中的新文件!"
 
 procedure quantile
 	numberOfRowsTemp = Get number of rows
