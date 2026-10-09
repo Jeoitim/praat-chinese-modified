@@ -1,3 +1,5 @@
+# 修改：jeoitim（Praat 修改版）。
+# 已进行跨平台、便携路径或兼容性适配，与参考安装包中的原始脚本有差异；保留原作者署名。
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
 legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明（beixianming@163.com）编写。

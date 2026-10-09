@@ -1,3 +1,5 @@
+# 修改：jeoitim（Praat 修改版）。
+# 已进行跨平台、便携路径或兼容性适配，与参考安装包中的原始脚本有差异；保留原作者署名。
 # 原语调画图功能：贝先明；当前 API、64 Hz 标度和便携输出适配：jeoitim。
 form 语调画图
     positive pitch_floor 64

@@ -34,6 +34,7 @@ class PortabilityTests(unittest.TestCase):
     def test_analysis_scripts_use_portable_data_and_current_functions(self):
         for script in (ROOT / "assets/legacy").glob("*.praat"):
             code = "\n".join(line for line in script.read_text(encoding="utf-8").splitlines() if not line.lstrip().startswith("#"))
+            self.assertRegex(script.read_text(encoding="utf-8").splitlines()[0], r"^# (修改|补充实现)：jeoitim", script.name)
             self.assertNotIn('preferencesDirectory$ + "/data"', code, script.name)
             self.assertNotRegex(code, r"hertzToSemitonesRe(?:50|64)", script.name)
             self.assertNotRegex(code, r"(?m)^\s*boolean\s+\S+\s*$", script.name)
