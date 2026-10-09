@@ -39,6 +39,8 @@ pathFileName$ = chooseReadFile$: "请选择分析数据文件"
 if pathFileName$ = ""
     exitScript: "已取消。"
 endif
+# jeoitim：保留原脚本的空格转制表符并写回步骤；改写前在输入目录备份原文件。
+Modified format analysis text: pathFileName$
 Modified read analysis table: pathFileName$, "tone dot1 dot2 dot3 dot4 dot5 dot6 dot7 dot8 dot9 duration file start end"
 sourceTableID = selected("Table")
 fileName$ = selected$("Table")

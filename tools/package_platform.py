@@ -16,7 +16,7 @@ def copy_resources(target):
         shutil.copyfile(ROOT / name, target / name)
     shutil.copyfile(ROOT / "main/gpl-3.0.txt", target / "gpl-3.0.txt")
     (target / "docs").mkdir(exist_ok=True)
-    for name in ["maintenance-and-release.zh.md", "cross-platform.zh.md"]:
+    for name in ["maintenance-and-release.zh.md", "cross-platform.zh.md", "enhanced-script-design.zh.md"]:
         shutil.copyfile(ROOT / "docs" / name, target / "docs" / name)
     assert len(list((target / "assets/legacy").glob("*.praat"))) == 91
 

@@ -1,4 +1,4 @@
-"""Real analysis workflows, portable saves and non-destructive input checks."""
+"""Real analysis workflows, portable saves and backed-up input formatting checks."""
 import argparse
 import math
 import hashlib
@@ -147,8 +147,11 @@ assert rows = {row_count}
             run(injected(filename,numeric),*params)
         assert hashlib.sha256(numeric.read_bytes()).hexdigest()==digest
         results.append('eleven additional energy/formant/stop/outlier/descriptive-statistics workflows')
-        for p,digest in input_hashes.items():assert hashlib.sha256(p.read_bytes()).hexdigest()==digest,str(p)
+        for p,digest in input_hashes.items():
+            if hashlib.sha256(p.read_bytes()).hexdigest()!=digest:
+                backup=Path(str(p)+'.before-tabs.bak')
+                assert backup.is_file() and hashlib.sha256(backup.read_bytes()).hexdigest()==digest,str(p)
         for p,digest in original_hashes.items():assert hashlib.sha256(Path(p).read_bytes()).hexdigest()==digest,p
-    print(json.dumps({'passed':results,'input_files_unchanged':True,'outputs':str(data)},ensure_ascii=False,indent=2))
+    print(json.dumps({'passed':results,'user_input_files_unchanged':True,'formatted_copies_backed_up':True,'outputs':str(data)},ensure_ascii=False,indent=2))
 
 if __name__=='__main__':main()

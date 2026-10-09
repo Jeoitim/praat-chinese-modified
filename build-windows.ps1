@@ -36,7 +36,7 @@ try {
     Copy-Item -LiteralPath 'README-修改版.md','THIRD_PARTY_NOTICES.md','main/gpl-3.0.txt' -Destination $packageDirectory -Force
     $packageDocs = Join-Path $packageDirectory 'docs'
     New-Item -ItemType Directory -Path $packageDocs -Force | Out-Null
-    Copy-Item -LiteralPath 'docs/maintenance-and-release.zh.md','docs/release-notes-v7.0.02-jeoitim.1.md','docs/cross-platform.zh.md' -Destination $packageDocs -Force
+    Copy-Item -LiteralPath 'docs/maintenance-and-release.zh.md','docs/release-notes-v7.0.02-jeoitim.1.md','docs/cross-platform.zh.md','docs/enhanced-script-design.zh.md' -Destination $packageDocs -Force
     if (Test-Path -LiteralPath 'assets/tools') {
         Get-ChildItem -LiteralPath 'assets/tools' -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $packageDirectory -Force }
     }

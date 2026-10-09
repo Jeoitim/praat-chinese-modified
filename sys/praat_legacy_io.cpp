@@ -1,9 +1,10 @@
-// Read historical analysis tables without rewriting the input file.
+// Historical analysis-table import and explicit text formatting; jeoitim.
 // jeoitim; uses Praat's Unicode file decoder and Table implementation.
 #include "praat_legacy_io.h"
 #include <string>
 #include <vector>
 #include <memory>
+#include <filesystem>
 
 static std::u32string trimmed (std::u32string text) {
     const auto first=text.find_first_not_of(U" \t\r\n\ufeff");
@@ -81,4 +82,53 @@ autoTable praat_readLegacyTable (MelderFile file, conststring32 headerHint) {
     }
     Melder_require(result->rows.size>0,U"分析文件只有表头，没有测量数据。");
     return result;
+}
+
+// Preserve the supplied scripts' preparation step: spaces become tabs and
+// consecutive separators collapse. Native Praat objects must never be rewritten.
+void praat_formatLegacyText (MelderFile file) {
+    {
+        std::unique_ptr<FILE,decltype(&fclose)> stream(Melder_fopen(file,"rb"),fclose);
+        char magic[13] { };
+        fread(magic,1,12,stream.get());
+        if(strnequ(magic,"ooBinaryFile",12)) return;
+    }
+    auto text=MelderFile_readText(file);
+    const std::u32string content(text.get());
+    if(content.find(U"ooTextFile")!=std::u32string::npos &&
+       (content.find(U"Object class = \"Table\"")!=std::u32string::npos || content.find(U"\n\"Table\"")!=std::u32string::npos)) return;
+    std::u32string formatted;
+    for(size_t start=0;start<content.size();) {
+        size_t end=content.find_first_of(U"\r\n",start);
+        if(end==std::u32string::npos) end=content.size();
+        size_t next=end;
+        if(next<content.size() && content[next]==U'\r') ++next;
+        if(next<content.size() && content[next]==U'\n') ++next;
+        const auto cells=split(content.substr(start,end-start),false);
+        if(!cells.empty()) {
+            for(size_t i=0;i<cells.size();++i) {
+                if(i) formatted+=U'\t';
+                formatted+=cells[i];
+            }
+            formatted+=content.substr(end,next-end);
+        }
+        start=next;
+    }
+    Melder_require(!formatted.empty(),U"分析文件没有数据：",file);
+    if(formatted==content) return;
+    // An exact-byte backup also preserves the original encoding. Never overwrite
+    // a previous backup, including a backup from an earlier formatting run.
+    const std::filesystem::path source(file->path);
+    auto backup=source;
+    backup+=U".before-tabs.bak";
+    for(integer serial=1;std::filesystem::exists(backup);++serial) {
+        backup=source;
+        backup+=std::u32string(U".before-tabs.")+Melder_integer(serial)+U".bak";
+    }
+    try {
+        std::filesystem::copy_file(source,backup);
+    } catch (const std::exception &error) {
+        Melder_throw(U"无法备份分析文件，原文件尚未改写：",file,U"\n",Melder_peek8to32_u(error.what()));
+    }
+    MelderFile_writeText_e(file,formatted.c_str(),kMelder_textOutputEncoding::UTF8);
 }

@@ -38,7 +38,12 @@ class PortabilityTests(unittest.TestCase):
             self.assertNotIn('preferencesDirectory$ + "/data"', code, script.name)
             self.assertNotRegex(code, r"hertzToSemitonesRe(?:50|64)", script.name)
             self.assertNotRegex(code, r"(?m)^\s*boolean\s+\S+\s*$", script.name)
-            self.assertNotIn('Save as raw text file: pathFileName$', code, script.name)
+            original_normalizers = set("af ar as ay az ba bb be c cd cg d da db dc i l r u".split())
+            self.assertEqual('Modified format analysis text: pathFileName$' in code,
+                             script.stem in original_normalizers, script.name)
+            if script.stem in original_normalizers:
+                self.assertLess(code.index('Modified format analysis text:'),
+                                code.index('Modified read analysis table:'), script.name)
             self.assertNotIn("'stringsFileName$'", code if script.stem in ("da", "db", "dc") else "", script.name)
 
     def test_capture_argv_keeps_spaces_unicode_and_metacharacters_as_data(self):

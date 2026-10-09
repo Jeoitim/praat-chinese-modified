@@ -282,6 +282,18 @@ DO
 END_NO_NEW_DATA
 }
 
+FORM (MODIFIED_formatAnalysisText, U"格式化分析文本", nullptr) {
+    INFILE (inputFile, U"文件", U"")
+    OK
+DO
+    Melder_require(praat_commandsWithExternalSideEffectsAreAllowed(), U"分析文本格式化不可在手册中运行。");
+    Melder_checkTrust(interpreter, U"format the selected analysis file: ", inputFile);
+    structMelderFile file { };
+    Melder_relativePathToFile(inputFile,&file);
+    praat_formatLegacyText(&file);
+END_NO_NEW_DATA
+}
+
 FORM (MODIFIED_readAnalysisTable, U"读取分析数据表", nullptr) {
     INFILE (inputFile, U"文件", U"")
     SENTENCE (columnNames, U"无表头时的列名", U"")
@@ -303,6 +315,7 @@ void praat_chinese_init () {
     applicationDirectory = base;
     praat_chinese_registerCommands ();
     praat_addMenuCommand(U"Objects",U"Goodies",U"Modified open resource...",nullptr,GuiMenu_HIDDEN,MODIFIED_openResource);
+    praat_addMenuCommand(U"Objects",U"Open",U"Modified format analysis text...",nullptr,GuiMenu_HIDDEN,MODIFIED_formatAnalysisText);
     praat_addMenuCommand(U"Objects",U"Open",U"Modified read analysis table...",nullptr,GuiMenu_HIDDEN,MODIFIED_readAnalysisTable);
     if (! std::filesystem::is_directory(folder / "assets" / "legacy")) return;
     auto data = std::filesystem::path(dataDirectory);
