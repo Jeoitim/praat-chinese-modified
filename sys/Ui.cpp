@@ -1625,7 +1625,7 @@ static void UiForm_updateFieldPositions (UiForm me) {
 				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, contentRight, y, y + Gui_TEXTFIELD_HEIGHT, visH);
 			} break;
 			case _kUiField_type::HEADING_:
-				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, contentRight, y, y + headerLabelHeight, visH);
+				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, contentRight, y + 5, y + 5 + textFieldHeight, visH);
 				break;
 			case _kUiField_type::COMMENT_:
 				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, contentRight, y + 5, y + 5 + textFieldHeight, visH);
@@ -1783,7 +1783,8 @@ void UiForm_finish (UiForm me) {
 		#else
 			- 10;
 		#endif
-	const int commentContinuationHeight = headerLabelHeight - 5;
+	// jeoitim: descriptions occupy the full label rectangle, including its 5-pixel offset.
+	const int descriptionLabelHeight = textFieldHeight + 5;
 	int dialogWidth = 520, dialogCentre = dialogWidth / 2, fieldX = dialogCentre + Gui_LABEL_SPACING / 2;
 	int labelWidth = fieldX - Gui_LABEL_SPACING - Gui_LEFT_DIALOG_SPACING, fieldWidth = labelWidth, halfFieldWidth = fieldWidth / 2 - 6;
 
@@ -1826,15 +1827,8 @@ void UiForm_finish (UiForm me) {
 				Gui_OPTIONMENU_HEIGHT
 			: thy type == _kUiField_type::LIST_ ?
 				LIST_HEIGHT
-			: thy type == _kUiField_type::HEADING_ && thy stringValue [0] != U'\0' &&
-					thy stringValue [Melder_length (thy stringValue.get()) - 1] != U'.' && ifield != my numberOfFields ?
-				headerLabelHeight
-			: thy type == _kUiField_type::COMMENT_ && thy stringValue [0] != U'\0' &&
-					thy stringValue [Melder_length (thy stringValue.get()) - 1] == U':' && ifield != my numberOfFields ?
-				headerLabelHeight
-			: thy type == _kUiField_type::COMMENT_ && thy stringValue [0] != U'\0' &&
-					thy stringValue [Melder_length (thy stringValue.get()) - 1] != U'.' && ifield != my numberOfFields ?
-				commentContinuationHeight
+			: thy type == _kUiField_type::HEADING_ || thy type == _kUiField_type::COMMENT_ ?
+				descriptionLabelHeight
 			: thy type == _kUiField_type::CAPTION_ && thy stringValue [0] != U'\0' &&
 					thy stringValue [Melder_length (thy stringValue.get()) - 1] != U'.' && ifield != my numberOfFields ?
 				headerLabelHeight
