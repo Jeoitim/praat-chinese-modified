@@ -4,7 +4,7 @@ else
     legacyPictureExtension$ = "pdf"
 endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是对基频赫兹数据进行归一化，得到起伏度值，同时根据起伏度值绘制语调图图。并将起伏度值数据和起伏度值图自动保存到data目录下。
 #请读入基频赫兹数据表后再运行本脚本。注意，运行本脚本将移去praat列表中的所有文件，如列表中有文件，请先行保存。
@@ -12,78 +12,23 @@ legacyDataDirectory$ = preferencesDirectory$ + "/data"
 #2019.05.09
 
 endeditor
-pathFileName$ = chooseReadFile$: "请选择语调的基频数据文件"
-if pathFileName$ != ""
-	Read Strings from raw text file: pathFileName$
-	stringsFileName$ = selected$("Strings")
-	numberOfStrings = Get number of strings
-	spacespace$ = " " + " "
-	tabtab$ = tab$ + tab$
-	for i from 1 to numberOfStrings
-		string$ = Get string: i
-		string$ = replace$(string$, spacespace$, " ", 0)
-		string$ = replace$(string$, " ", tab$, 0)
-		repeat
-			string$ = replace$(string$, tabtab$, tab$, 0)
-		until index(string$, tabtab$) = 0
-		Set string: i, string$
-		if string$ = "" or string$ = " " or string$ = "	"
-			Remove string: i
-			numberOfStrings = numberOfStrings - 1
-		endif
-	endfor
-	Save as raw text file: pathFileName$
-	Remove
+pathFileName$ = chooseReadFile$: "请选择分析数据文件"
+if pathFileName$ = ""
+    exitScript: "已取消。"
 endif
-fileReadable = fileReadable(pathFileName$)
-if fileReadable = 1
-	Read from file: pathFileName$
-else
-	exit 没有选择文件或文件数据格式有问题。
-endif
-
+Modified read analysis table: pathFileName$, "numberOfSentenceOrPhrase numberOfSyllable dot1 dot2 dot3 dot4 dot5 dot6 dot7 dot8 dot9 duration file start end"
+sourceTableID = selected("Table")
 fileName$ = selected$("Table")
-columnLabel1$ = Get column label: 1
-columnLabel2$ = Get column label: 13
-columnLabel3$ = columnLabel2$ + columnLabel2$ 
-if columnLabel1$ = columnLabel2$
-	Set column label (index): 13, columnLabel3$
-endif
-
-x2 = Get number of columns
-if x2 > 12
-repeat
-x2 = Get number of columns
-x1$ = Get column label... x2
-Remove column... 'x1$'
-until x2 = 13
-endif
-select all
-minus Table 'fileName$'
-nocheck Remove
-select Table 'fileName$'
-Insert row... 1
-number_of_columns = Get number of columns
-for i from 1 to number_of_columns
-	column_label_temp$ = Get column label... i
-	if i = 1
-		Set string value... 1 'column_label_temp$' 'column_label_temp$'
-	elsif i > 1
-		Set numeric value... 1 'column_label_temp$' 'column_label_temp$'
-	endif
-	if i = 1
-		Set column label (label)... 'column_label_temp$' numberOfSentenceOrPhrase
-	elsif i = 2
-		Set column label (label)... 'column_label_temp$' numberOfSyllable
-	elsif i > 1
-		j = i - 2
-		Set column label (label)... 'column_label_temp$' dot'j'
-	endif
-endfor
-
-fileName$ = selected$("Table")
+numberOfColumns = Get number of columns
+while numberOfColumns > 12
+    lastColumn = Get number of columns
+    lastColumnLabel$ = Get column label: lastColumn
+    Remove column: lastColumnLabel$
+    numberOfColumns = Get number of columns
+endwhile
 numberOfRows = Get number of rows
 numberOfColumns = Get number of columns
+number_of_columns = numberOfColumns
 invalid = 0
 for rows from 1 to numberOfRows
 	for columns from 3 to numberOfColumns
@@ -204,14 +149,17 @@ for h from 1 to numberOfColumns
 		endif
 	endif
 endfor
+if max <= min or min <= 0
+    exitScript: "基频范围无效，无法计算起伏度。"
+endif
 hertzMax = round(max)
 hertzMin = round(min)
 if reference_frequency = 1
-	min = hertzToSemitonesRe64(min)
-	max = hertzToSemitonesRe64(max)
+	min = (12 * log2(min / 64))
+	max = (12 * log2(max / 64))
 elsif reference_frequency = 2
-	min = hertzToSemitonesRe50(min)
-	max = hertzToSemitonesRe50(max)
+	min = (12 * log2(min / 50))
+	max = (12 * log2(max / 50))
 endif
 if rectangle != 1
 	clearinfo
@@ -221,9 +169,9 @@ for h from 1 to numberOfColumns
 	if h >= 4
 		columnLabel$ = Get column label... h
 		if reference_frequency = 1
-			Formula... 'columnLabel$' (hertzToSemitonesRe64(self)-'min')/('max'-'min')*100
+			Formula... 'columnLabel$' ((12 * log2(self / 64))-'min')/('max'-'min')*100
 		elsif reference_frequency = 2
-			Formula... 'columnLabel$' (hertzToSemitonesRe50(self)-'min')/('max'-'min')*100
+			Formula... 'columnLabel$' ((12 * log2(self / 50))-'min')/('max'-'min')*100
 		endif
 	endif
 endfor
@@ -332,51 +280,43 @@ form set parameters
 	sentence name_of_file_to_be_saved 起伏度值表(相对时长)
 	sentence name_of_picture_to_be_saved 起伏度值图(相对时长)
 endform
+if index(name_of_picture_to_be_saved$, "/") or index(name_of_picture_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
+if index(name_of_file_to_be_saved$, "/") or index(name_of_file_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
 if phraseStart > phraseEnd
 	exit phraseStart、phraseEnd填写有误。
 endif
 if rectangle = 1
-	Blue
-	Sort rows... numberOfSyllable numberOfSentenceOrPhrase
-	for i from phraseStart to phraseEnd
-		select Table newTable
-		Extract rows where column (text)... numberOfSyllable "is equal to" 'i'
-		if "'i'" = fileName$
-			Rename... 'i'_'i'
-		else
-			Rename... 'i'
-		endif
-	endfor
-	select all
-	minus Table newTable
-	minus Table 'fileName$'
-	Append
-	for j from 1 to 9
-		maxNew = Get maximum... dot'j'
-		if j = 1
-			max0 = maxNew
-		endif
-		if max0 < maxNew
-			max0 = maxNew
-		endif
-		minNew = Get minimum... dot'j'
-		if j = 1
-			min0 = minNew
-		endif
-		if min0 > minNew
-			min0 = minNew
-		endif
-	endfor
-	printline 'phraseStart'~'phraseEnd'方框起伏度最大值为：'max0:0'
-	printline 'phraseStart'~'phraseEnd'方框起伏度最小值为：'min0:0'
-	Draw line... (phraseStart-1)*10+1 max0 (phraseEnd-1)*10+9 max0
-	Draw line... (phraseStart-1)*10+1 min0 (phraseEnd-1)*10+9 min0
-	Draw line... (phraseStart-1)*10+1 min0 (phraseStart-1)*10+1 max0
-	Draw line... (phraseEnd-1)*10+9 min0 (phraseEnd-1)*10+9 max0
-
-	valueDot = (phraseStart + (phraseEnd - phraseStart + 1)/2 - 1) * 10
-	Text... valueDot Centre max0+5 Half 'max0:0'
-	Text... valueDot Centre min0-5 Half 'min0:0'
+    select Table newTable
+    minimumRectangle = undefined
+    maximumRectangle = undefined
+    rowsRectangle = Get number of rows
+    for rowRectangle from 1 to rowsRectangle
+        syllableRectangle = Get value: rowRectangle, "numberOfSyllable"
+        if syllableRectangle >= phraseStart and syllableRectangle <= phraseEnd
+            for dotRectangle from 1 to 9
+                valueRectangle = Get value: rowRectangle, "dot" + string$(dotRectangle)
+                if minimumRectangle = undefined or valueRectangle < minimumRectangle
+                    minimumRectangle = valueRectangle
+                endif
+                if maximumRectangle = undefined or valueRectangle > maximumRectangle
+                    maximumRectangle = valueRectangle
+                endif
+            endfor
+        endif
+    endfor
+    if minimumRectangle <> undefined and maximumRectangle <> undefined
+        Blue
+        xRectangle1 = (phraseStart-1)*10+1
+        xRectangle2 = (phraseEnd-1)*10+9
+        Draw line: xRectangle1, maximumRectangle, xRectangle2, maximumRectangle
+        Draw line: xRectangle1, minimumRectangle, xRectangle2, minimumRectangle
+        Draw line: xRectangle1, minimumRectangle, xRectangle1, maximumRectangle
+        Draw line: xRectangle2, minimumRectangle, xRectangle2, maximumRectangle
+    endif
 endif
 createDirectory: legacyDataDirectory$
 i = fileReadable("'legacyDataDirectory$'/'name_of_picture_to_be_saved$'.'legacyPictureExtension$'")
@@ -390,9 +330,7 @@ else
 endif
 printline 句子基频均值最大值为：'hertzMax'Hz('max:1'St)
 printline 句子基频均值最小值为：'hertzMin'Hz('min:1'St)
-select all
-if rectangle != 1
-	Font size... 10
-endif
+selectObject: sourceTableID
+plus Table newTable
 Remove
 

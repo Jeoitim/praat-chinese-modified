@@ -1,8 +1,10 @@
 // Bundled legacy menus; official command identifiers and user preferences stay independent.
 #include "praatP.h"
 #include "praat_chinese.h"
+#include "praat_legacy_io.h"
 #include <filesystem>
 #include <vector>
+#include <cstdlib>
 #if defined (_WIN32)
 #include <windows.h>
 #include <shellapi.h>
@@ -174,7 +176,7 @@ static void praat_chinese_registerCommands () {
 }
 
 // Resolve resources independently of the caller's working directory.
-static std::filesystem::path resourceFolder () {
+static std::filesystem::path executableFolder () {
     std::filesystem::path folder;
     #if defined (_WIN32)
         wchar_t executable [32768];
@@ -187,12 +189,58 @@ static std::filesystem::path resourceFolder () {
         std::vector<char> executable(size);
         Melder_require(_NSGetExecutablePath(executable.data(), &size) == 0, U"Cannot locate the bundled scripts.");
         folder = std::filesystem::weakly_canonical(executable.data()).parent_path();
-        if (folder.filename() == "MacOS" && std::filesystem::is_directory(folder.parent_path()/"Resources"/"assets"))
-            folder = folder.parent_path()/"Resources";
     #else
         std::error_code error;
         auto executable = std::filesystem::read_symlink("/proc/self/exe",error);
         folder = error ? std::filesystem::path(Melder_peek32to8(Melder_getShellDirectory())) : executable.parent_path();
+    #endif
+    return folder;
+}
+
+static std::u32string dataDirectory;
+const char32_t * praat_chineseDataDirectory () { return dataDirectory.c_str(); }
+void praat_chinese_configurePortable (int argc, char **argv) {
+    auto folder=executableFolder();
+    #if defined (macintosh)
+        if(folder.filename()=="MacOS" && folder.parent_path().filename()=="Contents")
+            folder=folder.parent_path().parent_path().parent_path();
+    #endif
+    auto data=folder/"data";
+    dataDirectory=data.u32string();
+    try {
+        for(const auto &path:{data,data/".tmp",data/".cache",data/".cache"/"matplotlib"})
+            std::filesystem::create_directories(path);
+        bool explicitPreferences=false;
+        for(int i=1;i<argc;++i) if(strnequ(argv[i],"--pref-dir=",11)) explicitPreferences=true;
+        if(!explicitPreferences) {
+            auto settings=folder/"settings";
+            std::filesystem::create_directories(settings);
+            Melder_setPreferencesFolder(settings.u32string().c_str());
+        }
+    } catch(const std::filesystem::filesystem_error &) {
+        Melder_throw(U"程序所在目录不可写，无法创建便携配置和 data。请将完整程序移动到可写目录。目录：",folder.u32string().c_str());
+    }
+    auto environment=[](const char *name,const std::filesystem::path &path) {
+        #if defined (_WIN32)
+            std::wstring key;
+            for(const char *p=name;*p;++p) key.push_back(wchar_t(*p));
+            SetEnvironmentVariableW(key.c_str(),path.c_str());
+        #else
+            setenv(name,path.string().c_str(),1);
+        #endif
+    };
+    environment("PRAAT_MODIFIED_DATA_DIR",data);
+    for(const char *name:{"TMPDIR","TMP","TEMP"}) environment(name,data/".tmp");
+    environment("XDG_CACHE_HOME",data/".cache");
+    environment("MPLCONFIGDIR",data/".cache"/"matplotlib");
+    environment("PYTHONPYCACHEPREFIX",data/".cache"/"python");
+}
+
+static std::filesystem::path resourceFolder () {
+    auto folder=executableFolder();
+    #if defined (macintosh)
+        if(folder.filename()=="MacOS" && std::filesystem::is_directory(folder.parent_path()/"Resources"/"assets"))
+            folder=folder.parent_path()/"Resources";
     #endif
     if (conststring32 overrideFolder = Melder_getenv(U"PRAAT_MODIFIED_RESOURCES")) {
         auto overridePath = std::filesystem::path(std::u32string(overrideFolder));
@@ -234,6 +282,19 @@ DO
 END_NO_NEW_DATA
 }
 
+FORM (MODIFIED_readAnalysisTable, U"读取分析数据表", nullptr) {
+    INFILE (inputFile, U"文件", U"")
+    SENTENCE (columnNames, U"无表头时的列名", U"")
+    OK
+DO
+    structMelderFile file { };
+    Melder_relativePathToFile(inputFile,&file);
+    auto result=praat_readLegacyTable(&file,columnNames);
+    static integer serial=0;
+    praat_new(result.move(),Melder_cat(U"analysis_",++serial,U"_",MelderFile_name(&file)));
+END_WITH_NEW_DATA
+}
+
 static std::u32string applicationDirectory;
 const char32_t * praat_chineseDirectory () { return applicationDirectory.c_str(); }
 void praat_chinese_init () {
@@ -242,8 +303,9 @@ void praat_chinese_init () {
     applicationDirectory = base;
     praat_chinese_registerCommands ();
     praat_addMenuCommand(U"Objects",U"Goodies",U"Modified open resource...",nullptr,GuiMenu_HIDDEN,MODIFIED_openResource);
+    praat_addMenuCommand(U"Objects",U"Open",U"Modified read analysis table...",nullptr,GuiMenu_HIDDEN,MODIFIED_readAnalysisTable);
     if (! std::filesystem::is_directory(folder / "assets" / "legacy")) return;
-    auto data = std::filesystem::path(std::u32string(MelderFolder_peekPath(Melder_preferencesFolder()))) / "data";
+    auto data = std::filesystem::path(dataDirectory);
     std::filesystem::create_directories(data);
     if (std::filesystem::is_directory(folder / "assets" / "data"))
         for (const auto &entry : std::filesystem::directory_iterator(folder / "assets" / "data"))

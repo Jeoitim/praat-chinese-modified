@@ -1,5 +1,5 @@
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明（beixianming@163.com）编写。
 #本脚本的功能是计算辅音的谱重心和分散程度。 
 #请务必保持采样率大于10010×2＝20020Hz或以上。

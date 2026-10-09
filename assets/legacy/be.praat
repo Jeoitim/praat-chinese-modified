@@ -1,5 +1,5 @@
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是元音统计与画图（lgHz or Bark标度）。
 #请勿在其他praat软件上运行本脚本，因为有的语句是praat汉化修改版独有的。
@@ -14,34 +14,10 @@ endform
 
 endeditor
 pathFileName$ = chooseReadFile$: "请选择vowel文件"
-if pathFileName$ != ""
-	Read Strings from raw text file: pathFileName$
-	stringsFileName$ = selected$("Strings")
-	numberOfStrings = Get number of strings
-	spacespace$ = " " + " "
-	tabtab$ = tab$ + tab$
-	for i from 1 to numberOfStrings
-		string$ = Get string: i
-		string$ = replace$(string$, spacespace$, " ", 0)
-		string$ = replace$(string$, " ", tab$, 0)
-		repeat
-			string$ = replace$(string$, tabtab$, tab$, 0)
-		until index(string$, tabtab$) = 0
-		Set string: i, string$
-		if string$ = "" or string$ = " " or string$ = "	"
-			Remove string: i
-			numberOfStrings = numberOfStrings - 1
-		endif
-	endfor
-	Save as raw text file: pathFileName$
-	Remove
+if pathFileName$ = ""
+    exitScript: "已取消。"
 endif
-fileReadable = fileReadable(pathFileName$)
-if fileReadable = 1
-	Read from file: pathFileName$
-else
-	exit 没有选择文件或文件数据格式有问题。
-endif
+Modified read analysis table: pathFileName$, ""
 
 fileName$ = selected$("Table")
 columnLabel1$ = Get column label: 1
@@ -60,14 +36,8 @@ Remove column... 'x1$'
 until x2 = 5
 endif
 
-Insert row... 1
 for i from 1 to 4
 	column_label_temp$ = Get column label... i
-	if i = 1
-		Set string value... 1 'column_label_temp$' 'column_label_temp$'
-	elsif i > 1
-		Set numeric value... 1 'column_label_temp$' 'column_label_temp$'
-	endif
 	if i = 1
 		Set column label (label)... 'column_label_temp$' vowel
 	elsif i > 1

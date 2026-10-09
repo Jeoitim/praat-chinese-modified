@@ -4,7 +4,7 @@ else
     legacyPictureExtension$ = "pdf"
 endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是对基频赫兹数据进行归一化，得到T值，同时根据T值绘制声调T值图。并将T值数据和T值图自动保存到D盘根目录下。
 #请读入基频赫兹数据表后再运行本脚本。
@@ -26,80 +26,29 @@ form set parameters
 	sentence name_of_file_to_be_saved T值表(相对时长)
 	sentence name_of_picture_to_be_saved T值图(相对时长)
 endform
+if index(name_of_picture_to_be_saved$, "/") or index(name_of_picture_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
+if index(name_of_file_to_be_saved$, "/") or index(name_of_file_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
 endeditor
-pathFileName$ = chooseReadFile$: "请选择tone文件"
-if pathFileName$ != ""
-	Read Strings from raw text file: pathFileName$
-	stringsFileName$ = selected$("Strings")
-	numberOfStrings = Get number of strings
-	spacespace$ = " " + " "
-	tabtab$ = tab$ + tab$
-	for i from 1 to numberOfStrings
-		string$ = Get string: i
-		string$ = replace$(string$, spacespace$, " ", 0)
-		string$ = replace$(string$, " ", tab$, 0)
-		repeat;只能用repeat？不能用replace，tab$这么牛？！
-			string$ = replace$(string$, tabtab$, tab$, 0)
-		until index(string$, tabtab$) = 0
-		Set string: i, string$
-		if string$ = "" or string$ = " " or string$ = "	"
-			Remove string: i
-			numberOfStrings = numberOfStrings - 1
-		endif
-	endfor
-	Save as raw text file: pathFileName$
-	Remove
+pathFileName$ = chooseReadFile$: "请选择分析数据文件"
+if pathFileName$ = ""
+    exitScript: "已取消。"
 endif
-fileReadable = fileReadable(pathFileName$)
-if fileReadable = 1
-	Read from file: pathFileName$
-else
-	exit 没有选择文件或文件数据格式有问题。
-endif
-
+Modified read analysis table: pathFileName$, "tone dot1 dot2 dot3 dot4 dot5 dot6 dot7 dot8 dot9 duration file start end"
+sourceTableID = selected("Table")
 fileName$ = selected$("Table")
-columnLabel1$ = Get column label: 1
-columnLabel2$ = Get column label: 12
-columnLabel3$ = columnLabel2$ + columnLabel2$ 
-if columnLabel1$ = columnLabel2$
-	Set column label (index): 12, columnLabel3$
-endif
-
-x2 = Get number of columns
-if x2 > 10
-repeat
-x2 = Get number of columns
-x1$ = Get column label... x2
-Remove column... 'x1$'
-until x2 = 11
-endif
-
 numberOfColumns = Get number of columns
-Insert row... 1
-for i from 1 to numberOfColumns
-	column_label_temp$ = Get column label... i
-	if i = 1
-		Set string value... 1 'column_label_temp$' 'column_label_temp$'
-	elsif i > 1
-		Set numeric value... 1 'column_label_temp$' 'column_label_temp$'
-	endif
-	if i = 1
-		Set column label (label)... 'column_label_temp$' tone
-	elsif i > 1
-		j = i - 1
-		Set column label (label)... 'column_label_temp$' dot'j'
-	endif
-endfor
-fileName$ = selected$("Table")
+while numberOfColumns > 10
+    lastColumn = Get number of columns
+    lastColumnLabel$ = Get column label: lastColumn
+    Remove column: lastColumnLabel$
+    numberOfColumns = Get number of columns
+endwhile
 numberOfRows = Get number of rows
-for i from 1 to numberOfRows
-	label$ = Get value... i tone
-	if label$ = "tone"
-		Remove row... i
-		numberOfRows = numberOfRows -1
-	endif
-endfor
-
+numberOfColumns = Get number of columns
 invalid = 0
 for rows from 1 to numberOfRows
 	for columns from 2 to numberOfColumns
@@ -198,6 +147,9 @@ hertzMin = min
 if method = 1
 min = log10(min)
 max = log10(max)
+if max <= min
+    exitScript: "基频范围为零，无法归一化。"
+endif
 for legacyColumn from 2 to 10
     legacyColumnLabel$ = Get column label: legacyColumn
     Formula: legacyColumnLabel$, "log10(self)"

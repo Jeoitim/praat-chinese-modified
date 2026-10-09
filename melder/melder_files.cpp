@@ -542,6 +542,7 @@ MelderFolder Melder_preferencesFolder() {
 	return & thePreferencesFolder;
 }
 MelderFolder Melder_preferencesFolder5() {
+	if (!MelderFolder_isNull (&thePreferencesFolder)) return &thePreferencesFolder;
 	static structMelderFolder thePreferencesFolder5;
 	if (MelderFolder_isNull (& thePreferencesFolder5)) {
 		structMelderFolder homeFolder { };
@@ -560,6 +561,7 @@ MelderFolder Melder_preferencesFolder5() {
 	return & thePreferencesFolder5;
 }
 MelderFolder Melder_preferencesFolder7() {
+	if (!MelderFolder_isNull (&thePreferencesFolder)) return &thePreferencesFolder;
 	static structMelderFolder thePreferencesFolder7;
 	if (MelderFolder_isNull (& thePreferencesFolder7)) {
 		structMelderFolder homeFolder { };

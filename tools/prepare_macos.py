@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULES = ["praat_translate", "praat_chinese", "praat_python", "PythonScriptEditor", "PreferencesDialog"]
+MODULES = ["praat_translate", "praat_chinese", "praat_legacy_io", "praat_python", "PythonScriptEditor", "PreferencesDialog"]
 
 
 def patch_project(text):

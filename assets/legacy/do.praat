@@ -1,5 +1,5 @@
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 form set parameters
 	sentence 古声 
 	sentence 古韵 

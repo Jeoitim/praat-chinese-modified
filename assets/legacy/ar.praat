@@ -4,7 +4,7 @@ else
     legacyPictureExtension$ = "pdf"
 endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是对辅音谱重心和分散程度数据进行归一化，同时绘制辅音图。并将数据和辅音图图自动保存到data目录下。
 #请读入energyDistribution.txt后再运行本脚本。
@@ -19,32 +19,19 @@ form set parameters
 	sentence name_of_file_to_be_saved 能量分布模式表
 	sentence name_of_picture_to_be_saved 能量分布模式图
 endform
+if index(name_of_picture_to_be_saved$, "/") or index(name_of_picture_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
+if index(name_of_file_to_be_saved$, "/") or index(name_of_file_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
 
 endeditor
 pathFileName$ = chooseReadFile$: "请选择energyDistribution文件"
-if pathFileName$ != ""
-	Read Strings from raw text file: pathFileName$
-	stringsFileName$ = selected$("Strings")
-	numberOfStrings = Get number of strings
-	spacespace$ = " " + " "
-	for i from 1 to numberOfStrings
-		string$ = Get string: i
-		string$ = replace$(string$, spacespace$, " ", 0)
-		Set string: i, string$
-		if string$ = "" or string$ = " " or string$ = "	"
-			Remove string: i
-			numberOfStrings = numberOfStrings - 1
-		endif
-	endfor
-	Save as raw text file: pathFileName$
-	Remove
+if pathFileName$ = ""
+    exitScript: "已取消。"
 endif
-fileReadable = fileReadable(pathFileName$)
-if fileReadable = 1
-	Read from file: pathFileName$
-else
-	exit 没有选择文件或文件数据格式有问题。
-endif
+Modified read analysis table: pathFileName$, ""
 
 fileName$ = selected$("Table")
 columnLabel1$ = Get column label: 1
@@ -63,15 +50,9 @@ Remove column... 'x1$'
 until x2 = 5
 endif
 
-Insert row... 1
 numberOfColumns = Get number of columns
 for i from 1 to numberOfColumns
 	column_label_temp$ = Get column label... i
-	if i = 1
-		Set string value... 1 'column_label_temp$' 'column_label_temp$'
-	elsif i > 1
-		Set numeric value... 1 'column_label_temp$' 'column_label_temp$'
-	endif
 	if i = 1
 		Set column label (label)... 'column_label_temp$' consonant
 	elsif i = 2

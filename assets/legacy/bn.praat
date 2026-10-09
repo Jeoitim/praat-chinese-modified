@@ -1,5 +1,5 @@
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是根据首列内容检索Table文件。
 #请读入Table文件后运行。

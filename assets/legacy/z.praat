@@ -3,7 +3,7 @@ form 视频文件夹
     sentence directory .
 endform
 if directory$ = "."
-    directory$ = preferencesDirectory$ + "/data"
+    directory$ = dataDirectory$
 endif
 ffmpeg$ = ffmpegExecutable$
 Create Strings as file list: "fileList", directory$ + "/*.*"
@@ -15,7 +15,7 @@ for i from 1 to count
     if index(" mp4 mkv mov avi flv webm wmv mpg mpeg m4v 3gp "," " + extension$ + " ") <> 0
         input$ = directory$ + "/" + name$
         stem$ = left$(name$,dot-1)
-        output$ = directory$ + "/" + stem$ + ".wav"
+        output$ = dataDirectory$ + "/" + stem$ + ".wav"
         runSubprocess: ffmpeg$, "-nostdin", "-n", "-i", input$, "-vn", output$
     endif
 endfor

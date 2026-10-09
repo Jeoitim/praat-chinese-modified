@@ -4,7 +4,7 @@ else
     legacyPictureExtension$ = "pdf"
 endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是根据T值表绘制指定的某个声调的曲线。
 #请读入T值表后再运行本脚本。
@@ -24,6 +24,9 @@ form set parameters
 	sentence tone yinping
 	sentence name_of_picture_to_be_saved 
 endform
+if index(name_of_picture_to_be_saved$, "/") or index(name_of_picture_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
 columnLabel$ = Get column label... 3
 maximum = Get maximum... 'columnLabel$'
 if maximum > 100

@@ -1,5 +1,5 @@
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是解决第一列出现乱码的问题（多为软件自动保存的xls文件）。
 #请勿在其他praat软件上运行本脚本，因为有的语句是praat汉化修改版独有的。

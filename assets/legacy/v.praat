@@ -4,7 +4,7 @@ else
     legacyPictureExtension$ = "pdf"
 endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是对单独画某句起伏度。
 #请读入起伏度值表后再运行本脚本。注意，运行本脚本将移去praat列表中的所有文件，如列表中有文件，请先行保存。
@@ -27,6 +27,9 @@ form set parameters
 	natural phraseEnd 3
 	sentence name_of_picture_to_be_saved 
 endform
+if index(name_of_picture_to_be_saved$, "/") or index(name_of_picture_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
 
 endeditor
 fileName$ = selected$("Table")

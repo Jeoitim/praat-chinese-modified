@@ -1,5 +1,5 @@
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是转换音视频文件格式。
 #2021.07.24
@@ -17,6 +17,6 @@ count = Get number of strings
 for i from 1 to count
     source$ = Get string: i
     target$ = left$(source$,length(source$)-length(extension_name_of_source_files$)) + extension_name_of_target_files$
-    runSubprocess: ffmpegExecutable$, "-nostdin", "-n", "-i", file_path$ + "/" + source$, file_path$ + "/" + target$
+    runSubprocess: ffmpegExecutable$, "-nostdin", "-n", "-i", file_path$ + "/" + source$, legacyDataDirectory$ + "/" + target$
 endfor
 Remove

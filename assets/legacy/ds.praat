@@ -1,5 +1,5 @@
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是统计字频。
 #请勿在其他praat软件上运行本脚本，因为有的语句是praat汉化修改版独有的。
@@ -89,13 +89,13 @@ for i to numberOfRows
 	Set string value... i 百分比 'percent$'%
 endfor
 suffix$ = "_字频"
-dot = rindex(fileNameStrings$, ".")
 slash = max(rindex(fileNameStrings$, "/"), rindex(fileNameStrings$, "\"))
-if dot > slash
-    outputPath$ = left$(fileNameStrings$, dot - 1)
-else
-    outputPath$ = fileNameStrings$
+inputBase$ = right$(fileNameStrings$, length(fileNameStrings$) - slash)
+dot = rindex(inputBase$, ".")
+if dot > 0
+    inputBase$ = left$(inputBase$, dot - 1)
 endif
+outputPath$ = legacyDataDirectory$ + "/" + inputBase$
 outputPath$ = outputPath$ + suffix$ + ".tsv"
 if fileReadable(outputPath$)
     exitScript: "结果文件已存在，请先移走或使用新的输入文件名：", outputPath$

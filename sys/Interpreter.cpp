@@ -2267,6 +2267,7 @@ static void private_Interpreter_initialize (Interpreter me, autostring32 text, c
 		Interpreter_addStringVariable (me, U"tab$", U"\t");
 		Interpreter_addStringVariable (me, U"shellDirectory$", Melder_getShellDirectory ());
 		Interpreter_addStringVariable (me,U"applicationDirectory$",praat_chineseDirectory());
+		Interpreter_addStringVariable (me,U"dataDirectory$",praat_chineseDataDirectory());
 		Interpreter_addStringVariable(me,U"ffmpegExecutable$",praat_chineseTool(U"ffmpeg"));
 		Interpreter_addStringVariable(me,U"ffplayExecutable$",praat_chineseTool(U"ffplay"));
 		Interpreter_addStringVariable(me,U"pythonExecutable$",praat_python_getExecutablePath());

@@ -14,7 +14,7 @@
 
 程序按可执行文件位置查找资源，不依赖启动时的工作目录。Linux 安装到 `bin` 时，也可使用同一前缀下的 `share/PraatChineseModified/assets`。特殊安装可将 `PRAAT_MODIFIED_RESOURCES` 设置为包含 `assets/legacy` 的绝对目录。
 
-`applicationDirectory$` 表示修改版资源根目录；macOS 下是应用包的 Resources 目录。`preferencesDirectory$ + "/data"` 为默认分析数据目录，各平台沿用 Praat 的偏好目录规则，并使用独立应用名 `PraatChineseModified`。可通过 `--pref-dir=<目录>` 指定配置目录。
+`applicationDirectory$` 表示修改版资源根目录；macOS 下是应用包的 Resources 目录。`dataDirectory$` 为便携分析数据目录：Windows、Linux 使用可执行程序旁的 `data`，macOS 使用 `.app` 所在目录的 `data`。配置默认写入同级 `settings`；临时文件和缓存写入 `data/.tmp`、`data/.cache`。目录不可写时会报错，不回退到用户目录。`--pref-dir=<目录>` 仅覆盖显式指定的配置位置。
 
 ## 2. Windows
 
@@ -77,7 +77,7 @@ PRAAT_MAC_ARCHS=arm64 JOBS=4 bash build-macos.sh
 - 所有脚本的文件路径改用 `/`；国际音标的反斜杠转义保留。
 - 绘图脚本在 Windows 导出 600 dpi PNG，在 Linux / macOS 导出 PDF，代替固定使用 Windows 专用 EMF。原来以 `.xls` 命名的表格仍为制表符分隔文本，可用表格软件导入。
 - 目录创建与撤销数据操作改用 Praat 自身的文件函数，不调用 `md`、`del` 或批处理。
-- 调查表录音在各平台写入配置目录的 `data/sound`。
+- 调查表录音在各平台写入便携数据目录的 `data/sound`。
 - 转码、截取、音频提取和去除音轨通过参数列表调用 FFmpeg，支持包含空格、中文和 shell 特殊字符的路径，不拼接 shell 命令。
 - 文件夹、文件和关于页分别使用 Windows ShellExecute、macOS `open`、Linux `xdg-open`。
 
@@ -132,6 +132,12 @@ python3 tests/chinese/test_portability.py
 python3 tests/chinese/run_script_checks.py /absolute/path/PraatChineseModified
 ```
 
-Windows 将可执行路径换为包内 `.exe`。`--FULL-TRUST` 只应用于已审阅的仓库测试脚本：这些测试在独立目录写入样本和结果，并调用 FFmpeg 转换样本，不操作录音、录像、音量或应用启动。`--FULL-TRUST` 只应用于已审阅的仓库测试脚本：这些测试在独立目录写入样本和结果，并调用 FFmpeg 转换样本，不操作录音、录像、音量或应用启动。自动验证覆盖全部脚本的平台依赖检查、脚本控制结构、兼容数值、资源定位、PNG / PDF、代表性数据脚本和媒体转换。设备操作不在无人值守测试中自动执行。
+Windows 将可执行路径换为包内 `.exe`。`--FULL-TRUST` 只应用于已审阅的仓库测试脚本：这些测试在独立目录写入样本和结果，并调用 FFmpeg 转换样本，不操作录音、录像、音量或应用启动。自动验证覆盖全部脚本的平台依赖检查、脚本控制结构、兼容数值、资源定位、PNG / PDF、代表性数据脚本和媒体转换。设备操作不在无人值守测试中自动执行。
 
 贡献平台适配时，请提供操作系统、架构、依赖版本、构建日志及重现数据；涉及录像或音量时补充设备后端和权限状态。GitHub Actions 生成构建产物供验证，正式发布仍通过草稿 Release 检查后进行。
+
+### 分析脚本适配与验证
+
+91 份增强脚本保留原作者署名。历史脚本中的专用语句需要按当前 API 核查，不能直接用于任意 Praat。修改版保留必要的兼容命令，并将旧的半音换算改为明确的公式；表格导入支持带表头、无表头和原生 Table，不再改写输入文件。默认统计表和图形保存到便携 `data`。自动标注可按对话框选项写回用户选定的输入目录，或另存到 `data`；需要该目录具有写入权限。
+
+`python3 tests/chinese/run_analysis_regressions.py <可执行程序>` 检查字调、起伏度、语调、按列统计和输入完整性；可用 `--tone`、`--intonation` 提供数据副本。三平台构建流程执行相同回归。涉及录音、录像、设备和交互选择的分支仍需要在相应平台人工验证。

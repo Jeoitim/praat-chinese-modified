@@ -31,6 +31,14 @@ class PortabilityTests(unittest.TestCase):
             self.assertNotRegex(code, r"(?i)[a-z]:[\\/]|Save as Windows metafile|\.emf|\.bat|\\scrpt", script.name)
             self.assertNotRegex(code, r"'[\w]+\$'\\", script.name)
 
+    def test_analysis_scripts_use_portable_data_and_current_functions(self):
+        for script in (ROOT / "assets/legacy").glob("*.praat"):
+            code = "\n".join(line for line in script.read_text(encoding="utf-8").splitlines() if not line.lstrip().startswith("#"))
+            self.assertNotIn('preferencesDirectory$ + "/data"', code, script.name)
+            self.assertNotRegex(code, r"hertzToSemitonesRe(?:50|64)", script.name)
+            self.assertNotIn('Save as raw text file: pathFileName$', code, script.name)
+            self.assertNotIn("'stringsFileName$'", code if script.stem in ("da", "db", "dc") else "", script.name)
+
     def test_capture_argv_keeps_spaces_unicode_and_metacharacters_as_data(self):
         output = '/tmp/语音 实验 & $测试.mp4'
         args = tools.capture_arguments("Windows", "screen-mix", "ffmpeg", output, 5, "auto", 'mic & "name"', "loopback")

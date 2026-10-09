@@ -4,7 +4,7 @@ else
     legacyPictureExtension$ = "pdf"
 endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是对频带能量数据进行归一化，得到C值，同时根据C值绘制声调C值图。并将C值数据和C值图自动保存到软件所在文件夹下的data下。
 #请读入energy.txt后再运行本脚本。
@@ -23,28 +23,19 @@ form set parameters
 	sentence name_of_file_to_be_saved C值表
 	sentence name_of_picture_to_be_saved C值图
 endform
+if index(name_of_picture_to_be_saved$, "/") or index(name_of_picture_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
+if index(name_of_file_to_be_saved$, "/") or index(name_of_file_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
 
 endeditor
 pathFileName$ = chooseReadFile$: "请选择energy文件"
-if pathFileName$ != ""
-	Read Strings from raw text file: pathFileName$
-	numberOfStrings = Get number of strings
-	for i from 1 to numberOfStrings
-		string$ = Get string: i
-		if string$ = "" or string$ = " " or string$ = "	"
-			Remove string: i
-			numberOfStrings = numberOfStrings - 1
-		endif
-	endfor
-	Save as raw text file: pathFileName$
-	Remove
+if pathFileName$ = ""
+    exitScript: "已取消。"
 endif
-fileReadable = fileReadable(pathFileName$)
-if fileReadable = 1
-	Read from file: pathFileName$
-else
-	exit 没有选择文件或文件数据格式有问题。
-endif
+Modified read analysis table: pathFileName$, ""
 
 fileName$ = selected$("Table")
 columnLabel1$ = Get column label: 1
@@ -63,19 +54,9 @@ Remove column... 'x1$'
 until x2 = 22
 endif
 temp$ = Get column label... 2
-Insert row... 1
 columnOfNumber = Get number of columns
 for i from 1 to columnOfNumber
 	column_label_temp$ = Get column label... i
-	if i = 1
-		Set string value... 1 'column_label_temp$' 'column_label_temp$'
-	elsif i > 1
-		if column_label_temp$ = ""
-			Set string value... 1 'column_label_temp$' 'column_label_temp$'
-		else
-			Set numeric value... 1 'column_label_temp$' 'column_label_temp$'
-		endif
-	endif
 	if i = 1
 		Set column label (label)... 'column_label_temp$' consonant
 	elsif i > 1

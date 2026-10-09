@@ -4,7 +4,7 @@ else
     legacyPictureExtension$ = "pdf"
 endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是求多个Table文件V值的平均值，并根据平均值画图，数据均保存到软件所在文件夹下的data下。
 #请勿在其他praat软件上运行本脚本，因为有的语句是praat汉化修改版独有的。
@@ -22,6 +22,12 @@ form set parameters
 	sentence name_of_file_to_be_saved V值均值表
 	sentence name_of_picture_to_be_saved V值均值图
 endform
+if index(name_of_picture_to_be_saved$, "/") or index(name_of_picture_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
+if index(name_of_file_to_be_saved$, "/") or index(name_of_file_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
 
 endeditor
 select all

@@ -1,5 +1,5 @@
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是向声学元音图（F1赫兹线性刻度，F2赫兹对数刻度或者F1和F2均为Bark刻度）中添加元音。
 #请在声音编辑器点将鼠标放置待测点处，点击"共振峰"下的"Bei向声学元音图中添加元音"。

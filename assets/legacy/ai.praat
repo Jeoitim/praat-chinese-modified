@@ -1,5 +1,5 @@
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明（beixianming@163.com）编写。
 #本脚本的功能是根据功率谱图修改PitchTier编辑器中的基频曲线并测量。
 #请勿在其他praat软件上运行本脚本，因为有的语句是praat汉化修改版独有的。

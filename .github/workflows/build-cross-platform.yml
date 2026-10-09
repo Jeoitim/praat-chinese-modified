@@ -50,8 +50,10 @@ jobs:
           python tests/chinese/test_portability.py
           dist/PraatChineseModified/PraatChineseModified.exe --utf8 --FULL-TRUST --no-pref-files --pref-dir="$PWD/build/test-prefs" --run tests/chinese/compatibility.praat "$PWD/build/compatibility.txt"
           python tests/chinese/run_script_checks.py dist/PraatChineseModified/PraatChineseModified.exe
+          python tests/chinese/run_analysis_regressions.py dist/PraatChineseModified/PraatChineseModified.exe
+          python tests/chinese/run_editor_measurements.py dist/PraatChineseModified/PraatChineseModified.exe
           cd dist
-          zip -qr PraatChineseModified-Windows-x64.zip PraatChineseModified
+          zip -qr PraatChineseModified-Windows-x64.zip PraatChineseModified -x "PraatChineseModified/data/*" "PraatChineseModified/settings/*"
       - uses: actions/upload-artifact@v4
         with:
           name: modified-Windows-x64
@@ -72,7 +74,8 @@ jobs:
           PACKAGE_DIRECTORY=dist/PraatChineseModified JOBS=4 bash build-linux.sh
           python3 tests/chinese/test_portability.py
           python3 tests/chinese/run_script_checks.py dist/PraatChineseModified/PraatChineseModified
-          tar -C dist -czf dist/PraatChineseModified-Linux-x64.tar.gz PraatChineseModified
+          python3 tests/chinese/run_analysis_regressions.py dist/PraatChineseModified/PraatChineseModified
+          tar --exclude=PraatChineseModified/data --exclude=PraatChineseModified/settings -C dist -czf dist/PraatChineseModified-Linux-x64.tar.gz PraatChineseModified
       - uses: actions/upload-artifact@v4
         with:
           name: modified-Linux-x64
@@ -91,6 +94,7 @@ jobs:
           PACKAGE_DIRECTORY=dist/PraatChineseModified.app JOBS=4 bash build-macos.sh
           python3 tests/chinese/test_portability.py
           python3 tests/chinese/run_script_checks.py dist/PraatChineseModified.app/Contents/MacOS/PraatChineseModified
+          python3 tests/chinese/run_analysis_regressions.py dist/PraatChineseModified.app/Contents/MacOS/PraatChineseModified
           ditto -c -k --sequesterRsrc --keepParent dist/PraatChineseModified.app dist/PraatChineseModified-macOS-universal.zip
       - uses: actions/upload-artifact@v4
         with:

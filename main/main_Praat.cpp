@@ -45,6 +45,7 @@ static void logo (Graphics g) {
 
 int main (int argc, char *argv []) {
 	try {
+		praat_chinese_configurePortable(argc,argv);
 		praat_chinese_loadFonts ();
 		//TRACE
 		praat_setLogo (155.0, 105.0, logo);

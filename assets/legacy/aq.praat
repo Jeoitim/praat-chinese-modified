@@ -1,5 +1,5 @@
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明（beixianming@163.com）编写。
 #本脚本的功能是查询常见汉字中古音地位，并给出八位学者的中古拟音。
 #中古音地位信息来自刘村汉教授的excel方言处理软件和网上“古今字音对照字表”。删除了少数不方便处理的汉字。

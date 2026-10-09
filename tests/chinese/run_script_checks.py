@@ -22,8 +22,12 @@ def main():
     parser.add_argument("executable", type=Path)
     args = parser.parse_args()
     executable = args.executable.resolve()
+    runtime = executable.parent
+    if runtime.name == "MacOS": runtime = runtime.parent.parent.parent
+    data = runtime / "data"
+    data.mkdir(exist_ok=True)
     tested = []
-    with tempfile.TemporaryDirectory(prefix="praat 脚本 checks ") as temporary:
+    with tempfile.TemporaryDirectory(prefix="praat 脚本 checks ", dir=data) as temporary:
         base = Path(temporary)
         pref = base / "preferences"
         pref.mkdir()
@@ -65,10 +69,10 @@ def main():
             script = base / f"{name}.praat"
             script.write_text(code, encoding="utf-8")
             run(script, *parameters, completion=completion)
-        character_result = next(base.glob("*保留纯汉字*.txt"))
+        character_result = next(data.glob("*保留纯汉字*.txt"))
         result = character_result.read_text(encoding="utf-8-sig")
         assert "声音" in result and "abc" not in result and "123" not in result
-        frequency = next(base.glob("*字频*.tsv"))
+        frequency = next(data.glob("*字频*.tsv"))
         assert "频率" in frequency.read_text(encoding="utf-8-sig")
 
         run(ROOT / "assets/legacy/do.praat", "帮", "", "", "", "", "", "", "yes")
@@ -91,8 +95,8 @@ def main():
             code += f'runScript: {literal(ROOT / ("assets/legacy/" + graph_name + ".praat"))}, "yes", "yes", "Blue", "{graph_name}-average", "{graph_name}-average"\n'
             graph.write_text(code,encoding="utf-8")
             run(graph)
-            assert (pref/"data"/(graph_name+"-average.xls")).is_file()
-            assert any((pref/"data").glob(graph_name+"-average.*"))
+            assert (data/(graph_name+"-average.xls")).is_file()
+            assert any((data).glob(graph_name+"-average.*"))
 
         ffmpeg = shutil.which("ffmpeg")
         if not ffmpeg:
@@ -107,14 +111,14 @@ def main():
         subprocess.run([ffmpeg, "-nostdin", "-v", "error", "-f", "lavfi", "-i", "testsrc=size=64x64:rate=5:duration=1",
                         "-f", "lavfi", "-i", "sine=frequency=200:duration=1", "-c:v", "mpeg4", "-c:a", "aac", "-shortest", str(media/"原始 视频.mp4")],check=True)
         run(ROOT / "assets/legacy/z.praat", media)
-        assert (media/"原始 视频.wav").is_file()
+        assert (data/"原始 视频.wav").is_file()
         run(ROOT / "assets/legacy/y.praat", media)
-        assert (media/"new原始 视频.mp4").is_file()
+        assert (data/"new原始 视频.mp4").is_file()
         converted = base / "convert"
         converted.mkdir()
-        shutil.copyfile(media/"原始 视频.wav", converted/"声音 & 空格.wav")
+        shutil.copyfile(data/"原始 视频.wav", converted/"声音 & 空格.wav")
         run(ROOT / "assets/legacy/ca.praat", converted, "wav", "flac")
-        assert (converted/"声音 & 空格.flac").is_file()
+        assert (data/"声音 & 空格.flac").is_file()
         print(json.dumps({"script_control_structure_checked": len(tested), "data_workflows": ["character extraction", "character frequency", "phonological query"],
                           "native_workflows": ["numerical helpers", "IPA table", "PNG/PDF", "relative/absolute T-value averaging"], "media_workflows": ["extract audio", "remove audio", "convert"],
                           "hardware_tested": False}, ensure_ascii=False, indent=2))

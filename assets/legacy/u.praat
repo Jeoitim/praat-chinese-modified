@@ -4,7 +4,7 @@ else
     legacyPictureExtension$ = "pdf"
 endif
 legacyResourceDirectory$ = applicationDirectory$ + "/assets/legacy"
-legacyDataDirectory$ = preferencesDirectory$ + "/data"
+legacyDataDirectory$ = dataDirectory$
 #本脚本由贝先明编写，经由praat汉化修改版测试通过。
 #本脚本的功能是根据首列排序统计指定列数据（求平均值并根据平均值或最大值求相对化值）。并将数据自动保存到软件所在文件夹下的data\平均值.xls中。
 #请读入有关数据表后再运行本脚本。
@@ -23,54 +23,30 @@ form set parameters
 	boolean two_decimal_places_for_normalized_results 1
 	boolean delete_first_two_character 0
 endform
+if index(name_of_picture_to_be_saved$, "/") or index(name_of_picture_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
+if index(name_of_file_to_be_saved$, "/") or index(name_of_file_to_be_saved$, "\")
+    exitScript: "保存名称请只填写文件名，不包含目录。"
+endif
 
 if name_of_vertical_axis$ = ""
 	exit 'name_of_vertical_axis$'的内容不能为空
 endif
 endeditor
-pathFileName$ = chooseReadFile$: "请选择Table文件"
-if pathFileName$ != ""
-	Read Strings from raw text file: pathFileName$
-	stringsFileName$ = selected$("Strings")
-	numberOfStrings = Get number of strings
-	spacespace$ = " " + " "
-	tabtab$ = tab$ + tab$
-	for i from 1 to numberOfStrings
-		string$ = Get string: i
-		string$ = replace$(string$, spacespace$, " ", 0)
-		string$ = replace$(string$, " ", tab$, 0)
-		repeat
-			string$ = replace$(string$, tabtab$, tab$, 0)
-		until index(string$, tabtab$) = 0
-		Set string: i, string$
-		if string$ = "" or string$ = " " or string$ = "	"
-			Remove string: i
-			numberOfStrings = numberOfStrings - 1
-		endif
-	endfor
-	Save as raw text file: pathFileName$
-	Remove
+pathFileName$ = chooseReadFile$: "请选择数据表"
+if pathFileName$ = ""
+    exitScript: "已取消。"
 endif
-fileReadable = fileReadable(pathFileName$)
-if fileReadable = 1
-	Read from file: pathFileName$
-else
-	exit 没有选择文件或文件数据格式有问题。
-endif
-
+Modified read analysis table: pathFileName$, ""
 fileName$ = selected$("Table")
-Insert row... 1
 numberOfColumns = Get number of columns
-for i from 1 to numberOfColumns
-	column_label_temp$ = Get column label... i
-	if i = 1
-		Set string value... 1 'column_label_temp$' 'column_label_temp$'
-	elsif i > 1
-		Set string value... 1 'column_label_temp$' 'column_label_temp$'
-	endif
-	Set column label (label)... 'column_label_temp$' dot'i'
+if column > numberOfColumns
+    exitScript: "指定列超出数据表列数。"
+endif
+for columnIndex from 1 to numberOfColumns
+    Set column label (index): columnIndex, "dot" + string$(columnIndex)
 endfor
-
 numberOfRows = Get number of rows
 numberOfColumns = Get number of columns
 invalid = 0
@@ -236,7 +212,7 @@ printline 平均值 = 'meanAll'
 
 i=fileReadable("'legacyDataDirectory$'/'name_of_picture_to_be_saved$'2.'legacyPictureExtension$'")
 if i = 1
-pause 'name_of_picture_to_be_saved$$'2已经存在，请将其先移走，否则会被覆盖！
+pause 'name_of_picture_to_be_saved$'2已经存在，请将其先移走，否则会被覆盖！
 endif
 if windows
     Save as 600-dpi PNG file... 'legacyDataDirectory$'/'name_of_picture_to_be_saved$'2.'legacyPictureExtension$'
