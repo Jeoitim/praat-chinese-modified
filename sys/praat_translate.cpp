@@ -3867,6 +3867,7 @@ static const std::unordered_map<std::u32string, std::u32string> g_translation_ma
 	{ U"Save as WAV file", U"\u4fdd\u5b58\u4e3a WAV \u6587\u4ef6" },
 	{ U"Save as WAV file...", U"\u4fdd\u5b58\u4e3a WAV \u6587\u4ef6..." },
 	{ U"Save as WAV file... || Write to WAV file...", U"\u4fdd\u5b58\u4e3a WAV \u6587\u4ef6... || \u5199\u5165 WAV \u6587\u4ef6..." },
+	{ U"Save as WAV...", U"\u53e6\u5b58\u4e3a WAV..." },
 	{ U"Save as Windows bitmap file", U"\u4fdd\u5b58\u4e3a Windows \u4f4d\u56fe\u6587\u4ef6" },
 	{ U"Save as Windows bitmap file...", U"\u4fdd\u5b58\u4e3aWindows bitmap file..." },
 	{ U"Save as Windows icon file", U"\u4fdd\u5b58\u4e3a Windows \u56fe\u6807\u6587\u4ef6" },
@@ -4416,6 +4417,7 @@ static const std::unordered_map<std::u32string, std::u32string> g_translation_ma
 	{ U"Speckle separately...", U"\u5206\u522b\u7ed8\u5236\u6563\u70b9..." },
 	{ U"Speckle size...", U"\u6591\u70b9\u5927\u5c0f..." },
 	{ U"Speckle...", U"\u7ed8\u5236\u6563\u70b9\u56fe..." },
+	{ U"Spectral slice", U"\u9891\u8c31\u5207\u7247" },
 	{ U"Spectral tilt", U"\u9891\u8c31\u503e\u659c" },
 	{ U"Spectrogram", U"\u58f0\u8c31\u56fe" },
 	{ U"Spectrogram analysis settings", U"\u58f0\u8c31\u56fe\u5206\u6790\u8bbe\u7f6e" },
@@ -8429,6 +8431,7 @@ static const char32* praat_translate_internal (const char32* text, const char* c
 	}
 	std::u32string key(text);
 	if (g_language_choice == 0) {
+		std::lock_guard<std::mutex> lock(g_cache_mutex);
 		ensure_reverse_translation_map ();
 		auto it_reverse = g_reverse_translation_map.find(key);
 		if (it_reverse != g_reverse_translation_map.end()) {
@@ -8439,6 +8442,11 @@ static const char32* praat_translate_internal (const char32* text, const char* c
 
 	{
 		std::lock_guard<std::mutex> lock(g_cache_mutex);
+		static int s_cached_language = -1;
+		if (s_cached_language != g_language_choice) {
+			g_dynamic_cache.clear();
+			s_cached_language = g_language_choice;
+		}
 		auto it_cache = g_dynamic_cache.find(key);
 		if (it_cache != g_dynamic_cache.end()) {
 			return it_cache->second.c_str();

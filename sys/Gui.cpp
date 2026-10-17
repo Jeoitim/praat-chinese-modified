@@ -167,8 +167,9 @@ void Gui_getWindowPositioningBounds (double *x, double *y, double *width, double
 	}
 
 	HFONT theWinGuiIconFont (int height) {
-		static struct { int h; HFONT font; } s_cached [8];
-		for (int i = 0; i < 8; i ++) {
+		constexpr int CACHE_SIZE = 32;
+		static struct { int h; HFONT font; } s_cached [CACHE_SIZE];
+		for (int i = 0; i < CACHE_SIZE; i ++) {
 			if (s_cached [i].h == height && s_cached [i].font)
 				return s_cached [i].font;
 		}
@@ -210,12 +211,22 @@ void Gui_getWindowPositioningBounds (double *x, double *y, double *width, double
 				L"Segoe UI Symbol"
 			);
 		}
-		for (int i = 0; i < 8; i ++) {
+		bool stored = false;
+		for (int i = 0; i < CACHE_SIZE; i ++) {
 			if (s_cached [i].font == nullptr) {
 				s_cached [i].h = height;
 				s_cached [i].font = result;
+				stored = true;
 				break;
 			}
+		}
+		if (! stored) {
+			if (s_cached [0].font)
+				DeleteObject (s_cached [0].font);
+			for (int i = 0; i < CACHE_SIZE - 1; i ++)
+				s_cached [i] = s_cached [i + 1];
+			s_cached [CACHE_SIZE - 1].h = height;
+			s_cached [CACHE_SIZE - 1].font = result;
 		}
 		return result;
 	}

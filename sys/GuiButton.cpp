@@ -387,7 +387,7 @@ Thing_implement (GuiButton, GuiControl, 0);
 							if (frac > 1.0) frac = 1.0;
 							GuiObject widget = (GuiObject) GetWindowLongPtr (hwnd, GWLP_USERDATA);
 							GuiButton btn = widget ? (GuiButton) _GuiObject_getUserData (widget) : nullptr;
-							seekCb (btn, (void *) hwnd, frac, false);
+							seekCb (btn, (void *) hwnd, frac, true);
 						}
 						InvalidateRect (hwnd, nullptr, FALSE);
 						UpdateWindow (hwnd);
@@ -436,6 +436,9 @@ Thing_implement (GuiButton, GuiControl, 0);
 				return res;
 			}
 			case WM_CAPTURECHANGED: {
+				RemovePropW (hwnd, L"PraatDraggingSeek");
+				RemovePropW (hwnd, L"PraatPillPressed");
+				RemovePropW (hwnd, L"PraatSplitPressed");
 				LRESULT res = DefSubclassProc (hwnd, uMsg, wParam, lParam);
 				InvalidateRect (hwnd, nullptr, FALSE);
 				UpdateWindow (hwnd);
@@ -744,6 +747,16 @@ Thing_implement (GuiButton, GuiControl, 0);
 				WCHAR textBuf [512];
 				int textLen = GetWindowTextW (hwnd, textBuf, 512);
 				if (textLen > 0) {
+					// Collapse '&&' (expanded by _GuiWin_expandAmpersands) back to single '&' because we draw with DT_NOPREFIX
+					WCHAR *dst = textBuf;
+					for (const WCHAR *src = textBuf; *src != L'\0'; ++ src) {
+						if (src [0] == L'&' && src [1] == L'&')
+							++ src;
+						*dst ++ = *src;
+					}
+					*dst = L'\0';
+					textLen = (int) (dst - textBuf);
+
 					HFONT hFont = (isDefault ? theWinGuiBoldLabelFont () : theWinGuiNormalLabelFont ());
 					HFONT oldFont = (HFONT) SelectObject (memDC, hFont);
 					SetBkMode (memDC, TRANSPARENT);
