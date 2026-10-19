@@ -66,6 +66,8 @@ EXACT_MAP = {
     "\u2635 ##modifiable NoulliGrid": "\u2635 ##可编辑 NoulliGrid",
     "Query...": "查询...",
     "Deselect all": "取消全选",
+    "Spectral slice": "频谱切片",
+    "Save as WAV...": "另存为 WAV...",
 
     # Core legend phrases
     "modifiable sound": "可编辑声音",
@@ -5211,6 +5213,7 @@ def main():
         '\t}',
         '\tstd::u32string key(text);',
         '\tif (g_language_choice == 0) {',
+        '\t\tstd::lock_guard<std::mutex> lock(g_cache_mutex);',
         '\t\tensure_reverse_translation_map ();',
         '\t\tauto it_reverse = g_reverse_translation_map.find(key);',
         '\t\tif (it_reverse != g_reverse_translation_map.end()) {',
@@ -5221,6 +5224,11 @@ def main():
         '',
         '\t{',
         '\t\tstd::lock_guard<std::mutex> lock(g_cache_mutex);',
+        '\t\tstatic int s_cached_language = -1;',
+        '\t\tif (s_cached_language != g_language_choice) {',
+        '\t\t\tg_dynamic_cache.clear();',
+        '\t\t\ts_cached_language = g_language_choice;',
+        '\t\t}',
         '\t\tauto it_cache = g_dynamic_cache.find(key);',
         '\t\tif (it_cache != g_dynamic_cache.end()) {',
         '\t\t\treturn it_cache->second.c_str();',

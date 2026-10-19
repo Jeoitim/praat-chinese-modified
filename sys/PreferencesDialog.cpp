@@ -165,12 +165,9 @@ static void gui_preferences_dialog_cb_close (Thing boss) {
 }
 
 static void PreferencesDialog_close (PreferencesDialog me) {
-	if (thePreferencesDialogInstance == me)
-		thePreferencesDialogInstance = nullptr;
 	if (my dialog) {
 		GuiThing_hide (my dialog);
 	}
-	forget (me);
 }
 
 static void PreferencesDialog_loadValues (PreferencesDialog me) {
@@ -377,6 +374,7 @@ static bool PreferencesDialog_apply (PreferencesDialog me) {
 
 void PRAAT_preferencesDialog (GuiWindow parentWindow) {
 	if (thePreferencesDialogInstance) {
+		PreferencesDialog_loadValues (thePreferencesDialogInstance);
 		GuiThing_show (thePreferencesDialogInstance -> dialog);
 		return;
 	}

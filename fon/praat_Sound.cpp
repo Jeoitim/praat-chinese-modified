@@ -1177,6 +1177,7 @@ static double s_soundLastUiUpdate = 0.0;      // Timestamp for 20 FPS throttling
 static double s_soundPlaybackSpeed = 1.0;     // Current playback speed factor
 static bool s_soundAllowSeeking = false;      // Whether timeline click/drag seeking is enabled (default off)
 static bool s_soundIsReplaying = false;       // Internal flag to preserve state across implicit restart
+static bool s_soundIsDraggingSeek = false;    // True while user is holding/dragging the waveform seek bar
 
 bool praat_sound_isPaused () {
 	return s_soundIsPaused;
@@ -1251,6 +1252,7 @@ static int praat_sound_playCallback (Thing /* boss */, int phase, double tmin, d
 	if (phase == 1) {
 		s_soundIsPlaying = true;
 		s_soundIsPaused = false;
+		s_soundIsDraggingSeek = false;
 		s_soundCurrentTime = currentTime;
 		s_soundLastUiUpdate = Melder_clock ();
 		double totalDur = s_soundTotalDuration > 0.0 ? s_soundTotalDuration : (tmax - tmin);
@@ -1259,6 +1261,8 @@ static int praat_sound_playCallback (Thing /* boss */, int phase, double tmin, d
 	}
 
 	if (phase == 2) {
+		if (s_soundIsDraggingSeek)
+			return 1;
 		s_soundCurrentTime = currentTime;
 		double now = Melder_clock ();
 		if (now - s_soundLastUiUpdate >= 0.05) {   // 20 FPS throttling
@@ -1270,6 +1274,7 @@ static int praat_sound_playCallback (Thing /* boss */, int phase, double tmin, d
 	}
 
 	if (phase == 3) {
+		s_soundIsDraggingSeek = false;
 		if (s_soundIsReplaying) {
 			return 1;
 		}
@@ -1342,6 +1347,7 @@ static void praat_sound_computeEnvelope (Sound snd, float *outPeaks, int numPoin
 }
 
 static void praat_sound_seek (double fraction, bool isDragging) {
+	s_soundIsDraggingSeek = isDragging;
 	if (! s_soundPlayPtr && theCurrentPraatObjects && theCurrentPraatObjects -> totalSelection == 1) {
 		for (integer iobj = 1; iobj <= theCurrentPraatObjects -> n; iobj ++) {
 			if (theCurrentPraatObjects -> list [iobj]. isSelected && theCurrentPraatObjects -> list [iobj]. klas == classSound) {
@@ -1484,8 +1490,14 @@ void praat_sound_updatePlayButtonIfActive () {
 		if (praat_numberOfSelected (classSound) == 1 && praat_idOfSelected (classSound, 1) == s_soundPlayId) {
 			updatePlayButtonUi (s_soundCurrentTime, s_soundTotalDuration, s_soundIsPlaying ? 1 : 2);
 		} else {
+			if (s_soundIsPlaying && MelderAudio_isPlaying) {
+				s_soundIsReplaying = true;
+				MelderAudio_stopPlaying (MelderAudio_IMPLICIT);
+				s_soundIsReplaying = false;
+			}
 			s_soundIsPaused = false;
 			s_soundIsPlaying = false;
+			s_soundIsDraggingSeek = false;
 			s_soundPausedTime = 0.0;
 			s_soundPlayPtr = nullptr;
 			s_soundPlayId = 0;
@@ -1499,7 +1511,7 @@ void praat_sound_updatePlayButtonIfActive () {
 }
 
 DIRECT (PLAY_EACH__Sound_play) {
-	if (MelderAudio_isPlaying) {
+	if (s_soundIsPlaying && MelderAudio_isPlaying) {
 		// Currently playing -> pause!
 		s_soundIsPaused = true;
 		s_soundIsPlaying = false;

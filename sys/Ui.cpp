@@ -157,31 +157,32 @@ static conststring32 formatStringArray (constSTRVEC strings, kUi_stringArrayForm
 
 Thing_implement (UiField, Thing, 0);
 
-static autoUiField UiField_create (_kUiField_type type, conststring32 labelTextOrNull) {
+static autoUiField UiField_create (_kUiField_type type, conststring32 labelTextOrNull, conststring32 displayLabelOrNull = nullptr) {
 	autoUiField me = Thing_new (UiField);
 	my type = type;
 	if (labelTextOrNull) {
 		/*
-			The label text is for instance "Pitch ceiling (Hz)".
+			The label text is for instance "Pitch ceiling (Hz)" (or its localized display text).
 		*/
-		my labelText = Melder_dup (labelTextOrNull);
+		my labelText = Melder_dup (displayLabelOrNull ? displayLabelOrNull : labelTextOrNull);
 
 		/*
-			The name is for instance "Pitch ceiling".
+			The internal name is for instance "Pitch ceiling" (always derived from untranslated labelTextOrNull
+			so that Praat scripts, form/endform, beginPause/endPause, and UiForm_get* lookups remain compatible).
 		*/
 		char32 shortName [1+100], *p;
 		str32ncpy (shortName, labelTextOrNull, 100);
 		shortName [100] = U'\0';
 		/*
-			Strip parentheses and the occasional colon off the parameter name.
+			Strip parentheses (both ASCII and full-width) and the occasional colon off the parameter name.
 		*/
-		if (!! (p = (char32 *) str32chr (shortName, U'('))) {
+		if (!! (p = (char32 *) str32chr (shortName, U'(')) || !! (p = (char32 *) str32chr (shortName, U'\uff08'))) {
 			*p = U'\0';
 			if (p - shortName > 0 && p [-1] == U' ')
 				p [-1] = U'\0';
 		}
 		p = shortName;
-		if (*p != U'\0' && p [Melder_length (p) - 1] == U':')
+		if (*p != U'\0' && (p [Melder_length (p) - 1] == U':' || p [Melder_length (p) - 1] == U'\uff1a'))
 			p [Melder_length (p) - 1] = U'\0';   // unlikely
 		Thing_setName (me.get(), shortName);
 	}
@@ -967,14 +968,16 @@ static UiField UiForm_addField (UiForm me, _kUiField_type type, conststring32 la
 	if (my numberOfFields == MAXIMUM_NUMBER_OF_FIELDS)
 		Melder_throw (U"Cannot have more than ", MAXIMUM_NUMBER_OF_FIELDS, U"fields in a form.");
 	autostring32 translatedLabel;
-	if (str32nequ (labelText, U"left ", 5)) {
-		translatedLabel = Melder_dup (Melder_cat (U"left ", praat_translate (labelText + 5)));
-	} else if (str32nequ (labelText, U"right ", 6)) {
-		translatedLabel = Melder_dup (Melder_cat (U"right ", praat_translate (labelText + 6)));
-	} else {
-		translatedLabel = Melder_dup (praat_translate (labelText));
+	if (labelText) {
+		if (str32nequ (labelText, U"left ", 5)) {
+			translatedLabel = Melder_dup (Melder_cat (U"left ", praat_translate (labelText + 5)));
+		} else if (str32nequ (labelText, U"right ", 6)) {
+			translatedLabel = Melder_dup (Melder_cat (U"right ", praat_translate (labelText + 6)));
+		} else {
+			translatedLabel = Melder_dup (praat_translate (labelText));
+		}
 	}
-	my field [++ my numberOfFields] = UiField_create (type, translatedLabel.get());
+	my field [++ my numberOfFields] = UiField_create (type, labelText, translatedLabel.get());
 	return my field [my numberOfFields].get();
 }
 
@@ -1411,10 +1414,19 @@ static void UiForm_moveControl (GuiControl ctrl, int left, int right, int top, i
 			#if motif
 				if (om -> d_xmMenuBar && om -> d_xmMenuBar -> window) {
 					hwnd = om -> d_xmMenuBar -> window;
+					if (om -> d_xmCascadeButton && om -> d_xmCascadeButton -> window) {
+						om -> d_xmCascadeButton -> width = w;
+						om -> d_xmCascadeButton -> height = h;
+						SetWindowPos (om -> d_xmCascadeButton -> window, NULL, 4, 4, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+					}
 					left -= 4;
 					top -= 4;
 					w += 8;
 					h += 8;
+					om -> d_xmMenuBar -> x = left;
+					om -> d_xmMenuBar -> y = top;
+					om -> d_xmMenuBar -> width = w;
+					om -> d_xmMenuBar -> height = h;
 				}
 			#endif
 		}
@@ -1422,7 +1434,8 @@ static void UiForm_moveControl (GuiControl ctrl, int left, int right, int top, i
 			hwnd = ctrl -> d_widget -> window;
 		if (! hwnd)
 			return;
-		if (top < 0 || top + h > visH) {
+		const bool outOfBounds = (h > 40) ? (top + h <= 0 || top >= visH - 8) : (top + h <= 0 || top + h > visH + 2);
+		if (outOfBounds) {
 			ShowWindow (hwnd, SW_HIDE);
 		} else {
 			SetWindowPos (hwnd, NULL, left, top, w, h, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
@@ -1435,7 +1448,8 @@ static void UiForm_moveControl (GuiControl ctrl, int left, int right, int top, i
 		if (superView) {
 			NSRect parentRect = [superView frame];
 			int parentHeight = parentRect.size.height;
-			[widgetView setHidden: (top < 0 || top + h > visH)];
+			const bool outOfBounds = (h > 40) ? (top + h <= 0 || top >= visH - 8) : (top + h <= 0 || top + h > visH + 2);
+			[widgetView setHidden: outOfBounds];
 			[widgetView setFrame: NSMakeRect (left, parentHeight - bottom, w, h)];
 		}
 	#elif defined (linux)
@@ -1444,7 +1458,7 @@ static void UiForm_moveControl (GuiControl ctrl, int left, int right, int top, i
 		GtkWidget *wgt = GTK_WIDGET (ctrl -> d_widget);
 		GtkWidget *par = gtk_widget_get_parent (wgt);
 		if (par && GTK_IS_FIXED (par)) {
-			bool isVis = (top >= 0 && top + h <= visH);
+			const bool isVis = (h > 40) ? (top + h > 0 && top < visH - 8) : (top + h > 0 && top + h <= visH + 2);
 			gtk_widget_set_visible (wgt, isVis);
 			gtk_fixed_move (GTK_FIXED (par), wgt, left, top);
 			gtk_widget_set_size_request (wgt, w, h);
@@ -1461,7 +1475,7 @@ static void UiForm_setControlRect (GuiControl ctrl, int left, int top, int width
 	#if defined (_WIN32)
 		HWND hwnd = ctrl -> d_widget ? ctrl -> d_widget -> window : NULL;
 		if (hwnd) {
-			SetWindowPos (hwnd, NULL, left, top, width, height, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+			SetWindowPos (hwnd, HWND_TOP, left, top, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
 		}
 	#elif defined (macintosh)
 		if (ctrl -> d_widget) {
@@ -1616,8 +1630,8 @@ static void UiForm_updateFieldPositions (UiForm me) {
 			case _kUiField_type::FOLDER_: {
 				const int yl = y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
 				UiForm_moveControl (thy label, Gui_LEFT_DIALOG_SPACING, contentRight - 100 - Gui_HORIZONTAL_DIALOG_SPACING, yl, yl + textFieldHeight, visH);
-				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, contentRight - 100 - Gui_HORIZONTAL_DIALOG_SPACING, y, y + Gui_TEXTFIELD_HEIGHT, visH);
-				UiForm_moveControl (thy pushButton, contentRight - 100, contentRight, y, y + Gui_TEXTFIELD_HEIGHT, visH);
+				UiForm_moveControl (thy text, Gui_LEFT_DIALOG_SPACING, contentRight - 100 - Gui_HORIZONTAL_DIALOG_SPACING, y, y + multiLineTextHeight (thy numberOfLines), visH);
+				UiForm_moveControl (thy pushButton, contentRight - 100, contentRight, y - 3 - Gui_PUSHBUTTON_HEIGHT, y - 3, visH);
 			} break;
 			case _kUiField_type::FORMULA_: {
 				const int yl = y + 5 - headerLabelHeight - Gui_VERTICAL_DIALOG_SPACING_SAME;
