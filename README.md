@@ -13,6 +13,12 @@ Praat 修改版由 **jeoitim** 维护，直接 fork 自 **KasumiKitsune/praat-si
 
 当前基础版本为 Praat **7.0.02**，开发分支为 `jeoitim-modified`。项目提供 **Windows x64、Linux x64、macOS 通用应用**的构建和完整资源打包流程。平台验证范围与设备限制见 [跨平台指南](docs/cross-platform.zh.md)。
 
+## 界面预览
+
+![Praat 中文修改版 Windows 界面，展示对象窗口和声音编辑器中的波形、语谱、基频与共振峰](docs/screenshots/praat-windows.png)
+
+*Windows 版本的对象窗口与声音编辑器。Linux 和 macOS 使用各自的平台控件，界面外观有所不同。*
+
 ## 目录
 
 - [1. 项目目标](#1-项目目标)
