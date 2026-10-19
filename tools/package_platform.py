@@ -12,12 +12,16 @@ def copy_resources(target):
     target.mkdir(parents=True, exist_ok=True)
     shutil.copytree(ROOT / "assets", target / "assets", dirs_exist_ok=True,
                     ignore=lambda path, names: [name for name in names if name == "tools" or name == "__pycache__"])
-    for name in ["README-修改版.md", "THIRD_PARTY_NOTICES.md"]:
+    for name in ["README.md", "THIRD_PARTY_NOTICES.md"]:
         shutil.copyfile(ROOT / name, target / name)
     shutil.copyfile(ROOT / "main/gpl-3.0.txt", target / "gpl-3.0.txt")
     (target / "docs").mkdir(exist_ok=True)
     for name in ["maintenance-and-release.zh.md", "cross-platform.zh.md", "enhanced-script-design.zh.md"]:
         shutil.copyfile(ROOT / "docs" / name, target / "docs" / name)
+    for name in ["docs/pictures/icon.png", "docs/screenshots/praat-windows.png"]:
+        destination = target / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / name, destination)
     assert len(list((target / "assets/legacy").glob("*.praat"))) == 91
 
 

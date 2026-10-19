@@ -33,10 +33,15 @@ try {
     $packageAssets = Join-Path $packageDirectory 'assets'
     New-Item -ItemType Directory -Path $packageAssets -Force | Out-Null
     Get-ChildItem -LiteralPath 'assets' -Force | Where-Object { $_.Name -ne 'tools' } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $packageAssets -Recurse -Force }
-    Copy-Item -LiteralPath 'README-修改版.md','THIRD_PARTY_NOTICES.md','main/gpl-3.0.txt' -Destination $packageDirectory -Force
+    Copy-Item -LiteralPath 'README.md','THIRD_PARTY_NOTICES.md','main/gpl-3.0.txt' -Destination $packageDirectory -Force
     $packageDocs = Join-Path $packageDirectory 'docs'
     New-Item -ItemType Directory -Path $packageDocs -Force | Out-Null
     Copy-Item -LiteralPath 'docs/maintenance-and-release.zh.md','docs/release-notes-v7.0.02-jeoitim.1.md','docs/cross-platform.zh.md','docs/enhanced-script-design.zh.md' -Destination $packageDocs -Force
+    foreach ($readmeImage in @('docs/pictures/icon.png','docs/screenshots/praat-windows.png')) {
+        $imageDestination = Join-Path $packageDirectory $readmeImage
+        New-Item -ItemType Directory -Path (Split-Path $imageDestination) -Force | Out-Null
+        Copy-Item -LiteralPath $readmeImage -Destination $imageDestination -Force
+    }
     if (Test-Path -LiteralPath 'assets/tools') {
         Get-ChildItem -LiteralPath 'assets/tools' -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $packageDirectory -Force }
     }
