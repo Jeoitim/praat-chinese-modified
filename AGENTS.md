@@ -13,6 +13,7 @@
 - `jeoitim-modified` 是修改版主线。新的修改经本仓库 PR 合入，不直接推送主线。默认分支保持不变，无需改名为 main。
 - 先更新 `modern` 镜像，再从最新主线建立 `codex/sync-modern-YYYYMMDD` 临时分支，使用 `git merge --no-ff modern` 保留上游提交；冲突解决应保留双方有意义的功能，自动合并成功也要核对语义。
 - 同步分支向 **Jeoitim/praat-chinese-modified** 提 PR，合入时使用 **Create a merge commit**，不能 squash 或 rebase。普通独立功能 PR 可以 squash。
+- PR 合入后，核对主线已包含该 PR 的变更且没有未提交、未推送或仍需保留的工作，再清理本次任务的临时本地分支与 origin 上对应的远程分支，并刷新失效的远程跟踪引用。保留 `jeoitim-modified`、`modern` 等长期分支，不删除上游仓库的分支或未合并的工作。清理只针对本次创建或用户明确确认废弃的分支；squash 合入时须结合 PR 状态及内容确认，不单凭祖先关系判断。完成报告中说明分支是否已清理。
 - 不为了线性历史重写已公开主线，不强推现有发行 tag。可用 `git log --first-parent` 查看简洁主线。
 - 默认不擅自合并 PR；但用户已要求完成一次通过 PR 的上游跟进时，授权包括验证后合入该同步 PR，无需重复确认。
 
