@@ -11,7 +11,7 @@
 - 唯一日常同步对象是 `upstream/modern`，远程为 `KasumiKitsune/praat-simplified-chinese`。不能按其默认 `master` 盲目执行 Sync fork，也不同时直接合并 Praat 或 Whisper 的整个开发分支。
 - `modern` 是纯上游镜像：只通过 `git merge --ff-only upstream/modern` 更新；不加入修改版内容，不 squash，不重写上游历史。
 - `jeoitim-modified` 是修改版主线。新的修改经本仓库 PR 合入，不直接推送主线。默认分支保持不变，无需改名为 main。
-- 从最新主线建立 `codex/sync-modern-YYYYMMDD` 临时分支，使用 `git merge --no-ff upstream/modern` 保留上游提交；冲突解决应保留双方有意义的功能，自动合并成功也要核对语义。
+- 先更新 `modern` 镜像，再从最新主线建立 `codex/sync-modern-YYYYMMDD` 临时分支，使用 `git merge --no-ff modern` 保留上游提交；冲突解决应保留双方有意义的功能，自动合并成功也要核对语义。
 - 同步分支向 **Jeoitim/praat-chinese-modified** 提 PR，合入时使用 **Create a merge commit**，不能 squash 或 rebase。普通独立功能 PR 可以 squash。
 - 不为了线性历史重写已公开主线，不强推现有发行 tag。可用 `git log --first-parent` 查看简洁主线。
 - 默认不擅自合并 PR；但用户已要求完成一次通过 PR 的上游跟进时，授权包括验证后合入该同步 PR，无需重复确认。

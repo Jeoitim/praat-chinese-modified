@@ -145,7 +145,7 @@ git push origin modern
 git switch jeoitim-modified
 git pull --ff-only origin jeoitim-modified
 git switch -c codex/sync-modern-20261019
-git merge --no-ff upstream/modern
+git merge --no-ff modern
 ```
 
 解决冲突时优先保留上游的算法和平台修复，再复核本项目的资源路径、菜单层级、术语表、关于页及构建脚本。当前克隆较浅；遇到缺少合并历史的提示时，按需要补充历史，不使用强制同步覆盖修改分支。
