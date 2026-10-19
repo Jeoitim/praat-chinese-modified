@@ -2,6 +2,11 @@
 
 #include "ggml.h"
 
+#ifdef __cplusplus
+// The feature-test macro does not itself declare the C++17 constants.
+#include <new>
+#endif
+
 //
 // cache line
 //

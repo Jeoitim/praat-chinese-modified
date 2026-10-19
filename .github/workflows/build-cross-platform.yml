@@ -1,16 +1,6 @@
 name: Cross-platform build
 
 on:
-  push:
-    branches: [jeoitim-modified]
-  pull_request:
-    branches: [jeoitim-modified]
-  workflow_dispatch:
-    inputs:
-      ref:
-        description: Branch or existing tag to build
-        type: string
-        required: false
   workflow_call:
     inputs:
       ref:

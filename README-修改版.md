@@ -150,7 +150,7 @@ Windows 的现代控件来自上游 Win32 实现，其他平台使用 GTK 或 Co
 
 贡献者以 `jeoitim-modified` 为开发基线提交修改。`modern` 分支保留 KasumiKitsune 上游代码，上游更新经独立同步分支处理冲突、构建和测试后合入。已发布的 tag 固定到对应源码，不移动或覆盖。
 
-自动构建会检查 Windows、Linux 与 macOS 并提供测试产物。发布流程从已有 tag 构建完整资源包，先生成草稿 Release，检查后再公开。构建产物和候选版便于测试，不等同于已经完成设备验证的正式版本。维护与贡献步骤见 [开发与发布指南](docs/maintenance-and-release.zh.md)。
+普通分支提交和 PR 不触发完整构建。推送 `v*-jeoitim.*` 发行 tag 时，发布流程统一检查 Windows、Linux 与 macOS 并生成完整资源包与草稿 Release，检查后再公开；也可从 Actions 手动指定已有发行 tag。跨平台构建仅由发布流程调用，避免同一 tag 重复构建。构建产物和候选版便于测试，不等同于已经完成设备验证的正式版本。维护与贡献步骤见 [开发与发布指南](docs/maintenance-and-release.zh.md)。
 
 ## 9. 许可
 

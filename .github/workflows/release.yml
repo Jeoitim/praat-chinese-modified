@@ -1,6 +1,8 @@
 name: Prepare modified release
 
 on:
+  push:
+    tags: ['v*-jeoitim.*']
   workflow_dispatch:
     inputs:
       tag_name:
@@ -15,34 +17,42 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: modified-release-${{ inputs.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   verify-tag:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Require an existing project tag
+        id: tag
         env:
-          RELEASE_TAG: ${{ inputs.tag_name }}
+          RELEASE_TAG: ${{ inputs.tag_name || github.ref_name }}
         run: |
           set -euo pipefail
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-jeoitim\.[0-9]+(-rc\.[0-9]+)?$ ]]
           git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}"
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
   build:
     needs: verify-tag
     uses: ./.github/workflows/build-cross-platform.yml
     with:
-      ref: ${{ inputs.tag_name }}
+      ref: ${{ needs.verify-tag.outputs.tag }}
   draft:
-    needs: build
+    needs: [verify-tag, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag_name }}
+          ref: ${{ needs.verify-tag.outputs.tag }}
           fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
@@ -53,8 +63,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ inputs.tag_name }}
-          PRERELEASE: ${{ inputs.prerelease }}
+          RELEASE_TAG: ${{ needs.verify-tag.outputs.tag }}
+          PRERELEASE: ${{ inputs.prerelease || contains(needs.verify-tag.outputs.tag, '-rc.') }}
         run: |
           set -euo pipefail
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
