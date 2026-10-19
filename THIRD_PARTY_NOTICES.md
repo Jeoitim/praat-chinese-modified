@@ -31,3 +31,9 @@ Doulos SIL 4.110 字体：SIL International，按 SIL Open Font License 1.1 原�
 原包的独立 Windows 分词/词性/词云工具保留于 Windows 辅助工具中。跨平台版本按原工作流重新实现，依赖用户安装的 jieba（MIT）、wordcloud（MIT）、Pillow（HPND）；这些库不随本项目内置。分词结果可能与原工具版本不同。
 
 检查中修复 cd/cg/d/v 原脚本的控制结构问题、ax 的重复计数及 dr/ds 对带空格文件名的输出定位问题。两项缺失的 Table 命令改用标准 log10 / hertzToBark 公式，不声称复刻未提供的原生实现源码。
+
+## Whisper / ggml 编译兼容补丁
+
+`external/whispercpp/ops.h` 的缓存行大小处理回移自 ggml / whisper.cpp 已采用的上游修复：[llama.cpp #28882](https://github.com/ggml-org/llama.cpp/pull/28882)，2026-09-14 合入，commit `2f539596c6e9a977e91b6bc6344650422c6bc3b0`。核对来源为 whisper.cpp 同路径头文件 blob `2728b08b6c976ed864353f8eb84e2e10d309f287`。
+
+仅回移该头文件的缓存行代码块，保留上游注释及引用，不整体升级 Whisper。统一使用原有架构常量，避免 C / C++ 编译单元或头文件包含顺序造成取值不一致，同时消除新版 Clang / libc++ 中标准常量未声明的编译错误。此前临时补入 `<new>` 的本地处理由此上游方案替代；不修改 Praat 声学分析算法。
