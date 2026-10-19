@@ -54,7 +54,7 @@ assets/
 ffmpeg.exe
 ffplay.exe
 音量辅助程序
-README-修改版.md
+README.md
 THIRD_PARTY_NOTICES.md
 gpl-3.0.txt
 ```
@@ -123,7 +123,7 @@ GitHub 官方说明：[创建 Release](https://cli.github.com/manual/gh_release_
 | :--- | :--- |
 | `modern` | 保留 KasumiKitsune modern 的镜像，不加入本项目修改 |
 | `jeoitim-modified` | 日常开发、构建和发布修改版 |
-| `sync/modern-日期` | 处理某次上游同步，完成检查后合入修改分支 |
+| `codex/sync-modern-日期` | 处理某次上游同步，完成检查后合入修改分支 |
 | 发行 tag | 固定已发布版本，不随开发分支移动 |
 
 同步对象必须是 `upstream/modern`。GitHub 的普通 Sync fork 或 `gh repo sync` 默认可能跟随上游默认 `master`，不能不加区分地用于本项目。
@@ -144,8 +144,8 @@ git push origin modern
 ```powershell
 git switch jeoitim-modified
 git pull --ff-only origin jeoitim-modified
-git switch -c sync/modern-2026-10-08
-git merge upstream/modern
+git switch -c codex/sync-modern-20261019
+git merge --no-ff modern
 ```
 
 解决冲突时优先保留上游的算法和平台修复，再复核本项目的资源路径、菜单层级、术语表、关于页及构建脚本。当前克隆较浅；遇到缺少合并历史的提示时，按需要补充历史，不使用强制同步覆盖修改分支。
@@ -153,12 +153,12 @@ git merge upstream/modern
 完成构建、兼容测试和实际素材检查后，把同步分支推到自己的仓库，通过 PR 合入 `jeoitim-modified`。PR 的目标是本 fork，而不是 KasumiKitsune 的仓库。
 
 ```powershell
-git push -u origin sync/modern-2026-10-08
+git push -u origin codex/sync-modern-20261019
 gh pr create --repo Jeoitim/praat-chinese-modified `
-  --base jeoitim-modified --head sync/modern-2026-10-08
+  --base jeoitim-modified --head codex/sync-modern-20261019
 ```
 
-已公开的修改分支采用 merge 同步，保留发布提交的历史关系。不要为了跟进上游对发布历史反复 rebase，也不要强推覆盖已有 tag。确认上游重要更新后再同步，比每次提交都直接合入发布分支更容易验证。
+修改版主线通过本仓库 PR 接收功能与同步变更。上游同步 PR 必须使用 Create a merge commit，不能 squash 或 rebase，以保留上游提交的祖先关系；普通独立功能 PR 可 squash。已公开的修改分支采用 merge 同步，保留发布提交的历史关系。不要为了跟进上游对发布历史反复 rebase，也不要强推覆盖已有 tag。确认上游重要更新后再同步，比每次提交都直接合入发布分支更容易验证。
 
 参考：[GitHub 的 fork 同步说明](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/syncing-a-fork)。
 

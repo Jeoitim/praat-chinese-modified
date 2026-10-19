@@ -396,9 +396,18 @@ void _GuiNativeControl_setSensitive (GuiObject me) {
 
 char32 * _GuiWin_expandAmpersands (conststring32 title) {
 	static char32 buffer [300];
+	if (! title) {
+		buffer [0] = U'\0';
+		return buffer;
+	}
 	const char32 *from = & title [0];
 	char32 *to = & buffer [0];
-	while (*from) { if (*from == U'&') * to ++ = U'&'; * to ++ = * from ++; } * to = U'\0';
+	char32 *const end = & buffer [298];
+	while (*from && to < end) {
+		if (*from == U'&') * to ++ = U'&';
+		* to ++ = * from ++;
+	}
+	* to = U'\0';
 	return buffer;
 }
 
@@ -3233,7 +3242,8 @@ static void on_command (HWND window, int id, HWND controlWindow, UINT codeNotify
 	} else FORWARD_WM_COMMAND (window, id, controlWindow, codeNotify, DefWindowProc);
 }
 static void on_destroy (HWND window) {
-	(void) window;
+	RemovePropW (window, L"Praat_MinW");
+	RemovePropW (window, L"Praat_MinH");
 }
 static void on_lbuttonDown (HWND window, BOOL doubleClick, int x, int y, UINT flags) {
 	GuiObject me = (GuiObject) GetWindowLongPtr (window, GWLP_USERDATA);
@@ -3614,8 +3624,14 @@ static LRESULT CALLBACK windowProc (HWND window, UINT message, WPARAM wParam, LP
 				if (me && MEMBER (me, Shell) && my motiff.shell.isDialog) {
 					LONG_PTR style = GetWindowLongPtr (window, GWL_STYLE);
 					if (style & WS_THICKFRAME) {
-						int minW = (my width < 480 && my width > 0) ? my width : 480;
-						int minH = (my height < 280 && my height > 0) ? my height : 280;
+						int minW = (int) (intptr_t) GetPropW (window, L"Praat_MinW");
+						int minH = (int) (intptr_t) GetPropW (window, L"Praat_MinH");
+						if (minW == 0 || minH == 0) {
+							minW = (my width > 0 && my width < 480) ? my width : 320;
+							minH = (my height > 0 && my height < 280) ? my height : 200;
+							SetPropW (window, L"Praat_MinW", (HANDLE) (intptr_t) minW);
+							SetPropW (window, L"Praat_MinH", (HANDLE) (intptr_t) minH);
+						}
 						mmi -> ptMinTrackSize.x = minW;
 						mmi -> ptMinTrackSize.y = minH;
 						return 0;

@@ -92,7 +92,7 @@ Praat 修改版由 **jeoitim** 维护，直接 fork 自 **KasumiKitsune/praat-si
 
 完整来源、补充实现的差异及第三方许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-当前开发基线：KasumiKitsune `modern` 分支，提交 `39c8cf719f14264ede85465ec977cdb7bbc9f711`。
+当前开发基线：KasumiKitsune `modern` 分支，提交 `17b9c1d82bf1e5a2d6e60e5af40d9ad1faa9bc2c`。
 
 ## 4. 下载与使用
 
@@ -154,7 +154,7 @@ Windows 的现代控件来自上游 Win32 实现，其他平台使用 GTK 或 Co
 
 发行版本使用 Praat 基础版本和修改版修订号标记，例如 `v7.0.02-jeoitim.1`。同一基础版本的后续修订递增为 `.2`、`.3`，候选版带有 `-rc.1` 等后缀。用户可在 [Releases](https://github.com/Jeoitim/praat-chinese-modified/releases) 下载对应平台的完整包；脚本、字体及其他资源应随程序一起保留。
 
-贡献者以 `jeoitim-modified` 为开发基线提交修改。`modern` 分支保留 KasumiKitsune 上游代码，上游更新经独立同步分支处理冲突、构建和测试后合入。已发布的 tag 固定到对应源码，不移动或覆盖。
+贡献者以 `jeoitim-modified` 为开发基线，通过本仓库的 PR 提交修改；上游同步 PR 使用普通 merge 保留历史。`modern` 分支保留 KasumiKitsune 上游代码，上游更新经独立同步分支处理冲突、构建和测试后合入。已发布的 tag 固定到对应源码，不移动或覆盖。
 
 普通分支提交和 PR 不触发完整构建。推送 `v*-jeoitim.*` 发行 tag 时，发布流程统一检查 Windows、Linux 与 macOS 并生成完整资源包与草稿 Release，检查后再公开；也可从 Actions 手动指定已有发行 tag。跨平台构建仅由发布流程调用，避免同一 tag 重复构建。构建产物和候选版便于测试，不等同于已经完成设备验证的正式版本。维护与贡献步骤见 [开发与发布指南](docs/maintenance-and-release.zh.md)。
 

@@ -42,6 +42,7 @@
 #include "Printer.h"
 #include "ScriptEditor.h"
 #include "NotebookEditor.h"
+#include "PythonScriptEditor.h"
 #include "Strings_.h"
 #include "praat_python.h"
 #include "../kar/UnicodeData.h"
@@ -1245,27 +1246,41 @@ static void gui_button_cb_directQuit (Thing /* boss */, GuiButtonEvent /* event 
 }
 
 static void gui_button_cb_saveProjectAndQuit (Thing /* boss */, GuiButtonEvent /* event */) {
-	autostring32 chosenPath = GuiFileSelect_getOutfileName (theCurrentPraatApplication -> topShell, praat_translate (U"Save workspace as .praat file"), U"workspace.praat");
-	if (! chosenPath || chosenPath [0] == U'\0')
-		return;
+	const bool youHaveObjectsInYourList = ( theCurrentPraatObjects -> n > 0 );
+	const bool youHaveUnsavedScriptsOrNotebooks = ( ScriptEditors_dirty () || NotebookEditors_dirty () || PythonScriptEditors_dirty () );
 
-	MelderString filePath;
-	MelderString_copy (& filePath, chosenPath.get());
-	if (! Melder_endsWith_caseAware (filePath.string, U".praat"))
-		MelderString_append (& filePath, U".praat");
+	if (youHaveObjectsInYourList) {
+		autostring32 chosenPath = GuiFileSelect_getOutfileName (theCurrentPraatApplication -> topShell, praat_translate (U"Save workspace as .praat file"), U"workspace.praat");
+		if (! chosenPath || chosenPath [0] == U'\0')
+			return;
 
-	try {
-		structMelderFile file;
-		Melder_pathToFile (filePath.string, & file);
-		autoCollection set = Collection_create ();
-		for (integer iobject = 1; iobject <= theCurrentPraatObjects -> n; iobject ++) {
-			Daata object = (Daata) theCurrentPraatObjects -> list [iobject]. object;
-			if (object)
-				set -> addItem_ref (object);
+		MelderString filePath;
+		MelderString_copy (& filePath, chosenPath.get());
+		if (! Melder_endsWith_caseAware (filePath.string, U".praat"))
+			MelderString_append (& filePath, U".praat");
+
+		try {
+			structMelderFile file;
+			Melder_pathToFile (filePath.string, & file);
+			autoCollection set = Collection_create ();
+			for (integer iobject = 1; iobject <= theCurrentPraatObjects -> n; iobject ++) {
+				Daata object = (Daata) theCurrentPraatObjects -> list [iobject]. object;
+				if (object)
+					set -> addItem_ref (object);
+			}
+			Data_writeToBinaryFile (set.get(), & file);
+		} catch (MelderError) {
+			Melder_flushError ();
+			return;
 		}
-		Data_writeToBinaryFile (set.get(), & file);
-	} catch (MelderError) {
-		Melder_flushError ();
+	}
+
+	if (youHaveUnsavedScriptsOrNotebooks) {
+		if (theQuitDialog)
+			GuiThing_hide (theQuitDialog);
+		Melder_information (g_language_choice != 0 ?
+			U"对象列表已保存（若非空），但您仍有未保存的脚本或笔记窗口。\n请先在对应的脚本或笔记编辑器中保存文件后再退出。" :
+			U"Objects have been saved (if any), but you still have unsaved scripts or notebooks.\nPlease save your open scripts or notebooks before quitting.");
 		return;
 	}
 
@@ -1278,7 +1293,7 @@ extern "C" void DO_Quit (UiForm /* sendingForm */, integer /* narg */, Stackel /
 	Interpreter /* interpreter */, conststring32 /* invokingButtonTitle */, bool /* isModified */, void * /* buttonClosure */, Editor /* optionalEditor */)
 {
 	const bool youHaveObjectsInYourList = ( theCurrentPraatObjects -> n > 0 );
-	const bool youHaveUnsavedScriptsOrNotebooks = ( ScriptEditors_dirty () || NotebookEditors_dirty () );
+	const bool youHaveUnsavedScriptsOrNotebooks = ( ScriptEditors_dirty () || NotebookEditors_dirty () || PythonScriptEditors_dirty () );
 	if ((! youHaveObjectsInYourList && ! youHaveUnsavedScriptsOrNotebooks) || theCurrentPraatApplication -> batch) {
 		praat_exit (0);
 		return;

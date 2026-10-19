@@ -106,14 +106,25 @@ Thing_implement (GuiList, GuiControl, 0);
 				LRESULT itemRes = SendMessageW (hwnd, LB_ITEMFROMPOINT, 0, lParam);
 				int clickedItem = (HIWORD (itemRes) == 0) ? (int) LOWORD (itemRes) : -1;
 				if (clickedItem >= 0) {
-					LRESULT isSel = SendMessageW (hwnd, LB_GETSEL, clickedItem, 0);
-					if (! isSel) {
-						SendMessageW (hwnd, LB_SETSEL, FALSE, -1);
-						SendMessageW (hwnd, LB_SETSEL, TRUE, clickedItem);
-						SendMessageW (hwnd, LB_SETCARETINDEX, clickedItem, FALSE);
-						GuiObject widget = (GuiObject) GetWindowLongPtr (hwnd, GWLP_USERDATA);
-						if (widget)
-							_GuiWinList_handleClick (widget);
+					GuiObject widget = (GuiObject) GetWindowLongPtr (hwnd, GWLP_USERDATA);
+					GuiList me = widget ? (GuiList) widget -> userData : nullptr;
+					bool isMultiple = me ? me -> d_allowMultipleSelection : true;
+					if (isMultiple) {
+						LRESULT isSel = SendMessageW (hwnd, LB_GETSEL, clickedItem, 0);
+						if (! isSel) {
+							SendMessageW (hwnd, LB_SETSEL, FALSE, -1);
+							SendMessageW (hwnd, LB_SETSEL, TRUE, clickedItem);
+							SendMessageW (hwnd, LB_SETCARETINDEX, clickedItem, FALSE);
+							if (widget)
+								_GuiWinList_handleClick (widget);
+						}
+					} else {
+						LRESULT curSel = SendMessageW (hwnd, LB_GETCURSEL, 0, 0);
+						if (curSel != clickedItem) {
+							SendMessageW (hwnd, LB_SETCURSEL, clickedItem, 0);
+							if (widget)
+								_GuiWinList_handleClick (widget);
+						}
 					}
 				}
 				SetFocus (hwnd);

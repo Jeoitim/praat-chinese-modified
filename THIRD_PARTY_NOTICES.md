@@ -2,7 +2,7 @@
 
 - 官方 Praat v7.0.02，commit 6f3da9ef1d8cce0d5684afc104d02888dfc71b25。Paul Boersma、David Weenink、Anastasia Shchupak 及原仓库各文件署名的贡献者。https://github.com/praat/praat
 - 中文汉化及自定义内容：贝先明、向柠，来自公众号“实验语音学与praat软件”提供的源码和安装包（本次最新参考安装包为汉化修改版 6.0，早期移植曾参考 5.2）；保留每个脚本的原署名。http://blog.sina.com.cn/xianmingbei
-- 中文词典和现代 Windows 控件绘制：KasumiKitsune/praat-simplified-chinese 及其贡献者；master 2b70d22c6da8b750049ec81cd58e41184692205b，modern 39c8cf719f14264ede85465ec977cdb7bbc9f711. https://github.com/KasumiKitsune/praat-simplified-chinese
+- 中文词典和现代 Windows 控件绘制：KasumiKitsune/praat-simplified-chinese 及其贡献者；初始移植参考 master 2b70d22c6da8b750049ec81cd58e41184692205b，modern 39c8cf719f14264ede85465ec977cdb7bbc9f711. https://github.com/KasumiKitsune/praat-simplified-chinese
 
 本项目按 Praat 的 GPL-3.0-or-later 条款分发。第三方外部库的许可保留在各原目录中；视频及音量辅助程序保留原安装包内容，不修改二进制。
 
@@ -18,7 +18,7 @@ Doulos SIL 4.110 字体：SIL International，按 SIL Open Font License 1.1 原�
 
 ## 当前唯一上游
 
-新项目直接 fork KasumiKitsune/praat-simplified-chinese，完整基于 modern 分支 commit 39c8cf719f14264ede85465ec977cdb7bbc9f711；保留其现代界面、右键菜单、播放器、编辑器快捷按钮和汉化帮助手册。Jeoitim 的修改仓库为 https://github.com/Jeoitim/praat-chinese-modified 。本修改版作者署名：jeoitim。
+新项目直接 fork KasumiKitsune/praat-simplified-chinese，初始基线为 modern 分支 commit 39c8cf719f14264ede85465ec977cdb7bbc9f711，2026-10-19 跟进至 commit 17b9c1d82bf1e5a2d6e60e5af40d9ad1faa9bc2c；保留其现代界面、右键菜单、播放器、编辑器快捷按钮和汉化帮助手册。Jeoitim 的修改仓库为 https://github.com/Jeoitim/praat-chinese-modified 。本修改版作者署名：jeoitim。
 
 ## 公众号 6.0 参考包与跨平台适配
 

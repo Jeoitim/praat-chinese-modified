@@ -23,6 +23,7 @@
 #include "FunctionArea.h"
 #include "SoundAnalysisArea.h"
 #include "Sound.h"
+#include "praat_translate.h"
 #include <algorithm>
 
 Thing_implement_pureVirtual (FunctionEditor, Editor, 0);
@@ -975,8 +976,11 @@ static void menu_cb_pageDown (FunctionEditor me, EDITOR_ARGS) {
 
 bool structFunctionEditor :: hasSoundAnalysisArea () const {
 	for (integer iarea = 1; iarea <= FunctionEditor_MAXIMUM_NUMBER_OF_FUNCTION_AREAS; iarea ++) {
-		if (our functionAreas [iarea] && Thing_isa (our functionAreas [iarea].get(), classSoundAnalysisArea))
+		if (our functionAreas [iarea] && Thing_isa (our functionAreas [iarea].get(), classSoundAnalysisArea)) {
+			if (str32equ (Thing_className (our functionAreas [iarea].get()), U"EEGAnalysisArea"))
+				return false;
 			return true;
+		}
 	}
 	return false;
 }
@@ -1102,7 +1106,11 @@ static void gui_cb_bottomButton_intensitySettings (FunctionEditor me, GuiButtonE
 
 static void gui_cb_bottomButton_formantSettings (FunctionEditor me, GuiButtonEvent /* event */) {
 	try {
-		Editor_doMenuCommand (me, U"Formant settings...", 0, nullptr, nullptr, nullptr);
+		SoundAnalysisArea area = my getSoundAnalysisArea ();
+		if (area && (str32equ (Thing_className (area), U"FormantPathArea") || str32equ (Thing_className (area), U"FormantPathArea_without_Sound")))
+			Editor_doMenuCommand (me, U"Formant analysis settings...", 0, nullptr, nullptr, nullptr);
+		else
+			Editor_doMenuCommand (me, U"Formant settings...", 0, nullptr, nullptr, nullptr);
 		my syncBottomAnalysisChecks ();
 	} catch (MelderError) {
 		Melder_flushError ();
@@ -1781,7 +1789,7 @@ static void gui_drawingarea_cb_mouse (FunctionEditor me, GuiDrawingArea_MouseEve
 	// Determine toggle button bounds
 	double toggleLeft, toggleRight, toggleBottom, toggleTop;
 	getToggleButtonBounds (me, & toggleLeft, & toggleRight, & toggleBottom, & toggleTop);
-	bool overToggle = (my v_hasSelectionViewer() || my instancePref_showSelectionViewer()) &&
+	bool overToggle = my v_hasSelectionViewer () &&
 	                  (x_pxlt >= toggleLeft && x_pxlt <= toggleRight && y_pxlt >= toggleBottom && y_pxlt <= toggleTop);
 
 	if (event -> isMove()) {
@@ -1797,7 +1805,7 @@ static void gui_drawingarea_cb_mouse (FunctionEditor me, GuiDrawingArea_MouseEve
 		}
 
 		int newIpaRow = 0, newIpaCol = 0;
-		if (my instancePref_showSelectionViewer() && my isInSelectionViewer (x_pxlt)) {
+		if (my v_hasSelectionViewer () && my instancePref_showSelectionViewer () && my isInSelectionViewer (x_pxlt)) {
 			my viewInnerSelectionViewerAsFractionByFraction ();
 			double x_fraction, y_fraction;
 			Graphics_DCtoWC (my graphics.get(), event -> x, event -> y, & x_fraction, & y_fraction);
@@ -1883,7 +1891,7 @@ static void gui_drawingarea_cb_mouse (FunctionEditor me, GuiDrawingArea_MouseEve
 		my clickWasModifiedByShiftKey = event -> shiftKeyPressed;
 		my clickWasModifiedByOptionKey = event -> optionKeyPressed;
 		my clickWasModifiedByCommandKey = event -> commandKeyPressed;
-		my anchorIsInSelectionViewer = my isInSelectionViewer (x_pxlt);
+		my anchorIsInSelectionViewer = my v_hasSelectionViewer () && my instancePref_showSelectionViewer () && my isInSelectionViewer (x_pxlt);
 		my anchorIsInWideDataView = ( y_pxlt > my dataBottom_pxlt() && y_pxlt < my dataTop_pxlt() );
 	}
 	if (my anchorIsInSelectionViewer) {
@@ -2058,51 +2066,51 @@ void structFunctionEditor :: v_createChildren () {
 		// 1. Spectrogram
 		bool showSpec = (area ? area -> instancePref_spectrogram_show () : true);
 		our bottomCheck_spectrogram = GuiCheckButton_createShown (our windowForm, bx, bx + 56, bTop, bBottom,
-			U"语图", gui_cb_bottomCheck_spectrogram, this, showSpec ? GuiCheckButton_SET : 0);
+			praat_translate (U"Spectrogram"), gui_cb_bottomCheck_spectrogram, this, showSpec ? GuiCheckButton_SET : 0);
 		bx += 56 + 6;
 		our bottomButton_spectrogramSettings = GuiButton_createShown (our windowForm, bx, bx + 40, bTop, bBottom,
-			U"设置", gui_cb_bottomButton_spectrogramSettings, this, 0);
+			praat_translate (U"Settings"), gui_cb_bottomButton_spectrogramSettings, this, 0);
 		bx += 40 + 16;
 
 		// 2. Pitch
 		bool showPitch = (area ? area -> instancePref_pitch_show () : true);
 		our bottomCheck_pitch = GuiCheckButton_createShown (our windowForm, bx, bx + 56, bTop, bBottom,
-			U"音高", gui_cb_bottomCheck_pitch, this, showPitch ? GuiCheckButton_SET : 0);
+			praat_translate (U"Pitch"), gui_cb_bottomCheck_pitch, this, showPitch ? GuiCheckButton_SET : 0);
 		bx += 56 + 6;
 		our bottomButton_pitchSettings = GuiButton_createShown (our windowForm, bx, bx + 40, bTop, bBottom,
-			U"设置", gui_cb_bottomButton_pitchSettings, this, 0);
+			praat_translate (U"Settings"), gui_cb_bottomButton_pitchSettings, this, 0);
 		bx += 40 + 16;
 
 		// 3. Intensity
 		bool showIntens = (area ? area -> instancePref_intensity_show () : false);
 		our bottomCheck_intensity = GuiCheckButton_createShown (our windowForm, bx, bx + 56, bTop, bBottom,
-			U"强度", gui_cb_bottomCheck_intensity, this, showIntens ? GuiCheckButton_SET : 0);
+			praat_translate (U"Intensity"), gui_cb_bottomCheck_intensity, this, showIntens ? GuiCheckButton_SET : 0);
 		bx += 56 + 6;
 		our bottomButton_intensitySettings = GuiButton_createShown (our windowForm, bx, bx + 40, bTop, bBottom,
-			U"设置", gui_cb_bottomButton_intensitySettings, this, 0);
+			praat_translate (U"Settings"), gui_cb_bottomButton_intensitySettings, this, 0);
 		bx += 40 + 16;
 
 		// 4. Formants
 		bool showForm = (area ? area -> instancePref_formant_show () : true);
 		our bottomCheck_formants = GuiCheckButton_createShown (our windowForm, bx, bx + 68, bTop, bBottom,
-			U"共振峰", gui_cb_bottomCheck_formants, this, showForm ? GuiCheckButton_SET : 0);
+			praat_translate (U"Formants"), gui_cb_bottomCheck_formants, this, showForm ? GuiCheckButton_SET : 0);
 		bx += 68 + 6;
 		our bottomButton_formantSettings = GuiButton_createShown (our windowForm, bx, bx + 40, bTop, bBottom,
-			U"设置", gui_cb_bottomButton_formantSettings, this, 0);
+			praat_translate (U"Settings"), gui_cb_bottomButton_formantSettings, this, 0);
 		bx += 40 + 16;
 
 		// 5. Pulses
 		bool showPulses = (area ? area -> instancePref_pulses_show () : false);
 		our bottomCheck_pulses = GuiCheckButton_createShown (our windowForm, bx, bx + 56, bTop, bBottom,
-			U"脉冲", gui_cb_bottomCheck_pulses, this, showPulses ? GuiCheckButton_SET : 0);
+			praat_translate (U"Pulses"), gui_cb_bottomCheck_pulses, this, showPulses ? GuiCheckButton_SET : 0);
 		bx += 56 + 6;
 		our bottomButton_pulsesSettings = GuiButton_createShown (our windowForm, bx, bx + 40, bTop, bBottom,
-			U"设置", gui_cb_bottomButton_pulsesSettings, this, 0);
+			praat_translate (U"Settings"), gui_cb_bottomButton_pulsesSettings, this, 0);
 		bx += 40 + 16;
 
 		// 6. Show analyses...
 		our bottomButton_showAnalyses = GuiButton_createShown (our windowForm, bx, bx + 95, bTop, bBottom,
-			U"显示分析项...", gui_cb_bottomButton_showAnalyses, this, 0);
+			praat_translate (U"Show analyses..."), gui_cb_bottomButton_showAnalyses, this, 0);
 	}
 
 	/*
@@ -2113,26 +2121,38 @@ void structFunctionEditor :: v_createChildren () {
 
 		int x = 4;
 		our topButton_spectralSlice   = GuiButton_createShown (our windowForm, x, x + 74, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
-			U"频谱切片", gui_cb_topButton_spectralSlice, this, 0);
+			praat_translate (U"Spectral slice"), gui_cb_topButton_spectralSlice, this, 0);
 		x += 74 + 4;
 		our topButton_voiceReport     = GuiButton_createShown (our windowForm, x, x + 74, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
-			U"嗓音报告", gui_cb_topButton_voiceReport, this, 0);
+			praat_translate (U"Voice report"), gui_cb_topButton_voiceReport, this, 0);
 		x += 74 + 4;
 		our topButton_formantListing  = GuiButton_createShown (our windowForm, x, x + 82, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
-			U"共振峰列表", gui_cb_topButton_formantListing, this, 0);
+			praat_translate (U"Formant listing"), gui_cb_topButton_formantListing, this, 0);
 		x += 82 + 4;
 		our topButton_getPitch        = GuiButton_createShown (our windowForm, x, x + 74, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
-			U"获取基频", gui_cb_topButton_getPitch, this, 0);
+			praat_translate (U"Get pitch"), gui_cb_topButton_getPitch, this, 0);
 		x += 74 + 4;
 		our topButton_getIntensity    = GuiButton_createShown (our windowForm, x, x + 74, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
-			U"获取强度", gui_cb_topButton_getIntensity, this, 0);
+			praat_translate (U"Get intensity"), gui_cb_topButton_getIntensity, this, 0);
 		x += 74 + 16;
 
-		our topButton_extractSelection= GuiButton_createShown (our windowForm, x, x + 74, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
-			U"提取选区", gui_cb_topButton_extractSelection, this, 0);
-		x += 74 + 4;
-		our topButton_saveWav         = GuiButton_createShown (our windowForm, x, x + 84, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
-			U"另存为 WAV", gui_cb_topButton_saveWav, this, 0);
+		bool hasSound = false;
+		for (integer iarea = 1; iarea <= FunctionEditor_MAXIMUM_NUMBER_OF_FUNCTION_AREAS; iarea ++) {
+			if (our functionAreas [iarea]) {
+				conststring32 cname = Thing_className (our functionAreas [iarea].get());
+				if (str32equ (cname, U"SoundArea") || str32equ (cname, U"LongSoundArea")) {
+					hasSound = true;
+					break;
+				}
+			}
+		}
+		if (hasSound) {
+			our topButton_extractSelection= GuiButton_createShown (our windowForm, x, x + 74, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
+				praat_translate (U"Extract selection"), gui_cb_topButton_extractSelection, this, 0);
+			x += 74 + 4;
+			our topButton_saveWav         = GuiButton_createShown (our windowForm, x, x + 84, topBarY, topBarY + TOP_TOOLBAR_ROW_HEIGHT,
+				praat_translate (U"Save as WAV..."), gui_cb_topButton_saveWav, this, 0);
+		}
 	}
 
 	/*
